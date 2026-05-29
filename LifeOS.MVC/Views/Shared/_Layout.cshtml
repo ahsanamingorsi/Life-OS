@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Life OS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/css/lifeos.css" asp-append-version="true" rel="stylesheet" />
+</head>
+<body>
+
+    <!-- Mobile overlay -->
+    <div id="nav-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:199; backdrop-filter:blur(2px);"
+         onclick="this.classList.toggle('active'); document.querySelector('.los-sidebar')?.classList.remove('open');">
+    </div>
+    <style>
+            #nav-overlay.active { display:block !important; }
+    </style>
+
+    <div class="los-shell">
+
+        <!-- ══ SIDEBAR ══════════════════════════════════════════════════ -->
+        <aside class="los-sidebar">
+            <div class="los-sidebar-brand">
+                <div class="los-brand-icon">⬡</div>
+                <div class="los-brand-text">
+                    <div class="los-brand-name">Life OS</div>
+                    <div class="los-brand-tagline">Personal Control System</div>
+                </div>
+            </div>
+
+            <nav class="los-sidebar-nav">
+
+                <div class="los-nav-group">
+                    <span class="los-nav-group-label">Overview</span>
+                    <a class="los-nav-link" href="/">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".9" />
+                                <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5" />
+                                <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5" />
+                                <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5" />
+                            </svg>
+                        </span>
+                        Dashboard
+                    </a>
+                </div>
+
+                <div class="los-nav-group">
+                    <span class="los-nav-group-label">Productivity</span>
+                    <a class="los-nav-link" href="/Habits">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5" />
+                                <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Habits & Streaks
+                    </a>
+                    <a class="los-nav-link" href="/PersonalTasks">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        Personal Tasks
+                    </a>
+                    <a class="los-nav-link" href="/Projects">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                                <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                                <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                                <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                            </svg>
+                        </span>
+                        Projects Hub
+                    </a>
+                    <a class="los-nav-link" href="/TechGrowth">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 12L6 7l3 3 2-2.5L14 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Tech Growth
+                    </a>
+                </div>
+
+                <div class="los-nav-group">
+                    <span class="los-nav-group-label">Daily Life</span>
+                    <a class="los-nav-link" href="/Health">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 13.5C8 13.5 2 10 2 5.5C2 3.567 3.567 2 5.5 2C6.575 2 7.538 2.49 8 3.261C8.462 2.49 9.425 2 10.5 2C12.433 2 14 3.567 14 5.5C14 10 8 13.5 8 13.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Health & Body
+                    </a>
+                    <a class="los-nav-link" href="/Mind">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="8" cy="6" r="3.5" stroke="currentColor" stroke-width="1.5" />
+                                <path d="M4 13c0-2.209 1.79-4 4-4s4 1.791 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        Mind & Habits
+                    </a>
+                    <a class="los-nav-link" href="/Spiritual">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 2l1.5 3.5L13 6l-2.5 2.5.5 3.5L8 10.5 5 12l.5-3.5L3 6l3.5-.5L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Spiritual
+                    </a>
+                </div>
+
+                <div class="los-nav-group">
+                    <span class="los-nav-group-label">Self Development</span>
+                    <a class="los-nav-link" href="/PersonalUpgrade">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        Personal Upgrade
+                    </a>
+                    <a class="los-nav-link" href="/Review">
+                        <span class="los-nav-icon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
+                                <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        Weekly Review
+                    </a>
+                </div>
+
+            </nav>
+
+            <div class="los-sidebar-footer">
+                <div class="los-sidebar-date" id="sidebar-date"></div>
+                <div class="los-sidebar-day" id="sidebar-day"></div>
+            </div>
+        </aside>
+
+        <!-- ══ MAIN ═════════════════════════════════════════════════════ -->
+        <div class="los-main">
+
+            <!-- Topbar -->
+            <header class="los-topbar">
+                <button id="nav-toggle" class="btn-los btn-ghost btn-icon d-lg-none" style="margin-left: -4px;">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                </button>
+
+                <div class="los-topbar-breadcrumb">
+                    <span>Life OS</span>
+                    <span class="los-topbar-sep">/</span>
+                    <span>@(ViewData["Title"] ?? "Dashboard")</span>
+                </div>
+
+                <div class="los-topbar-right">
+                    <span class="los-topbar-date-pill" id="topbar-date"></span>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="los-content">
+                @RenderBody()
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/lifeos.js" asp-append-version="true"></script>
+    <script>
+        // Sidebar date
+        const now = new Date();
+        const opts1 = { weekday: 'long' };
+        const opts2 = { month: 'short', day: 'numeric', year: 'numeric' };
+        document.getElementById('sidebar-date').textContent = now.toLocaleDateString('en-US', opts2);
+        document.getElementById('sidebar-day').textContent = now.toLocaleDateString('en-US', opts1);
+        document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

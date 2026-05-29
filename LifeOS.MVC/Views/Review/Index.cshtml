@@ -1,0 +1,141 @@
+﻿@model List<LifeOS.MVC.Models.ReviewEntry>
+@{
+    ViewData["Title"] = "Weekly Review";
+}
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Weekly & Monthly Review</div>
+        <div class="los-page-subtitle">Reflect honestly. Improve relentlessly.</div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addReviewPanel">+ New Review</button>
+    </div>
+</div>
+
+<div class="collapse" id="addReviewPanel">
+    <div class="los-panel">
+        <div class="los-panel-title">New Review Entry</div>
+        <form method="post" asp-action="Add" asp-controller="Review">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Period</label>
+                        <select name="Period" class="form-control">
+                            <option>Weekly</option>
+                            <option>Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input name="StartDate" type="date" class="form-control" required />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input name="EndDate" type="date" class="form-control" required />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Score (1–10)</label>
+                        <input name="OverallScore" type="number" min="1" max="10" class="form-control" value="7" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">🏆 Wins this period</label>
+                        <textarea name="Wins" class="form-control" placeholder="What went well? What are you proud of?"></textarea>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">❌ Missed or fell short</label>
+                        <textarea name="MissedGoals" class="form-control" placeholder="What didn't get done? What slipped?"></textarea>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">📝 Notes & observations</label>
+                        <textarea name="Notes" class="form-control" placeholder="Patterns noticed, feelings, context..."></textarea>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">💡 What I'll do differently</label>
+                        <textarea name="ImprovementSuggestions" class="form-control" placeholder="Concrete changes to implement next period..."></textarea>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addReviewPanel">Cancel</button>
+                    <button type="submit" class="btn-los btn-primary">Save Review</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="los-card">
+        <div class="empty-state">
+            <div class="empty-state-title">No reviews yet</div>
+            <div class="empty-state-desc">Weekly reviews are the most powerful habit for growth. Set aside 20 minutes each Sunday to reflect honestly.</div>
+            <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addReviewPanel">Write First Review</button>
+        </div>
+    </div>
+}
+
+@foreach (var r in Model)
+{
+    string scoreColor = r.OverallScore >= 8 ? "var(--green)" : r.OverallScore >= 5 ? "var(--amber)" : "var(--rose)";
+    <div class="review-card">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+            <div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span class="badge @(r.Period == "Weekly" ? "badge-indigo" : "badge-teal")">@r.Period</span>
+                    <span style="font-family:'Instrument Serif',serif; font-size:1.05rem; color:var(--text-primary);">@r.StartDate.ToString("MMM d") – @r.EndDate.ToString("MMM d, yyyy")</span>
+                </div>
+                <div style="font-size:0.78rem; color:var(--text-tertiary);">Reviewed @r.CreatedAt.ToString("MMM d, yyyy")</div>
+            </div>
+            <div style="text-align:center;">
+                <div class="review-score" style="color:@scoreColor">@r.OverallScore</div>
+                <div style="font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text-disabled);">/ 10</div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            @if (!string.IsNullOrEmpty(r.Wins))
+            {
+                <div class="col-md-6">
+                    <div style="padding:12px 14px; background:var(--green-soft); border-radius:var(--radius-md); border-left:3px solid var(--green);">
+                        <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--green); margin-bottom:5px;">🏆 Wins</div>
+                        <div style="font-size:0.845rem; color:var(--text-secondary); white-space:pre-line;">@r.Wins</div>
+                    </div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(r.MissedGoals))
+            {
+                <div class="col-md-6">
+                    <div style="padding:12px 14px; background:var(--rose-soft); border-radius:var(--radius-md); border-left:3px solid var(--rose);">
+                        <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--rose); margin-bottom:5px;">❌ Missed Goals</div>
+                        <div style="font-size:0.845rem; color:var(--text-secondary); white-space:pre-line;">@r.MissedGoals</div>
+                    </div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(r.ImprovementSuggestions))
+            {
+                <div class="col-12">
+                    <div style="padding:12px 14px; background:var(--sky-soft); border-radius:var(--radius-md); border-left:3px solid var(--sky);">
+                        <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--sky); margin-bottom:5px;">💡 Improvements</div>
+                        <div style="font-size:0.845rem; color:var(--text-secondary); white-space:pre-line;">@r.ImprovementSuggestions</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

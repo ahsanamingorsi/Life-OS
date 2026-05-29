@@ -1,0 +1,62 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\USER\\source\\repos\\Life OS\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\techgrowth\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\techgrowth\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\review\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\review\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\TechGrowth\\Index.cshtml",
+              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\TechGrowth\\Index.cshtml",
+              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\TechGrowth\\Index.cshtml",
+              "RelativeToolTip": "LifeOS.MVC\\Views\\TechGrowth\\Index.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-05-29T06:27:23.43Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Review\\Index.cshtml",
+              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\Review\\Index.cshtml",
+              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Review\\Index.cshtml",
+              "RelativeToolTip": "LifeOS.MVC\\Views\\Review\\Index.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-05-29T06:20:52.426Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

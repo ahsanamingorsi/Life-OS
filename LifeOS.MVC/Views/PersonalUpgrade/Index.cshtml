@@ -1,0 +1,129 @@
+﻿@model List<LifeOS.MVC.Models.PersonalGoal>
+@{
+    ViewData["Title"] = "Personal Upgrade";
+}
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Personal Upgrade</div>
+        <div class="los-page-subtitle">Elevate your standards. Become the best version of yourself.</div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">+ Add Goal</button>
+    </div>
+</div>
+
+<div class="collapse" id="addGoalPanel">
+    <div class="los-panel">
+        <div class="los-panel-title">New Personal Goal</div>
+        <form method="post" asp-action="Add" asp-controller="PersonalUpgrade">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label class="form-label">Goal *</label>
+                        <input name="Goal" class="form-control" required placeholder="e.g. Maintain professional grooming daily" maxlength="200" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="Category" class="form-control">
+                            <option>Grooming</option>
+                            <option>Confidence</option>
+                            <option>Lifestyle</option>
+                            <option>Standard</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Progress %</label>
+                        <input name="ProgressPercent" type="number" min="0" max="100" class="form-control" value="0" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input name="Notes" class="form-control" placeholder="Optional" maxlength="300" />
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">Cancel</button>
+                    <button type="submit" class="btn-los btn-primary">Save Goal</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@{
+    int avgGoalProgress = Model.Any() ? (int)Model.Average(g => g.ProgressPercent) : 0; int achievedCount = Model.Count(g => g.IsAchieved);
+}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-violet"></div><div class="los-kpi-value">@Model.Count</div><div class="los-kpi-label">Total Goals</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-green"></div><div class="los-kpi-value" style="color:var(--green)">@achievedCount</div><div class="los-kpi-label">Achieved</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-rose"></div><div class="los-kpi-value" style="color:var(--rose)">@(Model.Count - achievedCount)</div><div class="los-kpi-label">In Progress</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-indigo">%</div><div class="los-kpi-value" style="color:var(--accent)">@avgGoalProgress%</div><div class="los-kpi-label">Avg Progress</div></div></div>
+</div>
+
+@foreach (var cat in new[] { "Grooming", "Confidence", "Lifestyle", "Standard" })
+{
+    var catGoals = Model.Where(g => g.Category == cat).ToList();
+    if (!catGoals.Any()) continue;
+
+    <div class="los-section-label">@cat</div>
+    <div class="row g-3 mb-4">
+        @foreach (var g in catGoals)
+        {
+            <div class="col-lg-6">
+                <div class="los-card" style="@(g.IsAchieved ? "border-color:rgba(22,163,74,0.25);background:var(--green-soft);" : "")">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                        <div style="font-size:0.9rem; font-weight:600; color:@(g.IsAchieved ? "var(--green)" : "var(--text-primary)"); @(g.IsAchieved ? "text-decoration:line-through;" : "")">@g.Goal</div>
+                        <div style="display:flex; gap:4px; flex-shrink:0; margin-left:10px;">
+                            @if (g.IsAchieved)
+                            {
+                                <span class="badge badge-green">✓ Achieved</span>
+                            }
+                            <form method="post" asp-action="Delete" asp-controller="PersonalUpgrade">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@g.Id" />
+                                <button type="submit" class="btn-los btn-ghost btn-icon-sm" style="color:var(--rose);" data-confirm="Delete this goal?">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(g.Notes))
+                    {
+                        <div style="font-size:0.78rem; color:var(--text-tertiary); margin-bottom:10px;">@g.Notes</div>
+                    }
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                        <div class="los-progress" style="flex:1;">
+                            <div class="los-progress-bar @(g.ProgressPercent >= 75 ? "green" : g.ProgressPercent >= 40 ? "" : "rose")" data-width="@g.ProgressPercent"></div>
+                        </div>
+                        <span style="font-size:0.8rem; font-weight:600; color:var(--accent); min-width:36px; text-align:right;">@g.ProgressPercent%</span>
+                    </div>
+                    <form method="post" asp-action="UpdateProgress" asp-controller="PersonalUpgrade" class="d-flex gap-2 align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@g.Id" />
+                        <input name="progress" type="number" min="0" max="100" value="@g.ProgressPercent" class="form-control form-control-sm" style="width:72px;" />
+                        <label class="toggle-wrap" style="flex:1;">
+                            <div class="toggle" style="width:36px; height:20px;">
+                                <input name="achieved" type="checkbox" value="true" @(g.IsAchieved ? "checked" : "") />
+                                <div class="toggle-track"></div>
+                            </div>
+                            <span class="toggle-label">Achieved</span>
+                        </label>
+                        <button type="submit" class="btn-los btn-secondary btn-sm">Update</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="los-card"><div class="empty-state"><div class="empty-state-title">No goals yet</div><div class="empty-state-desc">Set personal standards and track your self-development journey.</div><button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">Add First Goal</button></div></div>
+}

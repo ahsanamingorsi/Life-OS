@@ -1,0 +1,179 @@
+﻿@model List<LifeOS.MVC.Models.TechSkill>
+@{
+    ViewData["Title"] = "Tech Growth";
+}
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Tech Growth</div>
+        <div class="los-page-subtitle">Track every skill. Own your learning roadmap.</div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">+ Add Skill</button>
+    </div>
+</div>
+
+<div class="collapse" id="addSkillPanel">
+    <div class="los-panel">
+        <div class="los-panel-title">New Skill</div>
+        <form method="post" asp-action="Add" asp-controller="TechGrowth">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Skill Name *</label>
+                        <input name="Name" class="form-control" required placeholder="e.g. Entity Framework Core" maxlength="100" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="Category" class="form-control">
+                            <option>Backend</option>
+                            <option>Frontend</option>
+                            <option>DevOps</option>
+                            <option>Database</option>
+                            <option>Tools</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Progress %</label>
+                        <input name="ProgressPercent" type="number" min="0" max="100" class="form-control" value="0" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Hours Logged</label>
+                        <input name="HoursLogged" type="number" step="0.5" min="0" class="form-control" value="0" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input name="Notes" class="form-control" placeholder="Optional" maxlength="500" />
+                    </div>
+                </div>
+                <div class="col-12 d-flex align-items-center gap-4 flex-wrap">
+                    <label class="toggle-wrap">
+                        <div class="toggle"><input name="IsCurrent" type="checkbox" value="true" /><div class="toggle-track"></div></div>
+                        <span class="toggle-label">Currently learning</span>
+                    </label>
+                    <label class="toggle-wrap">
+                        <div class="toggle"><input name="IsNext" type="checkbox" value="true" /><div class="toggle-track"></div></div>
+                        <span class="toggle-label">Up next</span>
+                    </label>
+                    <div class="ms-auto d-flex gap-2">
+                        <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">Cancel</button>
+                        <button type="submit" class="btn-los btn-primary">Save Skill</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Stats -->
+@{
+    double totalHours = Model.Sum(s => s.HoursLogged); int avgP = Model.Any() ? (int)Model.Average(s => s.ProgressPercent) : 0;
+}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-teal"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7l3 3 2-2.5L14 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div><div class="los-kpi-value">@Model.Count</div><div class="los-kpi-label">Skills Tracked</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-indigo"></div><div class="los-kpi-value">@Model.Count(s => s.IsCurrent)</div><div class="los-kpi-label">Currently Learning</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-amber">h</div><div class="los-kpi-value">@totalHours.ToString("F0")</div><div class="los-kpi-label">Total Hours</div></div></div>
+    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-green">%</div><div class="los-kpi-value" style="color:var(--green)">@avgP%</div><div class="los-kpi-label">Avg Progress</div></div></div>
+</div>
+
+@foreach (var cat in Model.Select(s => s.Category).Distinct().OrderBy(c => c))
+{
+    var catSkills = Model.Where(s => s.Category == cat).OrderByDescending(s => s.IsCurrent).ThenByDescending(s => s.ProgressPercent).ToList();
+    <div class="los-section-label">@cat</div>
+    <div class="los-card los-card-flush mb-4">
+        <table class="los-table">
+            <thead>
+                <tr><th>Skill</th><th>Progress</th><th>Hours</th><th>Status</th><th style="width:220px;">Update</th><th style="width:40px;"></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var s in catSkills)
+                {
+                    <tr>
+                        <td>
+                            <div style="font-weight:600; font-size:0.875rem;">@s.Name</div>
+                            <div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;">
+                                @if (s.IsCurrent)
+                                {
+                                    <span class="badge badge-indigo">Current</span>
+                                }
+                                @if (s.IsNext)
+                                {
+                                    <span class="badge badge-teal">Next</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(s.Notes))
+                            {
+                                <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:3px;">@s.Notes</div>
+                            }
+                        </td>
+                        <td style="min-width:140px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="los-progress" style="flex:1; height:5px;">
+                                    <div class="los-progress-bar teal" data-width="@s.ProgressPercent"></div>
+                                </div>
+                                <span style="font-size:0.78rem; font-weight:600; color:var(--teal); min-width:32px;">@s.ProgressPercent%</span>
+                            </div>
+                        </td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">@s.HoursLogged h</td>
+                        <td>
+                            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                @if (s.IsCurrent)
+                                {
+                                    <span class="badge badge-indigo">Learning</span>
+                                }
+                                else if (s.ProgressPercent >= 80)
+                                {
+
+                                    <span class="badge badge-green">Advanced</span>
+                                }
+                                else if (s.ProgressPercent >= 40)
+                                {
+
+                                    <span class="badge badge-amber">Intermediate</span>
+                                }
+                                else
+                                {
+
+                                    <span class="badge badge-neutral">Beginner</span>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <form method="post" asp-action="UpdateProgress" asp-controller="TechGrowth" class="d-flex gap-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@s.Id" />
+                                <input name="progress" type="number" min="0" max="100" value="@s.ProgressPercent" class="form-control form-control-sm" style="width:64px;" />
+                                <input name="hours" type="number" step="0.5" value="0" placeholder="+h" class="form-control form-control-sm" style="width:60px;" title="Add hours" />
+                                <button type="submit" class="btn-los btn-secondary btn-sm">✓</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" asp-action="Delete" asp-controller="TechGrowth">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@s.Id" />
+                                <button type="submit" class="btn-los btn-ghost btn-icon-sm" style="color:var(--rose);" data-confirm="Delete '@s.Name'?">
+                                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="los-card"><div class="empty-state"><div class="empty-state-title">No skills tracked yet</div><div class="empty-state-desc">Add the first skill on your learning roadmap.</div><button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">Add First Skill</button></div></div>
+}

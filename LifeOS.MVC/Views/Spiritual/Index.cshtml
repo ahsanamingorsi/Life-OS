@@ -1,0 +1,100 @@
+﻿@model LifeOS.MVC.Models.SpiritualEntry
+@{
+    ViewData["Title"] = "Spiritual"; int streak = (int)(ViewBag.Streak ?? 0);
+}
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Spiritual & Discipline</div>
+        <div class="los-page-subtitle">Prayers, gratitude, and spiritual consistency.</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="los-card">
+            <div class="los-card-title-lg" style="margin-bottom:18px;">Log Today</div>
+            <form method="post" asp-action="Save" asp-controller="Spiritual">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label class="form-label">Prayers Completed</label>
+                            <input name="PrayersDone" type="number" min="0" max="5" class="form-control" value="@Model.PrayersDone" />
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label class="form-label">Total Prayers</label>
+                            <input name="PrayersTotal" type="number" min="1" max="5" class="form-control" value="@(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal)" />
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Gratitude — What are you grateful for?</label>
+                            <textarea name="GratitudeNote" class="form-control" placeholder="Write 3 things you're grateful for today...">@Model.GratitudeNote</textarea>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Spiritual Reflection</label>
+                            <textarea name="ReflectionNote" class="form-control" placeholder="How was your day spiritually?">@Model.ReflectionNote</textarea>
+                        </div>
+                    </div>
+                    <div class="col-12" style="margin-top:4px;">
+                        <button type="submit" class="btn-los btn-primary w-100">Save Today</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="row g-4">
+            <!-- Streak -->
+            <div class="col-12">
+                <div class="los-card" style="background:linear-gradient(135deg,var(--amber-soft),var(--surface-1)); border-color:rgba(217,119,6,0.2);">
+                    <div style="display:flex; align-items:center; gap:20px;">
+                        <div class="streak-display">
+                            <div class="streak-flame">🕌</div>
+                            <div>
+                                <div class="streak-number">@streak</div>
+                                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber);">Perfect Days</div>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days where all prayers were completed on time. Consistency is the highest form of worship.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prayer Circles -->
+            <div class="col-12">
+                <div class="los-card">
+                    <div class="los-card-title" style="margin-bottom:14px;">Today's Prayers</div>
+                    @{
+                        string[] pNames = { "Fajr", "Dhuhr", "Asr", "Maghrib", "Isha" };
+                    }
+                    <div class="prayer-grid">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            <div class="prayer-circle @(i <= Model.PrayersDone ? "done" : "")">@pNames[i - 1]</div>
+                        }
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-tertiary); margin-top:12px;">
+                        @Model.PrayersDone of @(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal) prayers completed today
+                    </div>
+                    @if (Model.PrayersDone > 0 && !string.IsNullOrEmpty(Model.GratitudeNote))
+                    {
+                        <div style="margin-top:14px; padding:12px 14px; background:var(--amber-soft); border-radius:var(--radius-sm); border-left:3px solid var(--amber);">
+                            <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber); margin-bottom:4px;">Today's Gratitude</div>
+                            <div style="font-size:0.845rem; color:var(--text-secondary); font-style:italic;">@Model.GratitudeNote</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
