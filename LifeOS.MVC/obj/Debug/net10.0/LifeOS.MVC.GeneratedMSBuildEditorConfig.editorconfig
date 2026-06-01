@@ -31,6 +31,10 @@ build_property._RazorSourceGeneratorDebug =
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
+[C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Habits/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSGFiaXRzXEVkaXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Habits/History.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSGFiaXRzXEhpc3RvcnkuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
@@ -73,6 +77,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Shared/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Shared/_HabitCard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9IYWJpdENhcmQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Shared/_HabitCategoryPage.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9IYWJpdENhdGVnb3J5UGFnZS5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/USER/source/repos/Life OS/LifeOS.MVC/Views/Shared/_Navigation.cshtml]

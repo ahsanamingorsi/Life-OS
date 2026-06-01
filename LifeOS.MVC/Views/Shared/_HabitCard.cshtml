@@ -1,0 +1,115 @@
+﻿@model LifeOS.MVC.Models.HabitWithStreakViewModel
+@{
+    string returnUrl = ViewData["ReturnUrl"] as string ?? "/Habits";
+}
+
+<div class="habit-card @(Model.CompletedToday ? "is-done" : "")">
+
+    <!-- Top row: name + action buttons -->
+    <div class="habit-card-top">
+        <div style="flex:1; min-width:0;">
+            <div class="habit-card-name">
+                @if (Model.CompletedToday)
+                {
+                    <span style="margin-right:4px;">✓</span>
+                }
+                @Model.Habit.Name
+            </div>
+            <div style="display:flex; gap:5px; margin-top:5px; flex-wrap:wrap;">
+                <span class="badge badge-neutral">@Model.Habit.Category</span>
+                <span class="badge @(Model.Habit.Frequency == "Daily" ? "badge-indigo" : "badge-violet")">
+                    @Model.Habit.Frequency
+                </span>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.Habit.Description))
+            {
+                <div class="habit-card-desc">@Model.Habit.Description</div>
+            }
+        </div>
+
+        <div style="display:flex; gap:4px; flex-shrink:0; margin-left:10px;">
+            <a asp-action="History" asp-controller="Habits" asp-route-id="@Model.Habit.Id"
+               class="btn-los btn-ghost btn-xs" title="View history">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
+                    <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </a>
+            <a asp-action="Edit" asp-controller="Habits" asp-route-id="@Model.Habit.Id"
+               asp-route-returnUrl="@returnUrl"
+               class="btn-los btn-ghost btn-xs" title="Edit">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+                </svg>
+            </a>
+            <form method="post" asp-action="Delete" asp-controller="Habits" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Habit.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit" class="btn-los btn-ghost btn-xs" style="color:var(--rose);"
+                        data-confirm="Delete '@Model.Habit.Name'? All history will be lost."
+                        title="Delete">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 4h10M6 4V2h4v2M5 4l1 9h4l1-9" stroke="currentColor"
+                              stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Streak bar -->
+    <div class="habit-streak-row">
+        <div class="habit-streak-item current" style="flex:1; text-align:center;">
+            <div class="habit-streak-val">@Model.CurrentStreak</div>
+            <div class="habit-streak-lbl">Current</div>
+        </div>
+        <div style="width:1px; background:var(--border); margin:4px 0;"></div>
+        <div class="habit-streak-item best" style="flex:1; text-align:center;">
+            <div class="habit-streak-val">@Model.BestStreak</div>
+            <div class="habit-streak-lbl">Best</div>
+        </div>
+        <div style="flex:2; padding-left:12px; align-self:center;">
+            @{
+                int sPercent = Model.BestStreak > 0
+                    ? Math.Min(100, (int)((double)Model.CurrentStreak / Model.BestStreak * 100))
+                    : (Model.CurrentStreak > 0 ? 100 : 0);
+            }
+            <div class="los-progress">
+                <div class="los-progress-bar @(sPercent >= 100 ? "green" : "")"
+                     data-width="@sPercent"></div>
+            </div>
+            <div style="font-size:0.65rem; color:var(--text-disabled); margin-top:3px;">
+                @sPercent% of best
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete / undo -->
+    @if (!Model.CompletedToday)
+    {
+        <form method="post" asp-action="MarkComplete" asp-controller="Habits" class="d-flex gap-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="habitId" value="@Model.Habit.Id" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <input name="note" class="form-control form-control-sm" style="flex:1;"
+                   placeholder="Optional note..." />
+            <button type="submit" class="btn-los btn-primary btn-sm">✓ Done</button>
+        </form>
+    }
+    else
+    {
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:0.82rem; font-weight:500; color:var(--green);">✓ Completed today</span>
+            <form method="post" asp-action="UnmarkComplete" asp-controller="Habits">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="habitId" value="@Model.Habit.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit" class="btn-los btn-ghost btn-xs"
+                        style="color:var(--text-tertiary);">
+                    Undo
+                </button>
+            </form>
+        </div>
+    }
+</div>

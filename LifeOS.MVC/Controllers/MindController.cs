@@ -1,40 +1,51 @@
 ﻿using LifeOS.MVC.Data;
-using LifeOS.MVC.Models;
+using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace LifeOS.MVC.Controllers
 {
+    /// <summary>
+    /// Mind module — shows habits filtered to categories "Mind" and "Learning".
+    /// All CRUD goes through HabitsController.
+    /// </summary>
     public class MindController : Controller
     {
         private readonly AppDbContext _db;
-        public MindController(AppDbContext db) { _db = db; }
+        private readonly HealthController _healthCtrl; // reuses the builder
+
+        public MindController(AppDbContext db, ProductivityService productivity)
+        {
+            _db = db;
+            _healthCtrl = new HealthController(db, productivity);
+        }
 
         public async Task<IActionResult> Index()
         {
-            var today = DateTime.Today;
-            var todayEntry = await _db.HabitEntries.FirstOrDefaultAsync(h => h.Date == today);
-            var last7 = await _db.HabitEntries.Where(h => h.Date >= today.AddDays(-7)).OrderBy(h => h.Date).ToListAsync();
-            ViewBag.Last7 = last7;
-            return View(todayEntry ?? new HabitEntry());
-        }
+            // Mind page shows both "Mind" and "Learning" category habits
+            var mindVm = await _healthCtrl.BuildViewModelAsync(
+                "Mind",
+                "Mind & Learning",
+                "Sharpen your intellect. Build mental habits daily.");
 
-        [HttpPost]
-        public async Task<IActionResult> Save(HabitEntry entry)
-        {
-            var existing = await _db.HabitEntries.FirstOrDefaultAsync(h => h.Date == entry.Date);
-            if (existing == null) { _db.HabitEntries.Add(entry); }
-            else
+            // Merge in "Learning" category habits as well
+            var learningVm = await _healthCtrl.BuildViewModelAsync(
+                "Learning", "", "");
+
+            foreach (var h in learningVm.Habits)
             {
-                existing.PagesRead = entry.PagesRead;
-                existing.ReadingNote = entry.ReadingNote;
-                existing.CommunicationPractice = entry.CommunicationPractice;
-                existing.CreativityTask = entry.CreativityTask;
-                existing.LogicTask = entry.LogicTask;
-                existing.ReflectionNote = entry.ReflectionNote;
+                if (!mindVm.Habits.Any(x => x.Habit.Id == h.Habit.Id))
+                    mindVm.Habits.Add(h);
             }
-            await _db.SaveChangesAsync();
-            return RedirectToAction("Index");
+
+            foreach (var kv in learningVm.Last7DaysCompletion)
+            {
+                if (mindVm.Last7DaysCompletion.ContainsKey(kv.Key))
+                    mindVm.Last7DaysCompletion[kv.Key] += kv.Value;
+                else
+                    mindVm.Last7DaysCompletion[kv.Key] = kv.Value;
+            }
+
+            return View(mindVm);
         }
     }
 }

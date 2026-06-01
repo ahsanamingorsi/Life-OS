@@ -1,0 +1,207 @@
+﻿@model LifeOS.MVC.Models.HabitCategoryViewModel
+@* 
+   Shared partial — rendered by Health/Index.cshtml and Mind/Index.cshtml.
+   Do NOT render this directly; use it via @Html.PartialAsync.
+*@
+
+@if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
+@if (TempData["Info"] != null)    { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">@Model.PageTitle</div>
+        <div class="los-page-subtitle">@Model.PageSubtitle</div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addHabitInCategory">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            New Habit
+        </button>
+        <a href="/Habits" class="btn-los btn-secondary">All Habits</a>
+    </div>
+</div>
+
+<!-- Inline Add Form — category pre-selected, returnUrl = current page -->
+<div class="collapse" id="addHabitInCategory">
+    <div class="los-panel">
+        <div class="los-panel-title">New Habit in @Model.PageTitle</div>
+        <form method="post" asp-action="Create" asp-controller="Habits">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="/@(Model.Category == "Mind" ? "Mind" : "Health")" />
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Habit Name *</label>
+                        <input name="Name" class="form-control" required placeholder="@(Model.Category == "Health" ? "e.g. Morning Run, Drink Water" : "e.g. Read 20 pages, Meditate")" maxlength="150" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="Category" class="form-control">
+                            @foreach (var cat in Model.AllCategories)
+                            {
+                                <option value="@cat" selected="@(cat == Model.Category)">@cat</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Frequency</label>-
+                        <select name="Frequency" class="form-control"> 
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input name="Description" class="form-control" placeholder="Optional detail" maxlength="300" />
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addHabitInCategory">Cancel</button>
+                    <button type="submit" class="btn-los btn-primary">Save Habit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── STATS ROW ─────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-indigo">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value">@Model.TotalHabits</div>
+            <div class="los-kpi-label">Total Habits</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-green">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8l3 3 7-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value" style="color:var(--green)">@Model.DoneToday</div>
+            <div class="los-kpi-label">Done Today</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-amber">🔥</div>
+            <div class="los-kpi-value" style="color:var(--amber)">@Model.TopCurrentStreak</div>
+            <div class="los-kpi-label">Top Streak</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-violet">%</div>
+            <div class="los-kpi-value" style="color:@(Model.CompletionPercent >= 75 ? "var(--green)" : Model.CompletionPercent >= 40 ? "var(--amber)" : "var(--rose)")">
+                @Model.CompletionPercent%
+            </div>
+            <div class="los-kpi-label">Today's Rate</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 7-DAY HEATMAP ─────────────────────────────────────────────── -->
+@if (Model.Last7DaysCompletion.Any())
+{
+    <div class="los-card mb-4" style="padding:14px 20px;">
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.08em; min-width:80px;">Last 7 Days</span>
+            <div class="week-grid" style="flex:1; max-width:400px;">
+                @foreach (var kv in Model.Last7DaysCompletion.OrderBy(x => x.Key))
+                {
+                    int maxPossible = Math.Max(1, Model.TotalHabits);
+                    int level = (int)Math.Round((double)kv.Value / maxPossible * 4);
+                    level = Math.Min(4, Math.Max(0, level));
+                    <div class="week-cell done-@level" title="@kv.Key.ToString("MMM d"): @kv.Value/@maxPossible habits">
+                        @kv.Key.ToString("d")
+                    </div>
+                }
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:0.7rem; color:var(--text-disabled);">Less</span>
+                @for (int l = 0; l <= 4; l++)
+                {
+                    <div class="week-cell done-@l" style="width:16px; height:16px; flex-shrink:0;"></div>
+                }
+                <span style="font-size:0.7rem; color:var(--text-disabled);">More</span>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ── HABITS LIST ───────────────────────────────────────────────── -->
+@if (!Model.Habits.Any())
+{
+    <div class="los-card">
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                @if (Model.Category == "Health") { <span>💪</span> }
+                else { <span>🧠</span> }
+            </div>
+            <div class="empty-state-title">No @Model.Category habits yet</div>
+            <div class="empty-state-desc">
+                @if (Model.Category == "Health")
+                {
+                    <text>Build physical habits like workout, water intake, sleep tracking, diet — anything you want to track.</text>
+                }
+                else
+                {
+                    <text>Build mental habits like reading, meditation, journaling, language practice — whatever sharpens your mind.</text>
+                }
+            </div>
+            <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addHabitInCategory">
+                Add First @Model.Category Habit
+            </button>
+        </div>
+    </div>
+}
+else
+{
+  var dailyHabits = Model.Habits.Where(h => h.Habit.Frequency == "Daily").ToList(); 
+    @if (dailyHabits.Any())
+    {
+        <div class="los-section-label">Daily — @DateTime.Today.ToString("dddd, MMMM d")</div>
+        <div class="row g-3 mb-4">
+            @foreach (var item in dailyHabits)
+            {
+                <div class="col-lg-6">
+                    @await Html.PartialAsync("_HabitCard", item, new ViewDataDictionary(ViewData)
+                    {
+                        { "ReturnUrl", "/" + (Model.Category == "Mind" ? "Mind" : "Health") }
+                    })
+                </div>
+            }
+        </div>
+    }
+
+     var weeklyHabits = Model.Habits.Where(h => h.Habit.Frequency == "Weekly").ToList(); 
+    @if (weeklyHabits.Any())
+    {
+        <div class="los-section-label">Weekly</div>
+        <div class="row g-3 mb-4">
+            @foreach (var item in weeklyHabits)
+            {
+                <div class="col-lg-6">
+                    @await Html.PartialAsync("_HabitCard", item, new ViewDataDictionary(ViewData)
+                    {
+                        { "ReturnUrl", "/" + (Model.Category == "Mind" ? "Mind" : "Health") }
+                    })
+                </div>
+            }
+        </div>
+    }
+}

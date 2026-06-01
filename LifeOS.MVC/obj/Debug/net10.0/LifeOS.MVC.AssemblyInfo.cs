@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LifeOS.MVC")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+02783ba7af7718731f632d4138878a87eeab601e")]
 [assembly: System.Reflection.AssemblyProductAttribute("LifeOS.MVC")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LifeOS.MVC")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

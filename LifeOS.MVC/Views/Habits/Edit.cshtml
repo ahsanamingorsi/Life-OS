@@ -1,0 +1,72 @@
+﻿@model LifeOS.MVC.Models.Habit
+@{ ViewData["Title"] = "Edit Habit"; string returnUrl = ViewBag.ReturnUrl ?? "/Habits"; }
+
+<div class="los-page-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <a href="@returnUrl" class="btn-los btn-secondary btn-sm">← Back</a>
+        <div>
+            <div class="los-page-title">Edit Habit</div>
+            <div class="los-page-subtitle">Created @Model.CreatedAt.ToString("MMMM d, yyyy")</div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="los-card">
+            <div class="los-card-title-lg" style="margin-bottom:20px;">Habit Details</div>
+            <form method="post" asp-action="Edit" asp-controller="Habits">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@Model.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Habit Name *</label>
+                            <input name="Name" class="form-control" value="@Model.Name" required maxlength="150" />
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="Category" class="form-control">
+                                @foreach (var c in new[] { "Health","Mind","Learning","Spiritual","Productivity","General" })
+                                {
+                                    <option value="@c" selected="@(Model.Category == c)">@c</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label class="form-label">Frequency</label>
+                            <select name="Frequency" class="form-control">
+                                <option value="Daily" selected="@(Model.Frequency == "Daily")">Daily</option>
+                                <option value="Weekly" selected="@(Model.Frequency == "Weekly")">Weekly</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input name="Description" class="form-control" value="@Model.Description" maxlength="300" />
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="toggle-wrap">
+                            <div class="toggle">
+                                <input type="checkbox" name="IsActive" value="true" @(Model.IsActive ? "checked" : "") />
+                                <div class="toggle-track"></div>
+                            </div>
+                            <span class="toggle-label">Active habit</span>
+                        </label>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end gap-2" style="margin-top:4px;">
+                        <a href="@returnUrl" class="btn-los btn-secondary">Cancel</a>
+                        <button type="submit" class="btn-los btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

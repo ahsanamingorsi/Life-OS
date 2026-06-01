@@ -1,11 +1,10 @@
-﻿
-using LifeOS.MVC.Data;
+﻿using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace LifeOS.Controllers
+namespace LifeOS.MVC.Controllers
 {
     public class HabitsController : Controller
     {
@@ -20,47 +19,47 @@ namespace LifeOS.Controllers
             _productivity = productivity;
         }
 
-        // ── INDEX ────────────────────────────────────────────────────────
+        // ── INDEX ────────────────────────────────────────────────────
         public async Task<IActionResult> Index()
         {
             var score = await _productivity.GetDailyScoreAsync();
             return View(score);
         }
 
-        // ── CREATE ───────────────────────────────────────────────────────
+        // ── CREATE ───────────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Habit habit)
+        public async Task<IActionResult> Create(Habit habit, string? returnUrl)
         {
-            if (!ModelState.IsValid)
-                return RedirectToAction("Index");
-
             habit.CreatedAt = DateTime.Now;
             habit.IsActive = true;
             _db.Habits.Add(habit);
             await _db.SaveChangesAsync();
 
-            // Seed an empty streak row immediately
             _db.Streaks.Add(new Streak { HabitId = habit.Id });
             await _db.SaveChangesAsync();
 
-            await _productivity.LogActivityAsync("Habit", habit.Id, "Created", $"Habit '{habit.Name}' created");
+            await _productivity.LogActivityAsync("Habit", habit.Id, "Created",
+                $"Habit '{habit.Name}' created");
+
             TempData["Success"] = $"Habit '{habit.Name}' added.";
-            return RedirectToAction("Index");
+            return Redirect(GetSafeReturnUrl(returnUrl));
         }
 
-        // ── EDIT GET ─────────────────────────────────────────────────────
-        public async Task<IActionResult> Edit(int id)
+        // ── EDIT GET ─────────────────────────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id, string? returnUrl)
         {
             var habit = await _db.Habits.FindAsync(id);
             if (habit == null) return NotFound();
-            return PartialView("_EditHabitModal", habit);
+            ViewBag.ReturnUrl = returnUrl ?? "/Habits";
+            return View(habit);
         }
 
-        // ── EDIT POST ────────────────────────────────────────────────────
+        // ── EDIT POST ────────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Habit updated)
+        public async Task<IActionResult> Edit(Habit updated, string? returnUrl)
         {
             var habit = await _db.Habits.FindAsync(updated.Id);
             if (habit == null) return NotFound();
@@ -72,41 +71,45 @@ namespace LifeOS.Controllers
             habit.IsActive = updated.IsActive;
 
             await _db.SaveChangesAsync();
-            await _productivity.LogActivityAsync("Habit", habit.Id, "Updated", $"Habit '{habit.Name}' updated");
-            TempData["Success"] = $"Habit '{habit.Name}' updated.";
-            return RedirectToAction("Index");
+            await _productivity.LogActivityAsync("Habit", habit.Id, "Updated",
+                $"Habit '{habit.Name}' updated");
+
+            TempData["Success"] = $"'{habit.Name}' updated.";
+            return Redirect(GetSafeReturnUrl(returnUrl));
         }
 
-        // ── DELETE ───────────────────────────────────────────────────────
+        // ── DELETE ───────────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, string? returnUrl)
         {
             var habit = await _db.Habits.FindAsync(id);
             if (habit == null) return NotFound();
 
             string name = habit.Name;
-            _db.Habits.Remove(habit); // cascade deletes logs + streak
+            _db.Habits.Remove(habit);
             await _db.SaveChangesAsync();
 
-            await _productivity.LogActivityAsync("Habit", id, "Deleted", $"Habit '{name}' deleted");
-            TempData["Success"] = $"Habit '{name}' removed.";
-            return RedirectToAction("Index");
+            await _productivity.LogActivityAsync("Habit", id, "Deleted",
+                $"Habit '{name}' deleted");
+
+            TempData["Success"] = $"'{name}' removed.";
+            return Redirect(GetSafeReturnUrl(returnUrl));
         }
 
-        // ── MARK COMPLETE ────────────────────────────────────────────────
+        // ── MARK COMPLETE ────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarkComplete(int habitId, string? note)
+        public async Task<IActionResult> MarkComplete(int habitId, string? note, string? returnUrl)
         {
             var habit = await _db.Habits.FindAsync(habitId);
             if (habit == null) return NotFound();
 
             var today = DateTime.Today;
-            bool alreadyDone = await _db.HabitLogs
+            bool already = await _db.HabitLogs
                 .AnyAsync(l => l.HabitId == habitId && l.CompletedDate.Date == today);
 
-            if (!alreadyDone)
+            if (!already)
             {
                 _db.HabitLogs.Add(new HabitLog
                 {
@@ -116,25 +119,23 @@ namespace LifeOS.Controllers
                     LoggedAt = DateTime.Now
                 });
                 await _db.SaveChangesAsync();
-
                 await _streak.RecalculateAsync(habitId);
                 await _productivity.LogActivityAsync("Habit", habitId, "Completed",
-                    $"Habit '{habit.Name}' completed for {today:MMM d}");
-
+                    $"'{habit.Name}' completed");
                 TempData["Success"] = $"'{habit.Name}' marked complete!";
             }
             else
             {
-                TempData["Info"] = $"'{habit.Name}' already completed today.";
+                TempData["Info"] = $"'{habit.Name}' already done today.";
             }
 
-            return RedirectToAction("Index");
+            return Redirect(GetSafeReturnUrl(returnUrl));
         }
 
-        // ── UNMARK COMPLETE ──────────────────────────────────────────────
+        // ── UNMARK COMPLETE ──────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UnmarkComplete(int habitId)
+        public async Task<IActionResult> UnmarkComplete(int habitId, string? returnUrl)
         {
             var today = DateTime.Today;
             var log = await _db.HabitLogs
@@ -147,14 +148,14 @@ namespace LifeOS.Controllers
                 await _db.SaveChangesAsync();
                 await _streak.RecalculateAsync(habitId);
                 await _productivity.LogActivityAsync("Habit", habitId, "Uncompleted",
-                    $"Habit '{habit?.Name}' unmarked for {today:MMM d}");
+                    $"'{habit?.Name}' unmarked");
                 TempData["Info"] = "Habit unmarked.";
             }
 
-            return RedirectToAction("Index");
+            return Redirect(GetSafeReturnUrl(returnUrl));
         }
 
-        // ── HISTORY ──────────────────────────────────────────────────────
+        // ── HISTORY ──────────────────────────────────────────────────
         public async Task<IActionResult> History(int id)
         {
             var habit = await _db.Habits
@@ -164,6 +165,15 @@ namespace LifeOS.Controllers
 
             if (habit == null) return NotFound();
             return View(habit);
+        }
+
+        // ── HELPER ───────────────────────────────────────────────────
+        private string GetSafeReturnUrl(string? url)
+        {
+            if (string.IsNullOrEmpty(url)) return "/Habits";
+            // Only allow relative URLs to prevent open redirect
+            if (url.StartsWith("/") && !url.StartsWith("//")) return url;
+            return "/Habits";
         }
     }
 }

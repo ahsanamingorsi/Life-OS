@@ -174,46 +174,43 @@
 
     <!-- Daily Snapshot -->
     <div class="col-lg-3 anim-fade-up anim-delay-4">
-        <!-- Today's Health -->
+        <!-- Today's Health — now shows Health-category habits -->
         <div class="los-card mb-4">
-            <div class="los-card-title" style="margin-bottom:12px;">Today's Health</div>
-            @if (Model.TodayHealth == null)
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div class="los-card-title">Health Today</div>
+                <a href="/Health" class="btn-los btn-ghost btn-xs" style="color:var(--accent);">Manage →</a>
+            </div>
+            @if (Model.HealthProgress == 0 && Model.TodayHabitsTotal == 0)
             {
-                <div style="font-size:0.82rem; color:var(--text-tertiary); margin-bottom:10px;">Not logged yet.</div>
-                <a href="/Health" class="btn-los btn-primary btn-sm w-100">Log Now</a>
+                <div style="font-size:0.82rem; color:var(--text-tertiary); margin-bottom:10px;">
+                    No health habits set up yet.
+                </div>
+                <a href="/Health" class="btn-los btn-primary btn-sm w-100">Set Up Health Habits</a>
             }
             else
             {
-                var h = Model.TodayHealth;
-                var items = new[]
-                {
-                    ("Workout", h.WorkoutDone, h.WorkoutDone ? "green" : "rose"),
-                    ("Diet", h.DietClean, h.DietClean ? "green" : "rose"),
-                };
-                foreach (var item in items)
-                {
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border);">
-                        <span style="font-size:0.82rem; color:var(--text-secondary);">@item.Item1</span>
-                        <span class="badge badge-@item.Item3">@(item.Item2 ? "Done" : "Missed")</span>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+                    <div style="flex:1;">
+                        <div class="los-progress los-progress-lg">
+                            <div class="los-progress-bar green"
+                                 data-width="@Model.HealthProgress"></div>
+                        </div>
                     </div>
-                }
-                <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border);">
-                    <span style="font-size:0.82rem; color:var(--text-secondary);">Water</span>
-                    <span style="font-size:0.82rem; font-weight:600;">@h.WaterLiters L</span>
+                    <span style="font-size:0.9rem; font-weight:700;
+                        color:@(Model.HealthProgress >= 75 ? "var(--green)" : Model.HealthProgress >= 40 ? "var(--amber)" : "var(--rose)")">
+                        @Model.HealthProgress%
+                    </span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding:5px 0;">
-                    <span style="font-size:0.82rem; color:var(--text-secondary);">Sleep</span>
-                    <span style="font-size:0.82rem; font-weight:600;">@h.SleepHours hrs</span>
+                <div style="font-size:0.78rem; color:var(--text-tertiary);">
+                    Daily health habits completion
                 </div>
-                <div style="margin-top:10px;">
-                    <div class="los-progress">
-                        <div class="los-progress-bar green" data-width="@Model.HealthProgress"></div>
-                    </div>
-                    <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:4px; text-align:right;">@Model.HealthProgress% daily</div>
-                </div>
+                <a href="/Health" class="btn-los btn-ghost btn-xs"
+                   style="margin-top:10px; color:var(--accent); padding-left:0;">
+                    View & log habits →
+                </a>
             }
         </div>
-
+ 
         <!-- Prayers Today -->
         <div class="los-card">
             <div class="los-card-title" style="margin-bottom:12px;">Prayers Today</div>
