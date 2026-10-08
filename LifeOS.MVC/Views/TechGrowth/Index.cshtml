@@ -1,73 +1,125 @@
-﻿@model List<LifeOS.MVC.Models.TechSkill>
-@{
-    ViewData["Title"] = "Tech Growth";
-}
+@model LifeOS.MVC.Models.TechGrowthViewModel
+@{ ViewData["Title"] = "Skills"; }
+@await Html.PartialAsync("_LearningNavigation")
+
+
+@if (TempData["Success"] != null) { 
+<div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
+@if (TempData["Info"]    != null) { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
+@if (TempData["Error"]   != null) { <div class="los-alert los-alert-error">⚠ @TempData["Error"]</div> }
 
 <div class="los-page-header">
     <div>
-        <div class="los-page-title">Tech Growth</div>
-        <div class="los-page-subtitle">Track every skill. Own your learning roadmap.</div>
+        <div class="los-page-title">Skills</div>
+        <div class="los-page-subtitle">Practice something useful. Track your learning sessions.</div>
     </div>
     <div class="los-page-actions">
-        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">+ Add Skill</button>
+        <button class="btn-los btn-primary"
+                data-bs-toggle="collapse" data-bs-target="#addSkillPanel">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Add Skill
+        </button>
     </div>
 </div>
 
+<!-- ── ADD SKILL PANEL ───────────────────────────────────────────── -->
 <div class="collapse" id="addSkillPanel">
     <div class="los-panel">
-        <div class="los-panel-title">New Skill</div>
-        <form method="post" asp-action="Add" asp-controller="TechGrowth">
+        <div class="los-panel-title">Add New Skill to Roadmap</div>
+        <form method="post" asp-action="Create" asp-controller="TechGrowth">
             @Html.AntiForgeryToken()
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label class="form-label">Skill Name *</label>
-                        <input name="Name" class="form-control" required placeholder="e.g. Entity Framework Core" maxlength="100" />
+                        <input name="Name" class="form-control" required
+                               placeholder="e.g. Entity Framework Core" maxlength="100"/>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
                         <label class="form-label">Category</label>
                         <select name="Category" class="form-control">
-                            <option>Backend</option>
-                            <option>Frontend</option>
-                            <option>DevOps</option>
-                            <option>Database</option>
-                            <option>Tools</option>
-                            <option>Other</option>
+                            <option>Backend</option><option>Frontend</option>
+                            <option>DevOps</option><option>Database</option>
+                            <option>Mobile</option><option>Tools</option><option>Other</option>
                         </select>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
+                        <label class="form-label">Level</label>
+                        <select name="Level" class="form-control">
+                            <option>Beginner</option><option>Intermediate</option>
+                            <option>Advanced</option><option>Expert</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
                         <label class="form-label">Progress %</label>
-                        <input name="ProgressPercent" type="number" min="0" max="100" class="form-control" value="0" />
+                        <input name="ProgressPercent" type="number" min="0" max="100"
+                               class="form-control" value="0"/>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
-                        <label class="form-label">Hours Logged</label>
-                        <input name="HoursLogged" type="number" step="0.5" min="0" class="form-control" value="0" />
+                        <label class="form-label">Weekly Target (h)</label>
+                        <input name="WeeklyTargetHours" type="number" step="0.5" min="0"
+                               class="form-control" value="1"/>
                     </div>
                 </div>
                 <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Current Topic</label>
+                        <input name="CurrentTopic" class="form-control"
+                               placeholder="Where are you now?" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Resource (URL or name)</label>
+                        <input name="ResourceUrl" class="form-control"
+                               placeholder="https://... or book name" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Resource Label</label>
+                        <input name="ResourceName" class="form-control"
+                               placeholder="e.g. Udemy Course" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-4">
                     <div class="form-group">
                         <label class="form-label">Notes</label>
-                        <input name="Notes" class="form-control" placeholder="Optional" maxlength="500" />
+                        <input name="Notes" class="form-control"
+                               placeholder="Optional notes" maxlength="500"/>
                     </div>
                 </div>
                 <div class="col-12 d-flex align-items-center gap-4 flex-wrap">
                     <label class="toggle-wrap">
-                        <div class="toggle"><input name="IsCurrent" type="checkbox" value="true" /><div class="toggle-track"></div></div>
+                        <div class="toggle">
+                            <input name="IsCurrent" type="checkbox" value="true"/>
+                            <div class="toggle-track"></div>
+                        </div>
                         <span class="toggle-label">Currently learning</span>
                     </label>
                     <label class="toggle-wrap">
-                        <div class="toggle"><input name="IsNext" type="checkbox" value="true" /><div class="toggle-track"></div></div>
+                        <div class="toggle">
+                            <input name="IsNext" type="checkbox" value="true"/>
+                            <div class="toggle-track"></div>
+                        </div>
                         <span class="toggle-label">Up next</span>
                     </label>
                     <div class="ms-auto d-flex gap-2">
-                        <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">Cancel</button>
-                        <button type="submit" class="btn-los btn-primary">Save Skill</button>
+                        <button type="button" class="btn-los btn-secondary"
+                                data-bs-toggle="collapse" data-bs-target="#addSkillPanel">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-los btn-primary">Add to Roadmap</button>
                     </div>
                 </div>
             </div>
@@ -75,105 +127,602 @@
     </div>
 </div>
 
-<!-- Stats -->
-@{
-    double totalHours = Model.Sum(s => s.HoursLogged); int avgP = Model.Any() ? (int)Model.Average(s => s.ProgressPercent) : 0;
-}
+<!-- ── KPI ROW ───────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-teal"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7l3 3 2-2.5L14 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div><div class="los-kpi-value">@Model.Count</div><div class="los-kpi-label">Skills Tracked</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-indigo"></div><div class="los-kpi-value">@Model.Count(s => s.IsCurrent)</div><div class="los-kpi-label">Currently Learning</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-amber">h</div><div class="los-kpi-value">@totalHours.ToString("F0")</div><div class="los-kpi-label">Total Hours</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-green">%</div><div class="los-kpi-value" style="color:var(--green)">@avgP%</div><div class="los-kpi-label">Avg Progress</div></div></div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-indigo">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 12L6 7l3 3 2-2.5L14 4" stroke="currentColor"
+                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value">@Model.TotalSkills</div>
+            <div class="los-kpi-label">Skills</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-teal">h</div>
+            <div class="los-kpi-value" style="color:var(--teal)">
+                @Model.TotalHours.ToString("F0")
+            </div>
+            <div class="los-kpi-label">Total Hours</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-green">h</div>
+            <div class="los-kpi-value" style="color:var(--green)">
+                @Model.WeekHours.ToString("F1")
+            </div>
+            <div class="los-kpi-label">This Week</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-violet">%</div>
+            <div class="los-kpi-value" style="color:var(--violet)">@Model.AvgProgress%</div>
+            <div class="los-kpi-label">Avg Progress</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-amber">★</div>
+            <div class="los-kpi-value" style="color:var(--amber)">@Model.MasteredSkills</div>
+            <div class="los-kpi-label">Mastered (80%+)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-rose">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value">@Model.RecentLogs.Count</div>
+            <div class="los-kpi-label">Sessions (7d)</div>
+        </div>
+    </div>
 </div>
 
-@foreach (var cat in Model.Select(s => s.Category).Distinct().OrderBy(c => c))
+<!-- ── CURRENT SKILL HERO ────────────────────────────────────────── -->
+@if (Model.CurrentSkill != null)
 {
-    var catSkills = Model.Where(s => s.Category == cat).OrderByDescending(s => s.IsCurrent).ThenByDescending(s => s.ProgressPercent).ToList();
-    <div class="los-section-label">@cat</div>
-    <div class="los-card los-card-flush mb-4">
-        <table class="los-table">
-            <thead>
-                <tr><th>Skill</th><th>Progress</th><th>Hours</th><th>Status</th><th style="width:220px;">Update</th><th style="width:40px;"></th></tr>
-            </thead>
-            <tbody>
-                @foreach (var s in catSkills)
+    var cs = Model.CurrentSkill;
+    double weekH = Model.WeeklyHoursMap.TryGetValue(cs.Id, out double wh) ? wh : 0;
+    double weekTarget = cs.WeeklyTargetHours > 0 ? cs.WeeklyTargetHours : 1;
+    int weekPct = Math.Min(100, (int)(weekH / weekTarget * 100));
+
+    <div class="los-mission mb-4" style="background: linear-gradient(135deg, #4f46e5 0%, #0d9488 100%);border-radius:var(--r-lg);padding:20px 24px;">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-7">
+                <div style="font-size:.65rem; font-weight:700; text-transform:uppercase;
+                    letter-spacing:.14em; opacity:.7; margin-bottom:4px;" class="los-mission-eyebrow">
+                    Currently Learning
+                </div>
+                <div style ="font-size:1.2rem; font-weight:800; letter-spacing:-.02em; margin-bottom:4px;" class="los-mission-title">@cs.Name</div>
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                    <span style="background:rgba(255,255,255,0.15); color:white;
+                                 padding:2px 10px; border-radius:99px; font-size:0.72rem;
+                                 font-weight:600; letter-spacing:.06em;">
+                        @cs.Category
+                    </span>
+                    <span style="background:rgba(255,255,255,0.15); color:white;
+                                 padding:2px 10px; border-radius:99px; font-size:0.72rem;
+                                 font-weight:600; letter-spacing:.06em;">
+                        @cs.Level
+                    </span>
+                    @if (!string.IsNullOrEmpty(cs.CurrentTopic))
+                    {
+                        <span style="background:rgba(255,255,255,0.15); color:white;
+                                     padding:2px 10px; border-radius:99px; font-size:0.72rem;
+                                     font-weight:500;">
+                            📍 @cs.CurrentTopic
+                        </span>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(cs.ResourceName) || !string.IsNullOrEmpty(cs.ResourceUrl))
                 {
-                    <tr>
-                        <td>
-                            <div style="font-weight:600; font-size:0.875rem;">@s.Name</div>
-                            <div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;">
-                                @if (s.IsCurrent)
-                                {
-                                    <span class="badge badge-indigo">Current</span>
-                                }
-                                @if (s.IsNext)
-                                {
-                                    <span class="badge badge-teal">Next</span>
-                                }
-                            </div>
-                            @if (!string.IsNullOrEmpty(s.Notes))
-                            {
-                                <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:3px;">@s.Notes</div>
-                            }
-                        </td>
-                        <td style="min-width:140px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <div class="los-progress" style="flex:1; height:5px;">
-                                    <div class="los-progress-bar teal" data-width="@s.ProgressPercent"></div>
-                                </div>
-                                <span style="font-size:0.78rem; font-weight:600; color:var(--teal); min-width:32px;">@s.ProgressPercent%</span>
-                            </div>
-                        </td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">@s.HoursLogged h</td>
-                        <td>
-                            <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                                @if (s.IsCurrent)
-                                {
-                                    <span class="badge badge-indigo">Learning</span>
-                                }
-                                else if (s.ProgressPercent >= 80)
-                                {
-
-                                    <span class="badge badge-green">Advanced</span>
-                                }
-                                else if (s.ProgressPercent >= 40)
-                                {
-
-                                    <span class="badge badge-amber">Intermediate</span>
-                                }
-                                else
-                                {
-
-                                    <span class="badge badge-neutral">Beginner</span>
-                                }
-                            </div>
-                        </td>
-                        <td>
-                            <form method="post" asp-action="UpdateProgress" asp-controller="TechGrowth" class="d-flex gap-1">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <input name="progress" type="number" min="0" max="100" value="@s.ProgressPercent" class="form-control form-control-sm" style="width:64px;" />
-                                <input name="hours" type="number" step="0.5" value="0" placeholder="+h" class="form-control form-control-sm" style="width:60px;" title="Add hours" />
-                                <button type="submit" class="btn-los btn-secondary btn-sm">✓</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="post" asp-action="Delete" asp-controller="TechGrowth">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="btn-los btn-ghost btn-icon-sm" style="color:var(--rose);" data-confirm="Delete '@s.Name'?">
-                                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
+                    <div style="margin-top:10px;">
+                        @if (!string.IsNullOrEmpty(cs.ResourceUrl) &&
+                             (cs.ResourceUrl.StartsWith("http://") || cs.ResourceUrl.StartsWith("https://")))
+                        {
+                            <a href="@cs.ResourceUrl" target="_blank"
+                               style="color:rgba(255,255,255,0.8); font-size:0.82rem;
+                                      text-decoration:underline;">
+                                🔗 @(cs.ResourceName ?? cs.ResourceUrl)
+                            </a>
+                        }
+                        else if (!string.IsNullOrEmpty(cs.ResourceName))
+                        {
+                            <span style="color:rgba(255,255,255,0.7); font-size:0.82rem;">
+                                📚 @cs.ResourceName
+                            </span>
+                        }
+                    </div>
                 }
-            </tbody>
-        </table>
+            </div>
+            <div class="col-lg-5">
+                <!-- Overall progress -->
+                <div style="margin-bottom:14px;">
+                    <div class="skill-card-header" style="display:flex; justify-content:space-between;
+                                margin-bottom:5px; color:rgba(255,255,255,0.8);
+                                font-size:0.78rem;">
+                        <span>Overall Progress</span>
+                        <span style="font-weight:700; color:white;">@cs.ProgressPercent%</span>
+                    </div>
+                    <div style="height:8px; background:rgba(255,255,255,0.2);
+                                border-radius:99px; overflow:hidden;">
+                        <div style="height:100%; width:@cs.ProgressPercent%;
+                                    background:white; border-radius:99px;
+                                    transition:width .7s ease;"></div>
+                    </div>
+                </div>
+                <!-- Weekly progress -->
+                <div style="margin-bottom:16px;">
+                    <div class="skill-card-header" style="display:flex; justify-content:space-between;
+                                margin-bottom:5px; color:rgba(255,255,255,0.8);
+                                font-size:0.78rem;">
+                        <span>This Week</span>
+                        <span style="font-weight:700; color:white;">
+                            @weekH.ToString("F1") / @cs.WeeklyTargetHours h
+                        </span>
+                    </div>
+                    <div style="height:8px; background:rgba(255,255,255,0.2);
+                                border-radius:99px; overflow:hidden;">
+                        <div style="height:100%; width:@weekPct%;
+                                    background:rgba(255,255,255,0.9); border-radius:99px;
+                                    transition:width .7s ease;"></div>
+                    </div>
+                </div>
+                <!-- Stats -->
+                <div style="display:flex; gap:20px;">
+                    <div style="text-align:center;">
+                        <div style="font-family:'Instrument Serif',serif; font-size:1.5rem;
+                                    color:white; font-weight:400;">
+                            @cs.HoursLogged.ToString("F0")
+                        </div>
+                        <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase;
+                                    letter-spacing:.1em; color:rgba(255,255,255,0.6);">
+                            Total Hours
+                        </div>
+                    </div>
+                    <div style="width:1px; background:rgba(255,255,255,0.2);"></div>
+                    <div style="text-align:center;">
+                        <div style="font-family:'Instrument Serif',serif; font-size:1.5rem;
+                                    color:white; font-weight:400;">
+                            @cs.SkillLogs.Count
+                        </div>
+                        <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase;
+                                    letter-spacing:.1em; color:rgba(255,255,255,0.6);">
+                            Sessions
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 }
 
-@if (!Model.Any())
+<!-- ── LOG HOURS QUICK BAR ───────────────────────────────────────── -->
+@if (Model.Skills.Any())
 {
-    <div class="los-card"><div class="empty-state"><div class="empty-state-title">No skills tracked yet</div><div class="empty-state-desc">Add the first skill on your learning roadmap.</div><button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addSkillPanel">Add First Skill</button></div></div>
+    <div class="los-card mb-4" style="padding:14px 20px;">
+        <div class="los-card-title" style="margin-bottom:12px;">⏱ Log Study Session</div>
+        <form method="post" asp-action="LogHours" asp-controller="TechGrowth">
+            @Html.AntiForgeryToken()
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label">Skill</label>
+                        <select name="skillId" class="form-control">
+                            @foreach (var s in Model.Skills)
+                            {
+                                <option value="@s.Id" selected="@s.IsCurrent">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label class="form-label">Hours</label>
+                        <input name="hours" type="number" step="0.25" min="0"
+                               class="form-control" placeholder="1.5"/>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label class="form-label">Progress %</label>
+                        <input name="progress" type="number" min="0" max="100"
+                               class="form-control" placeholder="—" value="-1"/>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label">Topic Covered</label>
+                        <input name="topic" class="form-control"
+                               placeholder="What did you study?" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input name="logDate" type="date" class="form-control"
+                               value="@DateTime.Today.ToString("yyyy-MM-dd")"/>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn-los btn-primary w-100">Log Session</button>
+                </div>
+            </div>
+        </form>
+    </div>
 }
+
+@if (!Model.Skills.Any())
+{
+    <div class="los-card">
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M2 20h20M6 20V10m4 10V4m4 16v-7m4 7v-3"
+                          stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="empty-state-title">No skills on your roadmap yet</div>
+            <div class="empty-state-desc">
+                Add the technologies you're learning and track every hour of practice.
+                Small daily sessions compound into expertise.
+            </div>
+            <button class="btn-los btn-primary"
+                    data-bs-toggle="collapse" data-bs-target="#addSkillPanel">
+                Add First Skill
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <!-- ── NEXT UP STRIP ─────────────────────────────────────────── -->
+    @if (Model.NextSkills.Any())
+    {
+        <div style="margin-bottom:24px;">
+            <div class="los-section-label">Up Next</div>
+            <div class="row g-3">
+                @foreach (var s in Model.NextSkills)
+                {
+                    <div class="col-auto">
+                        <div style="display:flex; align-items:center; gap:10px; padding:8px 14px;
+                                    background:var(--surface-1); border:1px solid var(--border);
+                                    border-radius:var(--radius-md); box-shadow:var(--shadow-xs);">
+                            <div style="width:8px; height:8px; border-radius:50%;
+                                        background:var(--accent); flex-shrink:0;"></div>
+                            <div>
+                                <div style="font-size:0.85rem; font-weight:600;
+                                            color:var(--text-primary);">@s.Name</div>
+                                <div style="font-size:0.7rem; color:var(--text-tertiary);">
+                                    @s.Category
+                                </div>
+                            </div>
+                            <form method="post" asp-action="SetCurrent"
+                                  asp-controller="TechGrowth" style="margin-left:8px;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@s.Id"/>
+                                <button type="submit" class="btn-los btn-secondary btn-xs">
+                                    Start Learning
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ── SKILLS BY CATEGORY ────────────────────────────────────── -->
+    @foreach (var cat in Model.ByCategory)
+    {
+        <div class="los-section-label">@cat.Key</div>
+        <div class="row g-3 mb-4">
+            @foreach (var s in cat.Value)
+            {
+                double weekH  = Model.WeeklyHoursMap.TryGetValue(s.Id, out double wh) ? wh : 0;
+                double wTgt   = s.WeeklyTargetHours > 0 ? s.WeeklyTargetHours : 1;
+                int    wPct   = Math.Min(100, (int)(weekH / wTgt * 100));
+                string lvlColor = s.Level == "Expert" ? "var(--green)"
+                                : s.Level == "Advanced" ? "var(--teal)"
+                                : s.Level == "Intermediate" ? "var(--accent)"
+                                : "var(--text-tertiary)";
+
+                <div class="col-lg-6 col-xl-6">
+                    <div class="los-card skill-card"
+                         style="@(s.IsCurrent ? "border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-muted);" : "")
+                                position:relative; overflow:hidden;">
+
+                        <!-- Current indicator strip -->
+                        @if (s.IsCurrent)
+                        {
+                            <div style="position:absolute; top:0; left:0; right:0; height:3px;
+                                        background:linear-gradient(90deg,var(--accent),var(--teal));"></div>
+                        }
+
+                        <!-- Header -->
+                        <div class="skill-card-header" style="display:flex; justify-content:space-between;
+                                    align-items:flex-start; margin-bottom:10px; margin-top:@(s.IsCurrent?"6px":"0")">
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-size:0.95rem; font-weight:600;
+                                            color:var(--text-primary); margin-bottom:4px;">
+                                    @s.Name
+                                </div>
+                                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                    @if (s.IsCurrent)
+                                    {
+                                        <span class="badge badge-indigo">● Current</span>
+                                    }
+                                    @if (s.IsNext && !s.IsCurrent)
+                                    {
+                                        <span class="badge badge-teal">Next</span>
+                                    }
+                                    <span style="font-size:0.68rem; font-weight:600;
+                                                 color:@lvlColor;">@s.Level</span>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div style="display:flex; gap:3px; flex-shrink:0; margin-left:8px;">
+                                @if (!s.IsCurrent)
+                                {
+                                    <form method="post" asp-action="SetCurrent"
+                                          asp-controller="TechGrowth">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@s.Id"/>
+                                        <button type="submit" class="btn-los btn-ghost btn-xs"
+                                                title="Set as current"
+                                                style="color:var(--accent);">
+                                            ▶
+                                        </button>
+                                    </form>
+                                }
+                                <form method="post" asp-action="ToggleNext"
+                                      asp-controller="TechGrowth">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@s.Id"/>
+                                    <button type="submit" class="btn-los btn-ghost btn-xs"
+                                            title="@(s.IsNext ? "Remove from next" : "Mark as next")"
+                                            style="color:@(s.IsNext?"var(--teal)":"var(--text-disabled)");">
+                                        →
+                                    </button>
+                                </form>
+                                <a asp-action="Edit" asp-controller="TechGrowth"
+                                   asp-route-id="@s.Id"
+                                   class="btn-los btn-ghost btn-icon-sm" title="Edit">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                                        <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
+                                              stroke-width="1.4" stroke-linejoin="round"/>
+                                    </svg>
+                                </a>
+                                <form method="post" asp-action="Delete"
+                                      asp-controller="TechGrowth">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@s.Id"/>
+                                    <button type="submit" class="btn-los btn-ghost btn-icon-sm"
+                                            style="color:var(--rose);"
+                                            data-confirm="Delete '@s.Name'?">
+                                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                                            <path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor"
+                                                  stroke-width="1.4" stroke-linecap="round"
+                                                  stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Current topic -->
+                        @if (!string.IsNullOrEmpty(s.CurrentTopic))
+                        {
+                            <div style="font-size:0.75rem; padding:5px 9px;
+                                        background:var(--accent-soft); border-radius:var(--radius-sm);
+                                        color:var(--accent); margin-bottom:10px;">
+                                📍 @s.CurrentTopic
+                            </div>
+                        }
+
+                        <!-- Resource -->
+                        @if (!string.IsNullOrEmpty(s.ResourceUrl) || !string.IsNullOrEmpty(s.ResourceName))
+                        {
+                            <div style="font-size:0.72rem; color:var(--text-tertiary); margin-bottom:10px;">
+                                @if (s.ResourceUrl?.StartsWith("http") == true)
+                                {
+                                    <a href="@s.ResourceUrl" target="_blank"
+                                       style="color:var(--sky);">
+                                        🔗 @(s.ResourceName ?? s.ResourceUrl)
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span>📚 @(s.ResourceName ?? s.ResourceUrl)</span>
+                                }
+                            </div>
+                        }
+
+                        <!-- Overall progress -->
+                        <div style="margin-bottom:8px;">
+                            <div class="skill-card-header" style="display:flex; justify-content:space-between;
+                                        margin-bottom:4px;">
+                                <span style="font-size:0.72rem; color:var(--text-tertiary);">
+                                    Overall
+                                </span>
+                                <span style="font-size:0.78rem; font-weight:700;
+                                             color:@(s.ProgressPercent>=75?"var(--green)":s.ProgressPercent>=40?"var(--accent)":"var(--amber)")">
+                                    @s.ProgressPercent%
+                                </span>
+                            </div>
+                            <div class="los-progress">
+                                <div class="los-progress-bar @(s.ProgressPercent>=75?"green":s.ProgressPercent>=40?"":"amber")"
+                                     data-width="@s.ProgressPercent"></div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly progress -->
+                        <div style="margin-bottom:10px;">
+                            <div class="skill-card-header" style="display:flex; justify-content:space-between;
+                                        margin-bottom:4px;">
+                                <span style="font-size:0.72rem; color:var(--text-tertiary);">
+                                    This week
+                                </span>
+                                <span style="font-size:0.75rem; font-weight:600;
+                                             color:@(wPct>=100?"var(--green)":"var(--teal)")">
+                                    @weekH.ToString("F1") / @s.WeeklyTargetHours h
+                                    @(wPct >= 100 ? " ✓" : "")
+                                </span>
+                            </div>
+                            <div class="los-progress los-progress-sm">
+                                <div class="los-progress-bar teal"
+                                     data-width="@wPct"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats row -->
+                        <div style="display:flex; gap:12px; padding-top:8px;
+                                    border-top:1px solid var(--border);
+                                    font-size:0.72rem; color:var(--text-tertiary);">
+                            <span>
+                                <strong style="color:var(--text-primary);">
+                                    @s.HoursLogged.ToString("F0")h
+                                </strong> total
+                            </span>
+                            <span>
+                                <strong style="color:var(--text-primary);">
+                                    @s.SkillLogs.Count
+                                </strong> sessions
+                            </span>
+                            <span style="margin-left:auto; font-size:0.65rem; color:var(--text-disabled);">
+                                Updated @s.UpdatedAt.ToString("MMM d")
+                            </span>
+                        </div>
+
+                        <!-- Quick log for this skill (inline collapse) -->
+                        <div style="margin-top:10px;">
+                            <button class="btn-los btn-ghost btn-xs"
+                                    style="color:var(--accent); padding-left:0;"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#quickLog@s.Id">
+                                + Log Session
+                            </button>
+                            <div class="collapse" id="quickLog@s.Id">
+                                <form method="post" asp-action="LogHours"
+                                      asp-controller="TechGrowth"
+                                      style="margin-top:8px;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="skillId" value="@s.Id"/>
+                                    <div class="row g-2">
+                                        <div class="col-4">
+                                            <input name="hours" type="number" step="0.25"
+                                                   min="0.25" class="form-control form-control-sm"
+                                                   placeholder="Hours"/>
+                                        </div>
+                                        <div class="col-4">
+                                            <input name="progress" type="number" min="0"
+                                                   max="100" class="form-control form-control-sm"
+                                                   placeholder="% (opt)"
+                                                   value="@s.ProgressPercent"/>
+                                        </div>
+                                        <div class="col-4">
+                                            <button type="submit"
+                                                    class="btn-los btn-primary btn-sm w-100">
+                                                Log
+                                            </button>
+                                        </div>
+                                        <div class="col-12">
+                                            <input name="topic" class="form-control form-control-sm"
+                                                   placeholder="Topic covered (optional)"
+                                                   maxlength="200"/>
+                                        </div>
+                                        <input type="hidden" name="logDate"
+                                               value="@DateTime.Today.ToString("yyyy-MM-dd")"/>
+                                        <input type="hidden" name="notes" value=""/>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- ── RECENT SESSIONS LOG ───────────────────────────────────── -->
+    @if (Model.RecentLogs.Any())
+    {
+        <div class="los-section-label" style="margin-top:8px;">Recent Sessions (7 days)</div>
+        <div class="los-card">
+            <div class="los-table-wrap" style="border:none;">
+                <table class="los-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Skill</th>
+                            <th>Hours</th>
+                            <th>Topic</th>
+                            <th>Notes</th>
+                            <th style="width:50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model.RecentLogs)
+                        {
+                            <tr>
+                                <td style="color:var(--text-tertiary); font-size:0.8rem;">
+                                    @log.LogDate.ToString("MMM d")
+                                </td>
+                                <td style="font-weight:500;">@log.TechSkill?.Name</td>
+                                <td>
+                                    <span style="font-weight:700; color:var(--teal);">
+                                        @log.Hours h
+                                    </span>
+                                </td>
+                                <td style="font-size:0.82rem; color:var(--text-secondary);">
+                                    @(log.TopicCovered ?? "—")
+                                </td>
+                                <td style="font-size:0.75rem; color:var(--text-tertiary);
+                                           max-width:180px; overflow:hidden;
+                                           text-overflow:ellipsis; white-space:nowrap;">
+                                    @(log.Notes ?? "—")
+                                </td>
+                                <td>
+                                    <form method="post" asp-action="DeleteLog"
+                                          asp-controller="TechGrowth">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="logId" value="@log.Id"/>
+                                        <button type="submit"
+                                                class="btn-los btn-ghost btn-icon-sm"
+                                                style="color:var(--rose);"
+                                                data-confirm="Delete this log entry?
+This will subtract @log.Hours h from '@(log.TechSkill?.Name)'.">
+                                            <svg width="12" height="12"
+                                                 viewBox="0 0 16 16" fill="none">
+                                                <path d="M3 4h10M5 4l1 9h4l1-9"
+                                                      stroke="currentColor" stroke-width="1.4"
+                                                      stroke-linecap="round"
+                                                      stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+
+
+

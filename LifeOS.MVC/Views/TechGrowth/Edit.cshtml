@@ -1,0 +1,126 @@
+@model LifeOS.MVC.Models.TechSkill
+@{ ViewData["Title"] = "Edit Skill"; }
+@await Html.PartialAsync("_LearningNavigation")
+
+
+
+<div class="los-page-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <a asp-action="Index" class="btn-los btn-secondary btn-sm">← Back</a>
+        <div>
+            <div class="los-page-title">Edit Skill</div>
+            <div class="los-page-subtitle">Added @Model.CreatedAt.ToString("MMMM d, yyyy")</div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="los-card">
+            <div class="los-card-title-lg" style="margin-bottom:20px;">Skill Details</div>
+            <form method="post" asp-action="Edit" asp-controller="TechGrowth">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@Model.Id"/>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Skill Name *</label>
+                            <input name="Name" class="form-control" value="@Model.Name"
+                                   required maxlength="100"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="Category" class="form-control">
+                                @foreach (var c in new[]{"Backend","Frontend","DevOps","Database","Mobile","Tools","Other"})
+                                {
+                                    <option value="@c" selected="@(Model.Category == c)">@c</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Level</label>
+                            <select name="Level" class="form-control">
+                                @foreach (var l in new[]{"Beginner","Intermediate","Advanced","Expert"})
+                                {
+                                    <option value="@l" selected="@(Model.Level == l)">@l</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Progress %</label>
+                            <input name="ProgressPercent" type="number" min="0" max="100"
+                                   class="form-control" value="@Model.ProgressPercent"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Weekly Target Hours</label>
+                            <input name="WeeklyTargetHours" type="number" step="0.5" min="0"
+                                   class="form-control" value="@Model.WeeklyTargetHours"/>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Current Topic</label>
+                            <input name="CurrentTopic" class="form-control"
+                                   value="@Model.CurrentTopic"
+                                   placeholder="What are you studying right now?"/>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label class="form-label">Resource URL / Name</label>
+                            <input name="ResourceUrl" class="form-control"
+                                   value="@Model.ResourceUrl"
+                                   placeholder="https://... or book/course name"/>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Resource Label</label>
+                            <input name="ResourceName" class="form-control"
+                                   value="@Model.ResourceName"
+                                   placeholder="e.g. Udemy, Book"/>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="form-label">Notes</label>
+                            <textarea name="Notes" class="form-control">@Model.Notes</textarea>
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex gap-4 flex-wrap">
+                        <label class="toggle-wrap">
+                            <div class="toggle">
+                                <input type="checkbox" name="IsCurrent" value="true"
+                                       @(Model.IsCurrent?"checked":"")/>
+                                <div class="toggle-track"></div>
+                            </div>
+                            <span class="toggle-label">Currently learning</span>
+                        </label>
+                        <label class="toggle-wrap">
+                            <div class="toggle">
+                                <input type="checkbox" name="IsNext" value="true"
+                                       @(Model.IsNext?"checked":"")/>
+                                <div class="toggle-track"></div>
+                            </div>
+                            <span class="toggle-label">Up next</span>
+                        </label>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end gap-2" style="margin-top:4px;">
+                        <a asp-action="Index" class="btn-los btn-secondary">Cancel</a>
+                        <button type="submit" class="btn-los btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+

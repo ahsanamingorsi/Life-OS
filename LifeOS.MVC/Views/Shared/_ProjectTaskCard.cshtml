@@ -1,0 +1,178 @@
+﻿@model LifeOS.MVC.Models.ProjectTask
+@{
+    int projectId = (int)(ViewData["ProjectId"] ?? 0);
+    bool isOverdue = !Model.IsCompleted && Model.DueDate.HasValue
+                     && Model.DueDate.Value.Date < DateTime.Today;
+
+    string cardBg = Model.Status == "Done"
+        ? "background:var(--surface-1); opacity:.8;"
+        : Model.Status == "InProgress"
+            ? "background:var(--surface-1);"
+            : "background:var(--surface-1);";
+}
+
+<div style="@cardBg border:1px solid @(isOverdue ? "rgba(220,38,38,0.3)" : "var(--border)");
+    border-radius:var(--radius-md); padding:12px 14px;
+    box-shadow:var(--shadow-xs); transition:box-shadow .15s ease;">
+
+    <!-- Task title + priority -->
+    <div style="display:flex; align-items:flex-start; justify-content:space-between;
+        gap:8px; margin-bottom:6px;">
+        <div style="flex:1; min-width:0;">
+            <div style="font-size:0.845rem; font-weight:@(Model.IsCompleted ? "400" : "500");
+                color:@(Model.IsCompleted ? "var(--text-tertiary)" : "var(--text-primary)");
+                @(Model.IsCompleted ? "text-decoration:line-through;" : "")
+                line-height:1.4; word-break:break-word;">
+                @Model.Title
+            </div>
+        </div>
+        <span class="badge badge-priority-@Model.Priority.ToLower()" style="flex-shrink:0;">
+            @Model.Priority
+        </span>
+    </div>
+
+    <!-- Description -->
+    @if (!string.IsNullOrEmpty(Model.Description))
+    {
+        <div style="font-size:0.75rem; color:var(--text-tertiary);
+            margin-bottom:6px; line-height:1.5;">
+            @Model.Description
+        </div>
+    }
+
+    <!-- Meta row: due date + time estimate -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+        @if (Model.DueDate.HasValue)
+        {
+            <span style="font-size:0.7rem; font-weight:500;
+                color:@(isOverdue ? "var(--rose)" : "var(--text-disabled)");">
+                @(isOverdue ? "⚠ " : "")@Model.DueDate.Value.ToString("MMM d")
+            </span>
+        }
+        @if (Model.EstimatedMinutes.HasValue && Model.EstimatedMinutes > 0)
+        {
+            <span style="font-size:0.7rem; color:var(--text-disabled);">
+                ~@(Model.EstimatedMinutes / 60)h @(Model.EstimatedMinutes % 60)m est.
+            </span>
+        }
+        @if (Model.ActualMinutes.HasValue && Model.ActualMinutes > 0)
+        {
+            <span style="font-size:0.7rem; color:var(--teal);">
+                @(Model.ActualMinutes / 60)h @(Model.ActualMinutes % 60)m logged
+            </span>
+        }
+        @if (Model.IsCompleted && Model.CompletedAt.HasValue)
+        {
+            <span style="font-size:0.7rem; color:var(--green);">
+                ✓ @Model.CompletedAt.Value.ToString("MMM d")
+            </span>
+        }
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:center;">
+
+        <!-- Move status -->
+        @if (Model.Status != "InProgress" && Model.Status != "Done")
+        {
+            <form method="post" asp-action="MoveTask" asp-controller="Projects">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="taskId" value="@Model.Id" />
+                <input type="hidden" name="status" value="InProgress" />
+                <button type="submit" class="btn-los btn-secondary btn-xs">▶ Start</button>
+            </form>
+        }
+        @if (Model.Status != "Done")
+        {
+            <form method="post" asp-action="MoveTask" asp-controller="Projects">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="taskId" value="@Model.Id" />
+                <input type="hidden" name="status" value="Done" />
+                <button type="submit" class="btn-los btn-success btn-xs">✓ Done</button>
+            </form>
+        }
+        @if (Model.Status == "Done")
+        {
+            <form method="post" asp-action="MoveTask" asp-controller="Projects">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="taskId" value="@Model.Id" />
+                <input type="hidden" name="status" value="Todo" />
+                <button type="submit" class="btn-los btn-ghost btn-xs"
+                        style="color:var(--text-tertiary);">
+                    Reopen
+                </button>
+            </form>
+        }
+
+        <!-- Spacer -->
+        <div style="flex:1;"></div>
+
+        <!-- Edit -->
+        <button class="btn-los btn-ghost btn-icon-sm"
+                data-bs-toggle="modal" data-bs-target="#editTask@Model.Id"
+                title="Edit task">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
+                      stroke-width="1.4" stroke-linejoin="round" />
+            </svg>
+        </button>
+
+        <!-- Log time -->
+        <button class="btn-los btn-ghost btn-icon-sm"
+                data-bs-toggle="modal" data-bs-target="#logTime@Model.Id"
+                title="Log time" style="color:var(--teal);">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
+                <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+        </button>
+
+        <!-- Delete -->
+        <form method="post" asp-action="DeleteTask" asp-controller="Projects">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="taskId" value="@Model.Id" />
+            <input type="hidden" name="projectId" value="@projectId" />
+            <button type="submit" class="btn-los btn-ghost btn-icon-sm"
+                    style="color:var(--rose);"
+                    data-confirm="Delete '@Model.Title'?">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor"
+                          stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Log Time Modal -->
+<div class="modal fade" id="logTime@Model.Id" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:0.95rem;">Log Time</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-action="LogTime" asp-controller="Projects">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="taskId" value="@Model.Id" />
+                <div class="modal-body">
+                    <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
+                        @Model.Title
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Minutes spent</label>
+                        <input name="minutes" type="number" min="1" class="form-control"
+                               placeholder="e.g. 45" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-los btn-secondary btn-sm"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-los btn-primary btn-sm">Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

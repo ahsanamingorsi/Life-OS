@@ -1,4 +1,4 @@
-﻿using LifeOS.MVC.Data;
+using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,9 +17,9 @@ namespace LifeOS.MVC.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Add(PersonalGoal goal)
+        public async Task<IActionResult> Add([Bind(Prefix = "")] PersonalGoal entry)
         {
-            if (ModelState.IsValid) { _db.PersonalGoals.Add(goal); await _db.SaveChangesAsync(); }
+            if (ModelState.IsValid) { _db.PersonalGoals.Add(entry); await _db.SaveChangesAsync(); }
             return RedirectToAction("Index");
         }
 

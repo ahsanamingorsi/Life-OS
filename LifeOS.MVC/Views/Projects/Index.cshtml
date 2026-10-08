@@ -1,19 +1,31 @@
-﻿@model List<LifeOS.MVC.Models.Project>
-@{ ViewData["Title"] = "Projects Hub"; }
+@model List<LifeOS.MVC.Models.Project>
+@{
+    ViewData["Title"] = "Projects";
+    var taskCounts = ViewBag.TaskCounts as Dictionary<int, LifeOS.MVC.Models.ProjectTaskCount>
+                    ?? new Dictionary<int, LifeOS.MVC.Models.ProjectTaskCount>();
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="los-alert los-alert-success">✓ @TempData["Success"]</div>
+}
 
 <div class="los-page-header">
     <div>
-        <div class="los-page-title">Projects Hub</div>
-        <div class="los-page-subtitle">Manage every project across all life areas.</div>
+        <div class="los-page-title">Projects</div>
+        <div class="los-page-subtitle">Give your ideas a clear next step.</div>
     </div>
     <div class="los-page-actions">
         <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addProjectPanel">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
             New Project
         </button>
     </div>
 </div>
 
+<!-- Add Project Panel -->
 <div class="collapse" id="addProjectPanel">
     <div class="los-panel">
         <div class="los-panel-title">Create New Project</div>
@@ -23,15 +35,20 @@
                 <div class="col-md-4">
                     <div class="form-group">
                         <label class="form-label">Project Title *</label>
-                        <input name="Title" class="form-control" required placeholder="Project name" maxlength="150" />
+                        <input name="Title" class="form-control" required placeholder="What are you building?" maxlength="150" />
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
                         <label class="form-label">Category</label>
                         <select name="Category" class="form-control">
-                            <option>EduBridgePath</option><option>PSC</option><option>Farming</option>
-                            <option>Future Ideas</option><option>Personal</option><option>Tech</option>
+                            <option>EduBridgePath</option>
+                            <option>PSC</option>
+                            <option>Farming</option>
+                            <option>Future Ideas</option>
+                            <option>Personal</option>
+                            <option>Tech</option>
+                            <option>Study</option>
                         </select>
                     </div>
                 </div>
@@ -53,25 +70,25 @@
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
-                        <label class="form-label">Progress %</label>
-                        <input name="ProgressPercent" type="number" min="0" max="100" class="form-control" value="0" />
+                        <label class="form-label">Status</label>
+                        <select name="Status" class="form-control">
+                            <option value="Active">Active</option>
+                            <option value="Paused">Paused</option>
+                        </select>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label class="form-label">Next Task</label>
-                        <input name="NextTask" class="form-control" placeholder="What is the very next action?" maxlength="300" />
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <input name="Notes" class="form-control" placeholder="Optional notes" maxlength="500" />
+                        <label class="form-label">Description / Goal</label>
+                        <input name="Notes" class="form-control" placeholder="What does success look like?" maxlength="500" />
                     </div>
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addProjectPanel">Cancel</button>
-                    <button type="submit" class="btn-los btn-primary">Save Project</button>
+                    <button type="button" class="btn-los btn-secondary"
+                            data-bs-toggle="collapse" data-bs-target="#addProjectPanel">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-los btn-primary">Create Project</button>
                 </div>
             </div>
         </form>
@@ -83,82 +100,46 @@
     int totalP = Model.Count;
     int activeP = Model.Count(p => p.Status == "Active");
     int doneP = Model.Count(p => p.Status == "Done");
-    int avgProgress = totalP > 0 ? (int)Model.Average(p => p.ProgressPercent) : 0;
+    int pausedP = Model.Count(p => p.Status == "Paused");
+    int avgProg = totalP > 0 ? (int)Model.Average(p => p.ProgressPercent) : 0;
 }
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-indigo"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="los-kpi-value">@totalP</div><div class="los-kpi-label">Total</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-green"></div><div class="los-kpi-value" style="color:var(--green)">@activeP</div><div class="los-kpi-label">Active</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-sky"></div><div class="los-kpi-value" style="color:var(--sky)">@doneP</div><div class="los-kpi-label">Done</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-teal">%</div><div class="los-kpi-value" style="color:var(--teal)">@avgProgress%</div><div class="los-kpi-label">Avg Progress</div></div></div>
-</div>
-
-@foreach (var cat in Model.Select(p => p.Category).Distinct().OrderBy(c => c))
-{
-    var catProjects = Model.Where(p => p.Category == cat).OrderBy(p => p.Priority).ThenBy(p => p.Deadline).ToList();
-    <div class="los-section-label">@cat</div>
-    <div class="row g-3 mb-4">
-        @foreach (var p in catProjects)
-        {
-            <div class="col-lg-6">
-                <div class="project-card">
-                    <div class="project-card-header">
-                        <div style="flex:1;">
-                            <div class="project-title">@p.Title</div>
-                            <div style="display:flex; gap:5px; margin-top:5px; flex-wrap:wrap;">
-                                <span class="badge badge-priority-@p.Priority.ToLower()">@p.Priority</span>
-                                <span class="badge badge-@p.Status.ToLower()">@p.Status</span>
-                                @if (p.Deadline.HasValue)
-                                {
-                                    bool isOverdue = p.Deadline.Value.Date < DateTime.Today && p.Status != "Done";
-                                    <span class="badge @(isOverdue ? "badge-rose" : "badge-neutral")">
-                                        @p.Deadline.Value.ToString("MMM d")
-                                    </span>
-                                }
-                            </div>
-                        </div>
-                        <form method="post" asp-action="Delete" asp-controller="Projects">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@p.Id" />
-                            <button type="submit" class="btn-los btn-ghost btn-icon-sm" style="color:var(--rose);" data-confirm="Delete '@p.Title'?">
-                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </button>
-                        </form>
-                    </div>
-
-                    @if (!string.IsNullOrEmpty(p.NextTask))
-                    {
-                        <div class="project-next"><strong>Next:</strong> @p.NextTask</div>
-                    }
-
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-                        <div class="los-progress" style="flex:1;">
-                            <div class="los-progress-bar @(p.ProgressPercent >= 75 ? "green" : p.ProgressPercent >= 40 ? "" : "amber")"
-                                 data-width="@p.ProgressPercent"></div>
-                        </div>
-                        <span style="font-size:0.8rem; font-weight:600; color:var(--accent); min-width:36px; text-align:right;">@p.ProgressPercent%</span>
-                    </div>
-
-                    @if (!string.IsNullOrEmpty(p.Notes))
-                    {
-                        <div style="font-size:0.78rem; color:var(--text-tertiary); margin-bottom:10px;">@p.Notes</div>
-                    }
-
-                    <form method="post" asp-action="UpdateStatus" asp-controller="Projects" class="d-flex gap-2">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@p.Id" />
-                        <select name="status" class="form-control form-control-sm" style="flex:1;">
-                            <option value="Active" selected="@(p.Status == "Active" ? true : null)">Active</option>
-                            <option value="Paused" selected="@(p.Status == "Paused" ? true : null)">Paused</option>
-                            <option value="Done" selected="@(p.Status == "Done" ? true : null)">Done</option>
-                        </select>
-                        <input name="progress" type="number" min="0" max="100" value="@p.ProgressPercent" class="form-control form-control-sm" style="width:72px;" />
-                        <button type="submit" class="btn-los btn-secondary btn-sm">Update</button>
-                    </form>
-                </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-indigo">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                    <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                    <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                    <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" />
+                </svg>
             </div>
-        }
+            <div class="los-kpi-value">@totalP</div>
+            <div class="los-kpi-label">Total Projects</div>
+        </div>
     </div>
-}
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-green">@await Html.PartialAsync("_Icon", "check")</div>
+            <div class="los-kpi-value" style="color:var(--green)">@activeP</div>
+            <div class="los-kpi-label">Active</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-sky">@await Html.PartialAsync("_Icon", "check")</div>
+            <div class="los-kpi-value" style="color:var(--sky)">@doneP</div>
+            <div class="los-kpi-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-teal">%</div>
+            <div class="los-kpi-value" style="color:var(--teal)">@avgProg%</div>
+            <div class="los-kpi-label">Avg Progress</div>
+        </div>
+    </div>
+</div>
 
 @if (!Model.Any())
 {
@@ -166,8 +147,67 @@
         <div class="empty-state">
             <div class="empty-state-icon">◈</div>
             <div class="empty-state-title">No projects yet</div>
-            <div class="empty-state-desc">Add your first project to start building momentum on your goals.</div>
-            <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addProjectPanel">Add First Project</button>
+            <div class="empty-state-desc">Create your first project and break it into tasks to start making real progress.</div>
+            <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addProjectPanel">Create First Project</button>
         </div>
     </div>
+}
+else
+{
+    @foreach (var cat in Model.Select(p => p.Category).Distinct().OrderBy(c => c))
+    {
+        var catProjects = Model.Where(p => p.Category == cat)
+                              .OrderBy(p => p.Priority)
+                              .ThenBy(p => p.Deadline)
+                              .ToList();
+        <div class="los-section-label">@cat</div>
+        <div class="row g-3 mb-4">
+            @foreach (var p in catProjects)
+            {
+                taskCounts.TryGetValue(p.Id, out var tc);
+                int tTotal = tc != null ? (int)tc.Total : 0;
+                int tDone = tc != null ? (int)tc.Done : 0;
+                int tPct = tTotal > 0 ? (int)((double)tDone / tTotal * 100) : p.ProgressPercent;
+                bool isOverdue = p.Deadline.HasValue && p.Deadline.Value.Date < DateTime.Today && p.Status != "Done";
+
+                <div class="col-lg-6">
+                    <article class="project-card project-workspace-card @(p.Status == "Done" ? "project-completed" : "")">
+                        <div class="project-card-header">
+                            <span class="project-symbol">@await Html.PartialAsync("_Icon", "projects")</span>
+                            <div class="project-card-heading">
+                                <span class="eyebrow">@p.Category</span>
+                                <h3><a asp-action="Detail" asp-route-id="@p.Id">@p.Title</a></h3>
+                            </div>
+                            <span class="badge badge-@p.Status.ToLower()">@p.Status</span>
+                        </div>
+                        <div class="project-card-description">@(string.IsNullOrWhiteSpace(p.Notes) ? "Give this project a clear goal and take the next step." : p.Notes)</div>
+                        <div class="project-card-meta">
+                            <span class="badge badge-priority-@p.Priority.ToLower()">Priority @p.Priority</span>
+                            @if (p.Deadline.HasValue)
+                            {
+                                <span class="project-deadline @(isOverdue ? "overdue" : "")">@await Html.PartialAsync("_Icon", "clock") @(isOverdue ? "Overdue · " : "")@p.Deadline.Value.ToString("dd MMM yyyy")</span>
+                            }
+                            else { <span class="project-deadline">@await Html.PartialAsync("_Icon", "clock") No deadline</span> }
+                        </div>
+                        <div class="project-next-step"><span class="eyebrow">NEXT STEP</span><p>@(string.IsNullOrWhiteSpace(p.NextTask) ? "Open the project and choose your next task." : p.NextTask)</p></div>
+                        <div class="project-card-progress">
+                            <div><span>@tDone of @tTotal tasks complete</span><strong>@tPct%</strong></div>
+                            <div class="los-progress" role="progressbar" aria-label="@p.Title progress" aria-valuenow="@tPct" aria-valuemin="0" aria-valuemax="100"><div class="los-progress-bar @(tPct >= 75 ? "green" : "")" data-width="@tPct"></div></div>
+                        </div>
+                        <footer class="project-card-footer">
+                            <span>@(tTotal == 0 ? "Ready for your first task" : $"{tTotal - tDone} tasks remaining")</span>
+                            <div class="project-card-actions">
+                                <form method="post" asp-action="Delete" asp-controller="Projects">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@p.Id" />
+                                    <button type="submit" class="btn-los btn-ghost btn-icon-sm" aria-label="Delete @p.Title" title="Delete project" data-confirm="Delete '@p.Title' and all its tasks?">@await Html.PartialAsync("_Icon", "delete")</button>
+                                </form>
+                                <a asp-action="Detail" asp-route-id="@p.Id" class="btn-los btn-primary">Open project @await Html.PartialAsync("_Icon", "arrow")</a>
+                            </div>
+                        </footer>
+                    </article>
+                </div>
+            }
+        </div>
+    }
 }

@@ -1,4 +1,4 @@
-﻿using LifeOS.MVC.Data;
+using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +14,7 @@ namespace LifeOS.MVC.Controllers
         {
             var today = DateTime.Today;
             var todayEntry = await _db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == today);
-            var streak = await _db.SpiritualEntries.CountAsync(s => s.PrayersDone == s.PrayersTotal);
+            var streak = await _db.SpiritualEntries.CountAsync(s => s.PrayersTotal > 0 && s.PrayersDone == s.PrayersTotal);
             ViewBag.Streak = streak;
             return View(todayEntry ?? new SpiritualEntry());
         }
@@ -22,6 +22,8 @@ namespace LifeOS.MVC.Controllers
         [HttpPost]
         public async Task<IActionResult> Save(SpiritualEntry entry)
         {
+            if (entry.PrayersTotal < 1 || entry.PrayersTotal > 5 || entry.PrayersDone < 0 || entry.PrayersDone > entry.PrayersTotal) { TempData["Error"] = "Prayers completed must be between zero and your daily total (1–5)."; return RedirectToAction("Index"); }
+            entry.Date = entry.Date.Date;
             var existing = await _db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == entry.Date);
             if (existing == null) { _db.SpiritualEntries.Add(entry); }
             else

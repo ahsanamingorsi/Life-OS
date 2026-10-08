@@ -32,6 +32,9 @@ namespace LifeOS.MVC.Controllers
             _productivity = productivity;
         }
 
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error() => View(new ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+
         public async Task<IActionResult> Index()
         {
             var today = DateTime.Today;
@@ -76,8 +79,12 @@ namespace LifeOS.MVC.Controllers
             int personalProgress = goals.Any()
                 ? (int)goals.Average(g => g.ProgressPercent) : 0;
 
+            var month = new DateTime(today.Year, today.Month, 1);
+            var money = await _db.MoneyTransactions.AsNoTracking().Where(t => t.Date >= month && t.Date < month.AddMonths(1)).ToListAsync();
             var vm = new DashboardViewModel
             {
+                MonthlyIncome = money.Where(t => t.Type == "Income").Sum(t => t.Amount),
+                MonthlyExpenses = money.Where(t => t.Type == "Expense").Sum(t => t.Amount),
                 Today = today,
                 DailyMotivation = Motivations[today.DayOfYear % Motivations.Length],
                 TodaysMission = "Focus on your #1 priority project + 1 hour of deep learning + complete all daily habits.",
@@ -88,7 +95,7 @@ namespace LifeOS.MVC.Controllers
                 CurrentSkill = await _db.TechSkills.FirstOrDefaultAsync(s => s.IsCurrent),
                 TopPriorities = await _db.Projects
                                         .Where(p => p.Priority == "A" && p.Status == "Active")
-                                        .Take(3).ToListAsync(),
+                                        .OrderBy(p => p.Deadline).ThenBy(p => p.Id).Take(3).ToListAsync(),
                 TodaySpiritual = todaySpiritual,
 
                 // Module progress — all from unified Habit system
@@ -114,3 +121,4 @@ namespace LifeOS.MVC.Controllers
         }
     }
 }
+

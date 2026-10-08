@@ -1,0 +1,317 @@
+﻿@model List<LifeOS.Models.WebLink>
+@{
+    ViewData["Title"] = "Web Links";
+    string? search   = ViewBag.Search;
+    string? category = ViewBag.Category;
+    var cats = new[]{"Tools","Learning","News","Social","Dev","Design","Finance","Entertainment","General"};
+    var grouped = Model.GroupBy(l => l.Category).OrderBy(g => g.Key).ToList();
+}
+
+@if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
+
+<style>
+.link-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: var(--shadow-xs);
+    transition: all .15s ease;
+}
+.link-card:hover { box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
+.link-card.pinned { border-color: rgba(217,119,6,.25); }
+
+.link-favicon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--accent); flex-shrink: 0;
+    overflow: hidden;
+}
+.link-favicon img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+</style>
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Web Links</div>
+        <div class="los-page-subtitle">
+            @Model.Count link@(Model.Count==1?"":"s") saved — Your personal bookmark library.
+        </div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary"
+                data-bs-toggle="collapse" data-bs-target="#addLinkPanel">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Add Link
+        </button>
+    </div>
+</div>
+
+<!-- Search -->
+<form method="get" asp-action="Index" asp-controller="Links" class="mb-4">
+    <div style="display:flex; gap:8px;">
+        <div style="position:relative; flex:1;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                 style="position:absolute;left:12px;top:50%;transform:translateY(-50%);
+                        color:var(--text-tertiary);pointer-events:none;">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <input name="search" value="@search" class="form-control"
+                   placeholder="Search links…" style="padding-left:38px;" autocomplete="off"/>
+        </div>
+        <select name="category" class="form-control" style="width:150px;"
+                onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            @foreach (var c in cats)
+            {
+                <option value="@c" selected="@(category == c)">@c</option>
+            }
+        </select>
+        <button type="submit" class="btn-los btn-secondary">Search</button>
+        @if (!string.IsNullOrEmpty(search)||!string.IsNullOrEmpty(category))
+        { <a asp-action="Index" class="btn-los btn-ghost">✕ Clear</a> }
+    </div>
+</form>
+
+<!-- Add Panel -->
+<div class="collapse" id="addLinkPanel">
+    <div class="los-panel" style="margin-bottom:20px;">
+        <div class="los-panel-title">Save New Link</div>
+        <form method="post" asp-action="Create" asp-controller="Links">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Name *</label>
+                        <input name="Name" class="form-control" required
+                               placeholder="e.g. GitHub" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">URL *</label>
+                        <input name="Url" class="form-control" required
+                               placeholder="https://github.com" maxlength="500"/>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="Category" class="form-control">
+                            @foreach (var c in cats)
+                            { <option value="@c">@c</option> }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Tags</label>
+                        <input name="Tags" class="form-control"
+                               placeholder="tag1, tag2" maxlength="200"/>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input name="Description" class="form-control"
+                               placeholder="What is this for?" maxlength="400"/>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-3">
+                    <label class="toggle-wrap">
+                        <div class="toggle">
+                            <input name="IsFavorite" type="checkbox" value="true"/>
+                            <div class="toggle-track"></div>
+                        </div>
+                        <span class="toggle-label">★ Fav</span>
+                    </label>
+                    <label class="toggle-wrap">
+                        <div class="toggle">
+                            <input name="IsPinned" type="checkbox" value="true"/>
+                            <div class="toggle-track"></div>
+                        </div>
+                        <span class="toggle-label">📌 Pin</span>
+                    </label>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn-los btn-primary w-100">Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-sky">🔗</div>
+            <div class="los-kpi-value">@Model.Count</div>
+            <div class="los-kpi-label">Total Links</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-amber">★</div>
+            <div class="los-kpi-value" style="color:var(--amber)">
+                @Model.Count(l=>l.IsFavorite)
+            </div>
+            <div class="los-kpi-label">Favorites</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-indigo">📂</div>
+            <div class="los-kpi-value">@grouped.Count</div>
+            <div class="los-kpi-label">Categories</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-green">👁</div>
+            <div class="los-kpi-value">@Model.Sum(l=>l.VisitCount)</div>
+            <div class="los-kpi-label">Total Visits</div>
+        </div>
+    </div>
+</div>
+
+<!-- Favorites strip -->
+@{ var favLinks = Model.Where(l=>l.IsFavorite||l.IsPinned).ToList(); }
+@if (favLinks.Any() && string.IsNullOrEmpty(search) && string.IsNullOrEmpty(category))
+{
+    <div class="los-section-label">⭐ Favorites & Pinned</div>
+    <div class="d-flex flex-column gap-2 mb-4">
+        @foreach (var l in favLinks)
+        {
+            @await Html.PartialAsync("_LinkCard", l)
+        }
+    </div>
+}
+
+<!-- By category -->
+@if (!Model.Any())
+{
+    <div class="los-card">
+        <div class="empty-state">
+            <div class="empty-state-icon">🔗</div>
+            <div class="empty-state-title">
+                @(string.IsNullOrEmpty(search) ? "No links saved yet" : $"No results for \"{search}\"")
+            </div>
+            <div class="empty-state-desc">
+                Save websites, tools, resources and organize them by category.
+            </div>
+            @if (string.IsNullOrEmpty(search))
+            {
+                <button class="btn-los btn-primary"
+                        data-bs-toggle="collapse" data-bs-target="#addLinkPanel">
+                    Add First Link
+                </button>
+            }
+        </div>
+    </div>
+}
+else
+{
+    @foreach (var grp in grouped)
+    {
+        var grpLinks = grp.Where(l => !l.IsFavorite && !l.IsPinned).ToList();
+        if (!grpLinks.Any() && string.IsNullOrEmpty(search)) continue;
+        var showLinks = string.IsNullOrEmpty(search) ? grpLinks : grp.ToList();
+        if (!showLinks.Any()) continue;
+
+        <div class="los-section-label">@grp.Key</div>
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var l in showLinks)
+            {
+                @await Html.PartialAsync("_LinkCard", l)
+            }
+        </div>
+    }
+}
+
+<!-- Edit modals -->
+@foreach (var l in Model)
+{
+    <div class="modal fade" id="editLink@l.Id" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Link</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" asp-action="Edit" asp-controller="Links">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="Id" value="@l.Id"/>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label class="form-label">Name</label>
+                                    <input name="Name" class="form-control" value="@l.Name" required/>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label class="form-label">URL</label>
+                                    <input name="Url" class="form-control" value="@l.Url" required/>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label class="form-label">Category</label>
+                                    <select name="Category" class="form-control">
+                                        @foreach (var c in cats)
+                                        {
+                                            <option value="@c" selected="@(l.Category == c)">@c</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label class="form-label">Tags</label>
+                                    <input name="Tags" class="form-control" value="@l.Tags"/>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label class="form-label">Description</label>
+                                    <input name="Description" class="form-control" value="@l.Description"/>
+                                </div>
+                            </div>
+                            <div class="col-12 d-flex gap-4">
+                                <label class="toggle-wrap">
+                                    <div class="toggle">
+                                        <input name="IsFavorite" type="checkbox" value="true" @(l.IsFavorite?"checked":"")/>
+                                        <div class="toggle-track"></div>
+                                    </div>
+                                    <span class="toggle-label">Favorite</span>
+                                </label>
+                                <label class="toggle-wrap">
+                                    <div class="toggle">
+                                        <input name="IsPinned" type="checkbox" value="true" @(l.IsPinned?"checked":"")/>
+                                        <div class="toggle-track"></div>
+                                    </div>
+                                    <span class="toggle-label">Pinned</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-los btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-los btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

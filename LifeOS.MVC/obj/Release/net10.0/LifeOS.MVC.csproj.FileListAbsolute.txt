@@ -192,10 +192,8 @@ C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\mjd
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\wk4wzvor9g-{0}-ir474ug6zy-ir474ug6zy.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\lj8bk790fw-{0}-5cl6jzyzps-5cl6jzyzps.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\wqi1yzxdv5-{0}-a2c1phmbzv-a2c1phmbzv.gz
-C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\ldgocmlvu9-{0}-1sev3r4s5e-1sev3r4s5e.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\w0itwq4sxo-{0}-b9sayid5wm-b9sayid5wm.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\w5b4xsdjdz-{0}-61n19gt1b8-61n19gt1b8.gz
-C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\mox0rqij21-{0}-tx2810bm5s-tx2810bm5s.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\dn3phvy31y-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\mucfk1wfvm-{0}-bqjiyaj88i-bqjiyaj88i.gz
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\mfq7jomxm7-{0}-c2jlpeoesf-c2jlpeoesf.gz
@@ -263,7 +261,6 @@ C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\staticwebasset
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\staticwebassets.development.json
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\staticwebassets.build.endpoints.json
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\swae.build.ex.cache
-C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\staticwebassets.upToDateCheck.txt
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\LifeOS.MVC.csproj.Up2Date
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\LifeOS.MVC.dll
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\refint\LifeOS.MVC.dll
@@ -271,3 +268,10 @@ C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\LifeOS.MVC.pdb
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\LifeOS.MVC.genruntimeconfig.cache
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\ref\LifeOS.MVC.dll
 C:\Users\USER\source\repos\Life OS\LifeOS.MVC\bin\Release\net10.0\dotnet-tools.json
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\ldgocmlvu9-{0}-7329s8y8ol-7329s8y8ol.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\mox0rqij21-{0}-5cmre1wbf3-5cmre1wbf3.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\np4x6k13k6-{0}-wogzslsydk-wogzslsydk.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\t6atnpyhv8-{0}-lwdp4ktmex-lwdp4ktmex.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\dyay8hq7q4-{0}-3r3bhcqbyl-3r3bhcqbyl.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\ogz4vqagpm-{0}-eretv3eo90-eretv3eo90.gz
+C:\Users\USER\source\repos\Life OS\LifeOS.MVC\obj\Release\net10.0\compressed\eaakelt2qb-{0}-p5csvuu6mt-p5csvuu6mt.gz

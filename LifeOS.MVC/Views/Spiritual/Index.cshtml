@@ -1,11 +1,11 @@
-﻿@model LifeOS.MVC.Models.SpiritualEntry
+@model LifeOS.MVC.Models.SpiritualEntry
 @{
     ViewData["Title"] = "Spiritual"; int streak = (int)(ViewBag.Streak ?? 0);
 }
 
 <div class="los-page-header">
     <div>
-        <div class="los-page-title">Spiritual & Discipline</div>
+        <div class="los-page-title">Spiritual routine</div>
         <div class="los-page-subtitle">Prayers, gratitude, and spiritual consistency.</div>
     </div>
 </div>
@@ -55,7 +55,7 @@
             <!-- Streak -->
             <div class="col-12">
                 <div class="los-card" style="background:linear-gradient(135deg,var(--amber-soft),var(--surface-1)); border-color:rgba(217,119,6,0.2);">
-                    <div style="display:flex; align-items:center; gap:20px;">
+                    <div class="spiritual-summary">
                         <div class="streak-display">
                             <div class="streak-flame">🕌</div>
                             <div>
@@ -64,7 +64,7 @@
                             </div>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days where all prayers were completed on time. Consistency is the highest form of worship.</div>
+                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days with all planned prayers completed. Keep showing up, one day at a time.</div>
                         </div>
                     </div>
                 </div>
@@ -80,7 +80,15 @@
                     <div class="prayer-grid">
                         @for (int i = 1; i <= 5; i++)
                         {
-                            <div class="prayer-circle @(i <= Model.PrayersDone ? "done" : "")">@pNames[i - 1]</div>
+                            bool done = i <= Model.PrayersDone;
+                            <div style="flex:1; height:34px; border-radius:var(--r-sm);
+                                border:1px solid @(done ? "rgba(245,158,11,.3)" : "var(--border)");
+                                background:@(done ? "var(--amber-soft)" : "var(--bg-2)");
+                                display:flex; align-items:center; justify-content:center;
+                                font-size:.62rem; font-weight:700; letter-spacing:.04em;
+                                color:@(done ? "var(--amber)" : "var(--text-4)");" class="prayer-circle @(i <= Model.PrayersDone ? "done" : "")">
+                                @pNames[i - 1]
+                            </div>
                         }
                     </div>
                     <div style="font-size:0.8rem; color:var(--text-tertiary); margin-top:12px;">

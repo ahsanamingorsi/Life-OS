@@ -1,4 +1,4 @@
-﻿
+
 using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using LifeOS.MVC.Services;
@@ -33,7 +33,7 @@ namespace LifeOS.Controllers
         // ── CREATE ───────────────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(PersonalTask task)
+        public async Task<IActionResult> Create([Bind("Title,Description,DueDate,Priority")] PersonalTask task, string? returnUrl)
         {
             if (!ModelState.IsValid)
                 return RedirectToAction("Index");
@@ -45,7 +45,7 @@ namespace LifeOS.Controllers
             await _productivity.LogActivityAsync("PersonalTask", task.Id, "Created",
                 $"Task '{task.Title}' created");
             TempData["Success"] = $"Task '{task.Title}' added.";
-            return RedirectToAction("Index");
+            return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction("Index");
         }
 
         // ── EDIT GET ─────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ namespace LifeOS.Controllers
         // ── TOGGLE COMPLETE ──────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleComplete(int id)
+        public async Task<IActionResult> ToggleComplete(int id, string? returnUrl)
         {
             var task = await _db.PersonalTasks.FindAsync(id);
             if (task == null) return NotFound();
@@ -94,6 +94,7 @@ namespace LifeOS.Controllers
                 $"Task '{task.Title}' {action.ToLower()}");
 
             TempData["Success"] = $"Task '{task.Title}' {action.ToLower()}.";
+            if (Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl!);
             return RedirectToAction("Index");
         }
 
@@ -116,3 +117,4 @@ namespace LifeOS.Controllers
         }
     }
 }
+

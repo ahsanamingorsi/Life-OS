@@ -1,4 +1,4 @@
-﻿using LifeOS.MVC.Data;
+using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -172,7 +172,7 @@ namespace LifeOS.MVC.Controllers
         {
             if (string.IsNullOrEmpty(url)) return "/Habits";
             // Only allow relative URLs to prevent open redirect
-            if (url.StartsWith("/") && !url.StartsWith("//")) return url;
+            if (Url.IsLocalUrl(url)) return url;
             return "/Habits";
         }
     }

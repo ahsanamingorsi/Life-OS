@@ -11,6 +11,16 @@ namespace LifeOS.MVC.Models
         public double ProductivityScore { get; set; } // 0–100
         public List<ActivityLog> RecentActivity { get; set; } = new();
         public List<HabitWithStreakViewModel> HabitsWithStreaks { get; set; } = new();
+
+
+
+        // --- NEW PRAYER METRICS ---
+        public int TotalPrayersToday { get; set; }
+        public int PrayersCompletedToday { get; set; }
+
+        // Optional: Show average prayers per day for context
+        public double AverageDailyPrayers => PrayersCompletedToday / Math.Max(TotalHabits + TotalPersonalTasks, 1);
+
     }
 
     public class HabitWithStreakViewModel
@@ -20,4 +30,6 @@ namespace LifeOS.MVC.Models
         public int CurrentStreak { get; set; }
         public int BestStreak { get; set; }
     }
+
+
 }

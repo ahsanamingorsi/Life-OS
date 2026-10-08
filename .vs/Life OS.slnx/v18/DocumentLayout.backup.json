@@ -1,32 +1,7 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\USER\\source\\repos\\Life OS\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\habits\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\habits\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\shared\\_habitcategorypage.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\shared\\_habitcategorypage.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\migrations\\20260525050735_update.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\migrations\\20260525050735_update.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\migrations\\20260525051331_allupdate.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\migrations\\20260525051331_allupdate.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|c:\\users\\user\\source\\repos\\life os\\lifeos.mvc\\views\\habits\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{8A8BE747-E933-6D13-D983-C274F383A94E}|LifeOS.MVC\\LifeOS.MVC.csproj|solutionrelative:lifeos.mvc\\views\\habits\\edit.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -34,7 +9,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": -1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -43,81 +18,16 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
-            },
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": -1,
+          "Children": [
             {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Index.cshtml",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Home\\Index.cshtml",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\Home\\Index.cshtml",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Home\\Index.cshtml",
-              "RelativeToolTip": "LifeOS.MVC\\Views\\Home\\Index.cshtml",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-05-30T06:22:13.767Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "_HabitCategoryPage.cshtml",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Shared\\_HabitCategoryPage.cshtml",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\Shared\\_HabitCategoryPage.cshtml",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Shared\\_HabitCategoryPage.cshtml",
-              "RelativeToolTip": "LifeOS.MVC\\Views\\Shared\\_HabitCategoryPage.cshtml",
-              "ViewState": "AgIAACIAAAAAAAAAAAAUwC4AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-05-30T06:13:40.71Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "20260525050735_update.cs",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Migrations\\20260525050735_update.cs",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Migrations\\20260525050735_update.cs",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Migrations\\20260525050735_update.cs",
-              "RelativeToolTip": "LifeOS.MVC\\Migrations\\20260525050735_update.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAZAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-30T06:13:02.16Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Index.cshtml",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Habits\\Index.cshtml",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\Habits\\Index.cshtml",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Habits\\Index.cshtml",
-              "RelativeToolTip": "LifeOS.MVC\\Views\\Habits\\Index.cshtml",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAJgAAAAhAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-05-30T06:12:48.029Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "20260525051331_allupdate.Designer.cs",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Migrations\\20260525051331_allupdate.Designer.cs",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Migrations\\20260525051331_allupdate.Designer.cs",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Migrations\\20260525051331_allupdate.Designer.cs",
-              "RelativeToolTip": "LifeOS.MVC\\Migrations\\20260525051331_allupdate.Designer.cs",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAjwA8AAAASAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-30T06:12:38.863Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "Edit.cshtml",
-              "DocumentMoniker": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Habits\\Edit.cshtml",
-              "RelativeDocumentMoniker": "LifeOS.MVC\\Views\\Habits\\Edit.cshtml",
-              "ToolTip": "C:\\Users\\USER\\source\\repos\\Life OS\\LifeOS.MVC\\Views\\Habits\\Edit.cshtml",
-              "RelativeToolTip": "LifeOS.MVC\\Views\\Habits\\Edit.cshtml",
-              "ViewState": "AgIAAB4AAAAAAAAAAAAiwCkAAAAeAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-05-30T06:11:02.322Z"
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
             }
           ]
         }

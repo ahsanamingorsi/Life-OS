@@ -1,0 +1,41 @@
+@model LifeOS.MVC.Models.LoansViewModel
+@{ ViewData["Title"] = "Lending & borrowing"; }
+@await Html.PartialAsync("_MoneyNavigation")
+<div class="page-heading"><div><div class="eyebrow">KEEP EVERY AGREEMENT CLEAR</div><h1>Lending & borrowing</h1><p>Track money you lend, money you borrow, and each repayment. Amounts in PKR.</p></div></div>
+@await Html.PartialAsync("_MoneyMessages")
+<div class="metric-grid">
+<div class="card card-p"><span class="eyebrow">PEOPLE OWE YOU</span><h2>Rs @Model.Loans.Where(l => l.Direction == "Lending").Sum(l => l.Remaining).ToString("N2")</h2><small>Outstanding lending</small></div>
+<div class="card card-p"><span class="eyebrow">YOU OWE PEOPLE</span><h2>Rs @Model.Loans.Where(l => l.Direction == "Borrowing").Sum(l => l.Remaining).ToString("N2")</h2><small>Outstanding borrowing</small></div>
+<div class="card card-p"><span class="eyebrow">OPEN LOANS</span><h2>@Model.Loans.Count(l => l.Remaining > 0)</h2><small>@Model.Loans.Count(l => l.Remaining > 0 && l.DueDate?.Date < DateTime.Today) overdue</small></div>
+</div>
+<section class="card card-p mb-4"><h3>Record lending or borrowing</h3><form asp-action="AddLoan" method="post" class="money-form"><div class="row g-3">
+<div class="col-md-4"><label for="loanPerson">Person</label><input id="loanPerson" name="Person" required maxlength="100" class="form-control" placeholder="Who is this loan with?" /></div>
+<div class="col-md-4"><label for="loanDirection">Direction</label><select id="loanDirection" name="Direction" class="form-select"><option value="Lending">I lent money — they owe me</option><option value="Borrowing">I borrowed money — I owe them</option></select></div>
+<div class="col-md-4"><label for="loanAmount">Amount (PKR)</label><input id="loanAmount" name="Amount" required type="number" min="0.01" max="999999999999.99" step="0.01" class="form-control" /></div>
+<div class="col-md-4"><label for="loanDate">Loan date</label><input id="loanDate" name="Date" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" required class="form-control" /></div>
+<div class="col-md-4"><label for="loanDue">Due date (optional)</label><input id="loanDue" name="DueDate" type="date" class="form-control" /></div>
+<div class="col-md-4"><label for="loanAccount">Money paid from / received into</label><select id="loanAccount" name="MoneyAccountId" class="form-select"><option value="">Unassigned</option>@foreach(var a in Model.Accounts){<option value="@a.Id">@a.Name (@a.Kind)</option>}</select></div>
+<div class="col-12"><label for="loanNotes">Notes (optional)</label><input id="loanNotes" name="Notes" maxlength="500" class="form-control" placeholder="Agreement or purpose" /></div>
+</div><button class="btn btn-primary align-self-start">Save loan</button></form></section>
+@foreach(var direction in new[]{"Lending","Borrowing"}){
+<h2 class="money-section-title">@(direction == "Lending" ? "Lending · money owed to you" : "Borrowing · money you owe")</h2>
+<div class="money-loan-grid mb-4">
+@foreach(var loan in Model.Loans.Where(l => l.Direction == direction)){
+<article class="card card-p money-loan-card">
+<div class="subject-section-heading"><h3>@loan.Person</h3><span class="badge @(loan.Remaining == 0 ? "badge-green" : loan.DueDate?.Date < DateTime.Today ? "badge-rose" : "badge-neutral")">@(loan.Remaining == 0 ? "Settled" : loan.DueDate?.Date < DateTime.Today ? "Overdue" : "Open")</span></div>
+<span class="eyebrow">OUTSTANDING</span><h2>Rs @loan.Remaining.ToString("N2")</h2>
+<p class="small">Original: Rs @loan.Amount.ToString("N2") · Repaid: Rs @loan.Repayments.Sum(r => r.Amount).ToString("N2")</p>
+<p class="small">@loan.Date.ToString("dd MMM yyyy") · @(loan.MoneyAccount?.Name ?? "Unassigned account")<br />Due: @(loan.DueDate?.ToString("dd MMM yyyy") ?? "Not set")</p>
+@if(!string.IsNullOrWhiteSpace(loan.Notes)){<p>@loan.Notes</p>}
+@if(loan.Remaining > 0){
+<details class="money-repayment"><summary>@(direction == "Lending" ? "Record money received" : "Record money repaid")</summary>
+<form asp-action="Repay" method="post" class="money-form"><input type="hidden" name="MoneyLoanId" value="@loan.Id" />
+<label for="repayAmount@loan.Id">Repayment (PKR)</label><input id="repayAmount@loan.Id" name="Amount" required type="number" min="0.01" max="@loan.Remaining.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)" step="0.01" class="form-control" />
+<label for="repayDate@loan.Id">Date</label><input id="repayDate@loan.Id" name="Date" required type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control" />
+<label for="repayAccount@loan.Id">@(direction == "Lending" ? "Received into" : "Paid from")</label><select id="repayAccount@loan.Id" name="MoneyAccountId" class="form-select"><option value="">Unassigned</option>@foreach(var a in Model.Accounts){<option value="@a.Id">@a.Name</option>}</select>
+<button class="btn btn-primary">Save repayment</button></form></details>}
+<details class="mt-3"><summary>Repayment history (@loan.Repayments.Count)</summary>@foreach(var r in loan.Repayments.OrderByDescending(r => r.Date)){<div class="money-history-row"><div><strong>Rs @r.Amount.ToString("N2")</strong><small>@r.Date.ToString("dd MMM yyyy") · @(r.MoneyAccount?.Name ?? "Unassigned")</small></div><form asp-action="DeleteRepayment" method="post"><input type="hidden" name="id" value="@r.Id" /><button class="btn btn-ghost btn-sm" data-confirm="Remove this repayment and update the loan and account balances?">Remove</button></form></div>}</details>
+<form asp-action="DeleteLoan" method="post" class="mt-3"><input type="hidden" name="id" value="@loan.Id" /><button class="btn btn-ghost btn-sm text-danger" data-confirm="Delete this loan and all its repayments? Account balances will be reversed.">Delete loan</button></form>
+</article>}
+@if(!Model.Loans.Any(l => l.Direction == direction)){<div class="card card-p"><p class="mb-0">No @direction.ToLower() recorded yet.</p></div>}
+</div>}

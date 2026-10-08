@@ -1,9 +1,11 @@
-﻿using LifeOS.MVC.Models;
+using LifeOS.MVC.Models;
 
 namespace LifeOS.MVC.Models
 {
     public class DashboardViewModel
     {
+        public decimal MonthlyIncome { get; set; }
+        public decimal MonthlyExpenses { get; set; }
         public string UserName { get; set; } = "Ahsan Amin Gorsi";
         public DateTime Today { get; set; } = DateTime.Today;
         public string DailyMotivation { get; set; } = "";

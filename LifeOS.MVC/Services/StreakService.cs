@@ -1,4 +1,4 @@
-﻿
+
 using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +44,7 @@ namespace LifeOS.MVC.Services
 
             // Allow today OR yesterday as starting point (so you don't
             // lose streak if you haven't marked today yet)
-            if (cursor == today || cursor == today.AddDays(-1))
+            if (cursor == today || cursor >= today.AddDays(habit.Frequency == "Weekly" ? -7 : -1) && cursor <= today)
             {
                 current = 1;
                 for (int i = 1; i < dates.Count; i++)
@@ -60,7 +60,7 @@ namespace LifeOS.MVC.Services
             }
 
             // ── Best streak ──────────────────────────────────────────────
-            int best = 0, runLen = 1;
+            int best = 1, runLen = 1;
             for (int i = 1; i < dates.Count; i++)
             {
                 int gap = habit.Frequency == "Weekly" ? 7 : 1;

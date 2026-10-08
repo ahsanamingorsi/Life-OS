@@ -1,0 +1,4 @@
+@{ var current = ViewContext.RouteData.Values["controller"]?.ToString(); }
+<nav class="module-nav" aria-label="Learning sections">
+@foreach(var item in new[]{("Learning","/Learning","Overview"),("TechGrowth","/TechGrowth","Skills"),("Study","/Study","Study")}) { <a href="@item.Item2" aria-current="@(current == item.Item1 ? "page" : null)">@item.Item3</a> }
+</nav>

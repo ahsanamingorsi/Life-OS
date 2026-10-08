@@ -1,5 +1,3 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
-}
+@{ var items = new[] { ("/", "Dashboard", "dashboard"), ("/Planner", "My day", "plan"), ("/Projects", "Projects", "projects"), ("/Habits", "Habits", "check"), ("/Learning", "Learning", "learning"), ("/Money", "Money", "money"), ("/Spiritual", "Spiritual", "spiritual") }; }
+<div class="nav-section-label">YOUR WORKSPACE</div>
+@foreach (var item in items) { <a class="los-nav-link" href="@item.Item1"><span class="los-nav-icon" aria-hidden="true">@await Html.PartialAsync("_Icon", item.Item3)</span><span class="los-nav-label">@item.Item2</span></a> }

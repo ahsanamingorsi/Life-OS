@@ -1,0 +1,104 @@
+﻿@model LifeOS.Models.WebLink
+
+<div class="link-card @(Model.IsPinned ? "pinned" : "")">
+    <!-- Favicon -->
+    <div class="link-favicon">
+        <img src="https://www.google.com/s2/favicons?domain=@Uri.EscapeDataString(Model.Domain)&sz=32"
+             alt="@Model.Domain"
+             onerror="this.style.display='none'; this.parentElement.textContent='@(Model.Name.Length > 0 ? Model.Name[0].ToString().ToUpper() : "L")'" />
+    </div>
+
+    <!-- Content -->
+    <div style="flex:1; min-width:0;">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+            <a href="@Model.Url" target="_blank" rel="noopener"
+               onclick="trackVisit(@Model.Id)"
+               style="font-size:0.875rem; font-weight:600; color:var(--text-primary);
+                text-decoration:none; transition:color .12s ease;"
+               onmouseover="this.style.color='var(--accent)'"
+               onmouseout="this.style.color='var(--text-primary)'">
+                @Model.Name
+            </a>
+            @if (Model.IsFavorite)
+            {
+                <span style="color:var(--amber); font-size:0.8rem;">★</span>
+            }
+            @if (Model.IsPinned)
+            {
+                <span style="font-size:0.75rem;">📌</span>
+            }
+            <span class="badge badge-neutral" style="font-size:0.6rem;">@Model.Category</span>
+        </div>
+
+        <div style="font-size:0.72rem; color:var(--text-disabled); margin-bottom:4px;">
+            @Model.Domain
+            @if (Model.VisitCount > 0)
+            {
+                <span style="margin-left:8px;">· @Model.VisitCount visits</span>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Description))
+        {
+            <div style="font-size:0.78rem; color:var(--text-tertiary); line-height:1.5;">
+                @Model.Description
+            </div>
+        }
+
+        @if (Model.TagList.Any())
+        {
+            <div style="display:flex; gap:4px; margin-top:5px; flex-wrap:wrap;">
+                @foreach (var t in Model.TagList.Take(4))
+                {
+                    <span class="badge badge-neutral" style="font-size:0.6rem;">@t</span>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">
+        <a href="@Model.Url" target="_blank" rel="noopener"
+           onclick="trackVisit(@Model.Id)"
+           class="btn-los btn-ghost btn-icon-sm" title="Open">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M7 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V9"
+                      stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                <path d="M10 2h4v4M14 2L8 8" stroke="currentColor"
+                      stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+        </a>
+        <button class="btn-los btn-ghost btn-icon-sm"
+                data-bs-toggle="modal" data-bs-target="#editLink@Model.Id"
+                title="Edit">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
+                      stroke-width="1.4" stroke-linejoin="round" />
+            </svg>
+        </button>
+        <form method="post" asp-action="Delete" asp-controller="Links">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit" class="btn-los btn-ghost btn-icon-sm"
+                    style="color:var(--rose);" data-confirm="Delete '@Model.Name'?">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor"
+                          stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function trackVisit(id) {
+        fetch('/Links/Visit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            },
+            body: 'id=' + id
+        });
+    }
+</script>

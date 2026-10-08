@@ -1,13 +1,13 @@
-﻿@model LifeOS.MVC.Models.ProductivityScoreViewModel
-@{ ViewData["Title"] = "Habits & Streaks"; }
+@model LifeOS.MVC.Models.ProductivityScoreViewModel
+@{ ViewData["Title"] = "Habits"; }
 
 @if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
 @if (TempData["Info"] != null)    { <div class="los-alert los-alert-info">@TempData["Info"]</div> }
 
 <div class="los-page-header">
     <div>
-        <div class="los-page-title">Habits & Streaks</div>
-        <div class="los-page-subtitle">Build unbreakable consistency. Track every day.</div>
+        <div class="los-page-title">Habits</div>
+        <div class="los-page-subtitle">Build routines that fit your life, one small action at a time.</div>
     </div>
     <div class="los-page-actions">
         <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addHabitPanel">

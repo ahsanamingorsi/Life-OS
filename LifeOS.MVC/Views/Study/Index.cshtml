@@ -1,0 +1,248 @@
+@model LifeOS.MVC.Models.StudyDashboardViewModel
+@{ ViewData["Title"] = "Study"; }
+@await Html.PartialAsync("_LearningNavigation")
+
+
+@if (TempData["Success"] != null) { 
+<div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
+@if (TempData["Info"] != null)    { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
+
+<div class="los-page-header">
+    <div>
+        <div class="los-page-title">Study</div>
+        <div class="los-page-subtitle">Track subjects, log sessions, build knowledge.</div>
+    </div>
+    <div class="los-page-actions">
+        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addSubjectPanel">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            New Subject
+        </button>
+    </div>
+</div>
+
+<!-- Add Subject Panel -->
+<div class="collapse" id="addSubjectPanel">
+    <div class="los-panel">
+        <div class="los-panel-title">Add Study Subject</div>
+        <form method="post" asp-action="CreateSubject" asp-controller="Study">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Subject Name *</label>
+                        <input name="Name" class="form-control" required
+                               placeholder="e.g. ASP.NET Core, Calculus, Arabic" maxlength="150" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="Category" class="form-control">
+                            <option>Programming</option><option>Math</option>
+                            <option>Language</option><option>Religion</option>
+                            <option>Science</option><option>Exam Prep</option>
+                            <option>History</option><option>Business</option>
+                            <option>General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label">Target Hours</label>
+                        <input name="TargetHours" type="number" min="0"
+                               class="form-control" value="0" placeholder="0 = no target" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input name="Description" class="form-control"
+                               placeholder="Goal or reason for studying this" maxlength="300" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Current Topic</label>
+                        <input name="CurrentTopic" class="form-control"
+                               placeholder="Where are you right now?" maxlength="200" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Resource / Link</label>
+                        <input name="ResourceUrl" class="form-control"
+                               placeholder="Book, URL, or resource name" maxlength="200" />
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn-los btn-secondary"
+                            data-bs-toggle="collapse" data-bs-target="#addSubjectPanel">Cancel</button>
+                    <button type="submit" class="btn-los btn-primary">Add Subject</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── STATS ROW ─────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-indigo">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 3h12v10H2zM2 6h12" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M6 3v3" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value">@Model.ActiveSubjects</div>
+            <div class="los-kpi-label">Active Subjects</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-amber">h</div>
+            <div class="los-kpi-value" style="color:var(--amber)">
+                @Model.TotalHoursAllTime.ToString("F1")
+            </div>
+            <div class="los-kpi-label">Total Hours</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-teal">h</div>
+            <div class="los-kpi-value" style="color:var(--teal)">
+                @Model.ThisWeekHours.ToString("F1")
+            </div>
+            <div class="los-kpi-label">This Week</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="los-kpi">
+            <div class="los-kpi-icon icon-bg-violet">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor"
+                          stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="los-kpi-value" style="color:var(--violet)">@Model.TotalNotes</div>
+            <div class="los-kpi-label">Total Notes</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TODAY'S SESSIONS + RECENT NOTES ───────────────────────────── -->
+@if (Model.TodaySessions.Any() || Model.RecentNotes.Any())
+{
+    <div class="row g-4 mb-4">
+        @if (Model.TodaySessions.Any())
+        {
+            <div class="col-lg-6">
+                <div class="los-card">
+                    <div class="los-card-header">
+                        <div class="los-card-title-lg">Today's Study</div>
+                        <span style="font-family:'Instrument Serif',serif; font-size:1.2rem;
+                                     color:var(--teal);">
+                            @Model.TodayHours.ToString("F1")h
+                        </span>
+                    </div>
+                    @foreach (var s in Model.TodaySessions)
+                    {
+                        <div class="activity-item">
+                            <div class="activity-dot" style="background:var(--teal);"></div>
+                            <div class="activity-text">
+                                <strong>@s.StudySubject?.Name</strong>
+                                @if (!string.IsNullOrEmpty(s.TopicCovered))
+                                { <span> — @s.TopicCovered</span> }
+                            </div>
+                            <div class="activity-time">@s.DurationHours h</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        @if (Model.RecentNotes.Any())
+        {
+            <div class="col-lg-6">
+                <div class="los-card">
+                    <div class="los-card-title-lg" style="margin-bottom:14px;">Recent Notes</div>
+                    @foreach (var n in Model.RecentNotes)
+                    {
+                        <div class="activity-item">
+                            <div class="activity-dot"
+                                 style="background:@(n.IsPinned?"var(--amber)":"var(--violet)");"></div>
+                            <div class="activity-text">
+                                @if (n.IsPinned)
+                                { <span style="color:var(--amber); margin-right:4px;">📌</span> }
+                                <strong>@n.Title</strong>
+                                <span style="color:var(--text-disabled);">
+                                    — @n.StudySubject?.Name
+                                </span>
+                            </div>
+                            <div class="activity-time">@n.CreatedAt.ToString("MMM d")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- ── SUBJECTS GRID ──────────────────────────────────────────────── -->
+@if (!Model.Subjects.Any())
+{
+    <div class="los-card">
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                          stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="empty-state-title">No subjects yet</div>
+            <div class="empty-state-desc">
+                Add a subject to start tracking your study sessions, log hours, and take notes.
+            </div>
+            <button class="btn-los btn-primary"
+                    data-bs-toggle="collapse" data-bs-target="#addSubjectPanel">
+                Add First Subject
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    var activeSubjects = Model.Subjects.Where(s => s.Status == "Active").ToList(); 
+    var otherSubjects  = Model.Subjects.Where(s => s.Status != "Active").ToList(); 
+
+    @if (activeSubjects.Any())
+    {
+        <div class="los-section-label">Active</div>
+        <div class="row g-3 mb-4">
+            @foreach (var s in activeSubjects)
+            {
+                <div class="col-lg-4 col-md-6">
+                    @await Html.PartialAsync("_StudySubjectCard", s)
+                </div>
+            }
+        </div>
+    }
+
+    @if (otherSubjects.Any())
+    {
+        <div class="los-section-label">Completed / Paused</div>
+        <div class="row g-3 mb-4">
+            @foreach (var s in otherSubjects)
+            {
+                <div class="col-lg-4 col-md-6" style="opacity:.7;">
+                    @await Html.PartialAsync("_StudySubjectCard", s)
+                </div>
+            }
+        </div>
+    }
+}
+
+
+
+

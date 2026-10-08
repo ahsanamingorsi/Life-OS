@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace LifeOS.MVC.Models
 {
@@ -14,7 +14,7 @@ namespace LifeOS.MVC.Models
 
         public DateTime? DueDate { get; set; }
 
-        [MaxLength(10)]
+        [MaxLength(10), RegularExpression("A|B|C")]
         public string Priority { get; set; } = "B"; // A | B | C
 
         public bool IsCompleted { get; set; } = false;
