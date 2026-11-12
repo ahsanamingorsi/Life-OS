@@ -24,6 +24,10 @@ namespace LifeOS.MVC.Models
 
         public double HoursLogged { get; set; } = 0;
 
+        // Hours planned per week; 0 = no weekly target (used by the dashboard Studies level)
+        [Range(0, 168)]
+        public double WeeklyTargetHours { get; set; } = 0;
+
         [Range(0, 100)]
         public int ProgressPercent { get; set; } = 0;
 

@@ -7,7 +7,7 @@
     double skillH = (double)(ViewBag.SkillHours ?? 0);
     double studyH = (double)(ViewBag.StudyHours ?? 0);
     double avgScore = (double)(ViewBag.AvgScore ?? 0);
-    var bestStreaks = ViewBag.BestStreaks as dynamic ?? new List<dynamic>();
+    var taskStreaks = ViewBag.TaskStreaks as List<LifeOS.MVC.Models.RepeatedTaskStreak> ?? new();
     var activity = ViewBag.Activity as List<LifeOS.MVC.Models.ActivityLog> ?? new();
     var reviews = ViewBag.Reviews as List<LifeOS.MVC.Models.ReviewEntry> ?? new();
     int taskPct = totalT > 0 ? (int)((double)completedT / totalT * 100) : 0;
@@ -120,29 +120,35 @@
 
 <!-- Streaks + Reviews -->
 <div class="row g-3 mb-4">
-    <!-- Habit Streaks -->
+    <!-- Repeated task streaks -->
     <div class="col-lg-6">
         <div class="analytics-card">
-            @if (bestStreaks != null)
+            <div class="card-header" style="margin-bottom:14px;">
+                <div class="card-title-lg">Repeated Task Streaks</div>
+                <a href="/PersonalTasks?filter=repeated" class="btn btn-ghost btn-xs" style="color:var(--indigo);">All →</a>
+            </div>
+            @if (!taskStreaks.Any())
             {
-                <div class="table-wrap" style="border:none;">
+                <div style="text-align:center; padding:24px 0; color:var(--text-3); font-size:.845rem;">
+                    No repeated tasks yet. <a href="/PersonalTasks/Create" style="color:var(--indigo);">Add one →</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive" style="border:none;">
                     <table class="table">
                         <thead>
-                            <tr><th>Habit</th><th>Current</th><th>Best</th><th>Total</th></tr>
+                            <tr><th scope="col">Task</th><th scope="col">Repeat</th><th scope="col">Streak</th><th scope="col">Last 30 days</th><th scope="col">Total</th></tr>
                         </thead>
                         <tbody>
-                            @foreach (var s in bestStreaks)
+                            @foreach (var s in taskStreaks)
                             {
                                 <tr>
-                                    <td style="font-weight:500;">@s.Name</td>
-                                                     <!--  <td>
-                                        <span style="font-weight:700; color:var(--amber);">
-                                            🔥 s.Streak.CurrentStreak
-                                        </span>
-                                    </td>
-                                    <td style="color:var(--violet); font-weight:600;">s.Streak.BestStreak</td>
-                                    <td style="color:var(--text-3);">s.TotalCount</td>-->
-                                    
+                                    <td style="font-weight:500;">@s.Title</td>
+                                    <td>@s.Repeat</td>
+                                    <td style="font-weight:700;">@s.CurrentStreak</td>
+                                    <td>@s.Last30Days</td>
+                                    <td>@s.Total</td>
                                 </tr>
                             }
                         </tbody>
@@ -203,7 +209,7 @@
             @foreach (var a in activity)
             {
                 string dotColor = a.Action == "Completed" ? "var(--green)"
-                                : a.Type == "Habit" ? "var(--indigo)"
+                                : a.Type == "PersonalTask" ? "var(--indigo)"
                                 : a.Type == "Project" ? "var(--violet)"
                                 : "var(--sky)";
                 <div class="activity-item" style="border-bottom:none; padding:6px 10px;

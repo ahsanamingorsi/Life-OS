@@ -1,17 +1,28 @@
 using LifeOS.MVC.Data;
+using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+
 namespace LifeOS.MVC.Controllers;
-public class PlannerController(AppDbContext db) : Controller
+
+/// <summary>My day: tasks and repeated tasks for one chosen day, plus projects in focus.</summary>
+public class PlannerController(AppDbContext db, TaskService tasks) : Controller
 {
     public async Task<IActionResult> Index(DateTime? date)
     {
-        var day = (date ?? DateTime.Today).Date;
-        ViewBag.Tasks = await db.PersonalTasks.AsNoTracking().Where(t => t.DueDate != null && t.DueDate.Value.Date == day || !t.IsCompleted && (t.DueDate == null || t.DueDate < day)).OrderBy(t => t.IsCompleted).ThenBy(t => t.Priority).ThenBy(t => t.DueDate).ToListAsync();
-        ViewBag.Projects = await db.Projects.AsNoTracking().Where(p => p.Status == "Active").OrderBy(p => p.Priority).ThenBy(p => p.Deadline).Take(3).ToListAsync();
-        ViewBag.Habits = await db.Habits.AsNoTracking().Include(h => h.Streak).Where(h => h.IsActive).OrderBy(h => h.Name).ToListAsync();
-        ViewBag.DoneToday = await db.HabitLogs.Where(l => l.CompletedDate.Date == day).Select(l => l.HabitId).ToListAsync();
-        ViewBag.Today = day;
+        var today = DateTime.Today;
+        var day = (date ?? today).Date;
+        if (day < today.AddYears(-5) || day > today.AddYears(5)) day = today;
+
+        var dayTasks = await tasks.GetForDayAsync(day, includeOverdue: day == today);
+        ViewBag.Today = today;
+        ViewBag.Day = day;
+        ViewBag.OneTime = dayTasks.Where(t => !t.Task.IsRepeated).ToList();
+        ViewBag.Repeated = dayTasks.Where(t => t.Task.IsRepeated).ToList();
+        ViewBag.Projects = await db.Projects.AsNoTracking()
+            .Where(p => p.Status == "Active")
+            .OrderBy(p => p.Priority).ThenBy(p => p.Deadline ?? DateTime.MaxValue)
+            .Take(3).ToListAsync();
         return View();
     }
 }

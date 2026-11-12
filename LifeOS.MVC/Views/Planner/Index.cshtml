@@ -1,16 +1,135 @@
+@using LifeOS.MVC.Services
 @{
- ViewData["Title"]="My day";
- var tasks=ViewBag.Tasks as List<LifeOS.MVC.Models.PersonalTask> ?? new();
- var habits=ViewBag.Habits as List<LifeOS.MVC.Models.Habit> ?? new();
- var projects=ViewBag.Projects as List<LifeOS.MVC.Models.Project> ?? new();
- var done=ViewBag.DoneToday as List<int> ?? new();
- var day=(DateTime)ViewBag.Today;
+    ViewData["Title"] = "My day";
+    var today = (DateTime)ViewBag.Today;
+    var day = (DateTime)ViewBag.Day;
+    var oneTime = ViewBag.OneTime as List<DayTask> ?? new();
+    var repeated = ViewBag.Repeated as List<DayTask> ?? new();
+    var projects = ViewBag.Projects as List<LifeOS.MVC.Models.Project> ?? new();
+    var dayIso = day.ToString("yyyy-MM-dd");
+    var here = "/Planner?date=" + dayIso;
+    bool canComplete = day <= today;
+    int total = oneTime.Count + repeated.Count;
+    int done = oneTime.Count(t => t.IsDone) + repeated.Count(t => t.IsDone);
 }
-<div class="page-heading"><div><div class="eyebrow">PLAN WITH INTENTION</div><h1>Make today feel manageable.</h1><p>Choose your next step. Leave room to breathe.</p></div><a class="btn btn-secondary" href="/PersonalTasks">Manage all tasks ↗</a></div>
-<nav class="week-strip" aria-label="Choose planning day">@for(int i=-3;i<=3;i++){var d=DateTime.Today.AddDays(i);<a class="day-choice @(d==day?"selected":"")" href="/Planner?date=@d.ToString("yyyy-MM-dd")"><span>@d.ToString("ddd")</span><strong>@d.Day</strong><small>@(d==DateTime.Today?"Today":d.ToString("MMM"))</small></a>}</nav>
-<div class="workspace-grid"><div><section class="card card-p"><div class="section-heading"><h3>@day.ToString("dddd, dd MMMM")</h3><span class="badge-soft">@tasks.Count(t=>!t.IsCompleted) open tasks</span></div>
-<form asp-controller="PersonalTasks" asp-action="Create" method="post" class="quick-add"><input type="hidden" name="DueDate" value="@day.ToString("yyyy-MM-dd")" /><input type="hidden" name="returnUrl" value="/Planner?date=@day.ToString("yyyy-MM-dd")" /><label class="visually-hidden" for="quickTask">New task</label><input id="quickTask" name="Title" maxlength="200" required class="form-control" placeholder="What needs your attention?" /><select name="Priority" class="form-select" aria-label="Task priority"><option value="B">Normal</option><option value="A">High</option><option value="C">Low</option></select><button class="btn btn-primary">Add task</button></form>
-@if(!tasks.Any()){<div class="empty-state"><h4>A clear day ahead</h4><p>Add one meaningful task to get started.</p></div>}
-@foreach(var task in tasks){<div class="work-row"><form asp-controller="PersonalTasks" asp-action="ToggleComplete" method="post"><input name="id" value="@task.Id" type="hidden" /><input name="returnUrl" value="/Planner?date=@day.ToString("yyyy-MM-dd")" type="hidden" /><button class="completion-button @(task.IsCompleted?"complete":"")" aria-label="@(task.IsCompleted?"Reopen":"Complete") @task.Title">@(task.IsCompleted?"✓":"")</button></form><div class="flex-grow-1"><strong class="@(task.IsCompleted?"completed-title":"")">@task.Title</strong><div class="small muted">@(task.DueDate==null?"No due date":task.DueDate.Value.Date<day?"Overdue · "+task.DueDate.Value.ToString("dd MMM"):"Due "+task.DueDate.Value.ToString("dd MMM"))</div></div><span class="badge-soft">@(task.Priority=="A"?"High":task.Priority=="C"?"Low":"Normal")</span><a href="/PersonalTasks/Edit/@task.Id" class="btn btn-ghost btn-sm">Edit</a></div>}
-</section><section class="card card-p mt-4"><div class="section-heading"><h3>Projects in focus</h3><a href="/Projects">View all ↗</a></div>@if(!projects.Any()){<p class="muted">Your active projects will appear here.</p>}@foreach(var project in projects){<a class="work-row" href="/Projects/Detail/@project.Id"><div class="flex-grow-1"><strong>@project.Title</strong><div class="small muted">@(project.NextTask??"Set your next step")</div></div><span>@project.ProgressPercent% ↗</span></a>}</section></div>
-<aside><section class="card card-p"><div class="section-heading"><h3>Daily routines</h3><a href="/Habits">Manage ↗</a></div>@if(day!=DateTime.Today){<p class="muted small">Completion history for @day.ToString("dd MMM"). Mark routines from today's plan.</p>}@if(!habits.Any()){<p class="muted">Start with one small daily habit.</p>}@foreach(var habit in habits){var complete=done.Contains(habit.Id);<div class="work-row">@if(day==DateTime.Today){<form asp-controller="Habits" asp-action="@(complete?"UnmarkComplete":"MarkComplete")" method="post"><input name="habitId" value="@habit.Id" type="hidden" /><input name="returnUrl" value="/Planner" type="hidden" /><button class="completion-button @(complete?"complete":"")" aria-label="Toggle @habit.Name">@(complete?"✓":"")</button></form>}else{<span class="completion-button @(complete?"complete":"")">@(complete?"✓":"")</span>}<div><strong>@habit.Name</strong><div class="small muted">@habit.Frequency · @(habit.Streak?.CurrentStreak??0) streak</div></div></div>}</section><section class="focus-card mt-4"><span class="eyebrow">ONE THING AT A TIME</span><h3 class="mt-3">Protect your focus.</h3><p>A short, uninterrupted session can move your day forward.</p><button class="btn btn-primary" onclick="timerToggle()">Open focus timer</button></section></aside></div>
+
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">My day</div>
+            <h1 class="db-title">@(day == today ? "Make today feel manageable." : day.ToString("dddd, d MMMM"))</h1>
+        </div>
+        <div class="db-actions">
+            <a class="lo-btn" href="/PersonalTasks">All tasks</a>
+            <a class="lo-btn lo-btn-primary" href="@Url.Action("Create", "PersonalTasks", new { returnUrl = here })">@await Html.PartialAsync("_Icon", "plus") New task</a>
+        </div>
+    </div>
+
+    <nav class="lo-week" aria-label="Choose a day">
+        @for (int i = -3; i <= 3; i++)
+        {
+            var d = today.AddDays(i);
+            <a class="lo-week-day @(d == day ? "selected" : "")" href="/Planner?date=@d.ToString("yyyy-MM-dd")" aria-current="@(d == day ? "date" : null)">
+                <span>@d.ToString("ddd")</span><strong>@d.Day</strong><small>@(d == today ? "Today" : d.ToString("MMM"))</small>
+            </a>
+        }
+    </nav>
+
+    <div class="lo-two-col">
+        <div class="lo-col-main">
+            <section class="db-card" aria-labelledby="dayTasks">
+                <div class="db-card-head">
+                    <h2 id="dayTasks" class="db-h2">Tasks · @day.ToString("ddd d MMM")</h2>
+                    <span class="db-pill lo-num">@done / @total done</span>
+                </div>
+
+                <form asp-controller="PersonalTasks" asp-action="Create" method="post" class="db-task-add">
+                    <input type="hidden" name="DueDate" value="@dayIso" />
+                    <input type="hidden" name="Repeat" value="None" />
+                    <input type="hidden" name="returnUrl" value="@here" />
+                    <label for="quickTask" class="lo-visually-hidden">New task for this day</label>
+                    <input id="quickTask" name="Title" maxlength="200" required placeholder="What needs your attention?" />
+                    <label for="quickPriority" class="lo-visually-hidden">Priority</label>
+                    <select id="quickPriority" name="Priority" class="lo-select lo-select-sm"><option value="B">Normal</option><option value="A">High</option><option value="C">Low</option></select>
+                    <button type="submit" class="lo-btn lo-btn-primary">Add</button>
+                </form>
+
+                <div class="db-task-list">
+                    @if (!oneTime.Any()) { <p class="db-empty">No one-time tasks for this day.</p> }
+                    @foreach (var item in oneTime)
+                    {
+                        var t = item.Task;
+                        <div class="db-task @(item.IsDone ? "is-done" : "") @(item.IsOverdue ? "is-overdue" : "")">
+                            <form asp-controller="PersonalTasks" asp-action="ToggleComplete" method="post">
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <input type="hidden" name="returnUrl" value="@here" />
+                                <button type="submit" class="db-check @(item.IsDone ? "done" : "")" aria-label="@(item.IsDone ? "Mark as not done" : "Mark as done"): @t.Title">
+                                    @if (item.IsDone) { @await Html.PartialAsync("_Icon", "tick") }
+                                </button>
+                            </form>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@t.Title</div>
+                                <div class="db-task-meta">@(item.IsOverdue ? "Overdue · " + t.DueDate!.Value.ToString("dd MMM") : "Due " + t.DueDate!.Value.ToString("dd MMM"))@(t.Goal != null ? " · Goal: " + t.Goal.Goal : "")</div>
+                            </div>
+                            @if (t.Priority == "A") { <span class="db-badge high">High</span> }
+                            <a class="lo-btn lo-btn-sm" href="@Url.Action("Edit", "PersonalTasks", new { id = t.Id, returnUrl = here })" aria-label="Edit @t.Title">Edit</a>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card" aria-labelledby="focusProjects">
+                <div class="db-card-head"><h2 id="focusProjects" class="db-h2">Projects in focus</h2><a class="db-link" href="/Projects">All projects</a></div>
+                @if (!projects.Any()) { <p class="db-empty">Your active projects will appear here.</p> }
+                @foreach (var p in projects)
+                {
+                    var pct = Math.Clamp(p.ProgressPercent, 0, 100);
+                    <a class="db-project" href="/Projects/Detail/@p.Id">
+                        <div class="db-project-top"><span class="db-pri @p.Priority.ToLowerInvariant()">@p.Priority</span><span class="db-project-name">@p.Title</span><span class="lo-num" style="font-weight:700;">@pct%</span></div>
+                        <div class="db-muted db-tiny">Next: @(p.NextTask ?? "set your next step")</div>
+                        <div class="db-bar thin" role="presentation"><span style="width:@pct%"></span></div>
+                    </a>
+                }
+            </section>
+        </div>
+
+        <aside class="lo-col-side">
+            <section class="db-card" aria-labelledby="repeatTitle">
+                <div class="db-card-head"><h2 id="repeatTitle" class="db-h2">Repeated tasks</h2><a class="db-link" href="/PersonalTasks?filter=repeated">Manage</a></div>
+                @if (!canComplete) { <p class="db-muted db-tiny" style="margin:0;">Future day: you can tick these on the day itself.</p> }
+                <div class="db-task-list">
+                    @if (!repeated.Any()) { <p class="db-empty">Nothing repeats on this day.</p> }
+                    @foreach (var item in repeated)
+                    {
+                        var t = item.Task;
+                        <div class="db-task @(item.IsDone ? "is-done" : "")">
+                            @if (canComplete)
+                            {
+                                <form asp-controller="PersonalTasks" asp-action="ToggleComplete" method="post">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <input type="hidden" name="date" value="@dayIso" />
+                                    <input type="hidden" name="returnUrl" value="@here" />
+                                    <button type="submit" class="db-check @(item.IsDone ? "done" : "")" aria-label="@(item.IsDone ? "Mark as not done" : "Mark as done"): @t.Title">
+                                        @if (item.IsDone) { @await Html.PartialAsync("_Icon", "tick") }
+                                    </button>
+                                </form>
+                            }
+                            else { <span class="db-check lo-check-off" aria-hidden="true"></span> }
+                            <div class="db-task-body">
+                                <div class="db-task-title">@t.Title</div>
+                                <div class="db-task-meta">@TaskService.RepeatText(t)@(item.Streak > 0 ? $" · {item.Streak} streak" : "")</div>
+                            </div>
+                            <span class="db-badge repeat-@t.Repeat.ToLowerInvariant()">@t.Repeat</span>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card lo-focus-card">
+                <h2 class="db-h2">Protect your focus.</h2>
+                <p class="db-muted db-small" style="margin:0;">A short, uninterrupted session can move your day forward.</p>
+                <button type="button" class="lo-btn lo-btn-primary" onclick="timerToggle()">Open focus timer</button>
+            </section>
+        </aside>
+    </div>
+</div>

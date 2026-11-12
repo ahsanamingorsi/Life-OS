@@ -1,3 +1,19 @@
-@{ var items = new[] { ("/", "Dashboard", "dashboard"), ("/Planner", "My day", "plan"), ("/Projects", "Projects", "projects"), ("/Habits", "Habits", "check"), ("/Learning", "Learning", "learning"), ("/Money", "Money", "money"), ("/Spiritual", "Spiritual", "spiritual") }; }
-<div class="nav-section-label">YOUR WORKSPACE</div>
-@foreach (var item in items) { <a class="los-nav-link" href="@item.Item1"><span class="los-nav-icon" aria-hidden="true">@await Html.PartialAsync("_Icon", item.Item3)</span><span class="los-nav-label">@item.Item2</span></a> }
+@{
+    var groups = new (string Label, (string Href, string Text, string Icon)[] Items)[]
+    {
+        ("Plan", new[] { ("/", "Dashboard", "dashboard"), ("/Planner", "My day", "clock"), ("/PersonalTasks", "Tasks", "tasks"), ("/Projects", "Projects", "projects"), ("/Study", "Studies", "studies"), ("/TechGrowth", "Skills", "skills") }),
+        ("Life", new[] { ("/Spiritual", "Spiritual", "spiritual"), ("/PersonalUpgrade", "Goals", "goals"), ("/Review", "Review", "review") }),
+        ("Library", new[] { ("/Links", "Links", "links"), ("/Vault", "Vault", "vault") }),
+        ("Insights", new[] { ("/Analytics", "Analytics", "analytics") }),
+    };
+}
+@foreach (var group in groups)
+{
+    <div class="lo-nav-group" role="group" aria-labelledby="nav-@group.Label">
+        <div class="lo-nav-group-label" id="nav-@group.Label">@group.Label</div>
+        @foreach (var item in group.Items)
+        {
+            <a class="los-nav-link" href="@item.Href"><span class="los-nav-icon">@await Html.PartialAsync("_Icon", item.Icon)</span><span class="los-nav-label">@item.Text</span></a>
+        }
+    </div>
+}

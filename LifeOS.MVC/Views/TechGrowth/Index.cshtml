@@ -1,12 +1,11 @@
-@model LifeOS.MVC.Models.TechGrowthViewModel
+﻿@model LifeOS.MVC.Models.TechGrowthViewModel
 @{ ViewData["Title"] = "Skills"; }
-@await Html.PartialAsync("_LearningNavigation")
 
 
 @if (TempData["Success"] != null) { 
 <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
 @if (TempData["Info"]    != null) { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
-@if (TempData["Error"]   != null) { <div class="los-alert los-alert-error">⚠ @TempData["Error"]</div> }
+@* Errors are shown once by the shared layout. *@
 
 <div class="los-page-header">
     <div>
@@ -350,7 +349,7 @@
                     <div class="form-group">
                         <label class="form-label">Date</label>
                         <input name="logDate" type="date" class="form-control"
-                               value="@DateTime.Today.ToString("yyyy-MM-dd")"/>
+                               value="@DateTime.Today.ToString("yyyy-MM-dd")" max="@DateTime.Today.ToString("yyyy-MM-dd")"/>
                     </div>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
@@ -610,10 +609,10 @@ else
                                     style="color:var(--accent); padding-left:0;"
                                     type="button"
                                     data-bs-toggle="collapse"
-                                    data-bs-target="#quickLog@s.Id">
+                                    data-bs-target="#quickLog@(s.Id)">
                                 + Log Session
                             </button>
-                            <div class="collapse" id="quickLog@s.Id">
+                            <div class="collapse" id="quickLog@(s.Id)">
                                 <form method="post" asp-action="LogHours"
                                       asp-controller="TechGrowth"
                                       style="margin-top:8px;">

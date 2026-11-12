@@ -132,42 +132,6 @@
             "<strong style="color:var(--accent);">@Model.Query</strong>"
         </div>
 
-        <!-- Knowledge -->
-        @if (Model.KnowledgeResults.Any())
-        {
-            <div class="sr-section">
-                <div class="sr-section-title">
-                    📚 Knowledge Base
-                    <span class="sr-section-count">@Model.KnowledgeResults.Count</span>
-                </div>
-                @foreach (var e in Model.KnowledgeResults)
-                {
-                    <a asp-action="Index" asp-controller="Knowledge"
-                       asp-route-search="@Model.Query" class="sr-item">
-                        <div class="sr-item-icon">📄</div>
-                        <div>
-                            <div class="sr-item-title">@e.Title</div>
-                            <div class="sr-item-sub">
-                                @e.Type · @e.Category
-                                @if (!string.IsNullOrEmpty(e.Source))
-                                {
-                                    <span> · @e.Source</span>
-                                }
-                                @if (!string.IsNullOrEmpty(e.Content) && e.Content.Length > 0)
-                                {
-                                    <div style="margin-top:2px; overflow:hidden;
-                                        display:-webkit-box; -webkit-line-clamp:1;
-                                        -webkit-box-orient:vertical;">
-                                        @(e.Content.Length > 120 ? e.Content[..120] + "…" : e.Content)
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </a>
-                }
-            </div>
-        }
-
         <!-- Links -->
         @if (Model.LinkResults.Any())
         {
@@ -346,6 +310,79 @@
                 }
             </div>
         }
+
+        <!-- Project tasks -->
+        @if (Model.ProjectTaskResults.Any())
+        {
+            <div class="sr-section">
+                <div class="sr-section-title">◈ Project Tasks <span class="sr-section-count">@Model.ProjectTaskResults.Count</span></div>
+                @foreach (var t in Model.ProjectTaskResults)
+                {
+                    <a href="/Projects/Detail/@t.ProjectId" class="sr-item">
+                        <div class="sr-item-icon">@(t.IsCompleted ? "✓" : "○")</div>
+                        <div>
+                            <div class="sr-item-title">@t.Title</div>
+                            <div class="sr-item-sub">@t.Project?.Title · @t.Status</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+
+        <!-- Study tasks -->
+        @if (Model.StudyTaskResults.Any())
+        {
+            <div class="sr-section">
+                <div class="sr-section-title">📖 Study Tasks <span class="sr-section-count">@Model.StudyTaskResults.Count</span></div>
+                @foreach (var t in Model.StudyTaskResults)
+                {
+                    <a href="/Study/Subject/@t.StudySubjectId" class="sr-item">
+                        <div class="sr-item-icon">@(t.IsCompleted ? "✓" : "○")</div>
+                        <div>
+                            <div class="sr-item-title">@t.Title</div>
+                            <div class="sr-item-sub">@t.StudySubject?.Name@(t.DueDate.HasValue ? " · Due " + t.DueDate.Value.ToString("MMM d") : "")</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+
+        <!-- Goals -->
+        @if (Model.GoalResults.Any())
+        {
+            <div class="sr-section">
+                <div class="sr-section-title">◎ Goals <span class="sr-section-count">@Model.GoalResults.Count</span></div>
+                @foreach (var g in Model.GoalResults)
+                {
+                    <a href="/PersonalUpgrade" class="sr-item">
+                        <div class="sr-item-icon">◎</div>
+                        <div>
+                            <div class="sr-item-title">@g.Goal</div>
+                            <div class="sr-item-sub">@g.Category@(g.IsAchieved ? " · Achieved" : "")</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+
+
+        <!-- Spiritual -->
+        @if (Model.SpiritualResults.Any())
+        {
+            <div class="sr-section">
+                <div class="sr-section-title">☾ Spiritual <span class="sr-section-count">@Model.SpiritualResults.Count</span></div>
+                @foreach (var s in Model.SpiritualResults)
+                {
+                    <a href="/Spiritual?date=@s.Date.ToString("yyyy-MM-dd")" class="sr-item">
+                        <div class="sr-item-icon">☾</div>
+                        <div>
+                            <div class="sr-item-title">@s.Date.ToString("dddd, MMM d")</div>
+                            <div class="sr-item-sub">@(s.GratitudeNote ?? s.ReflectionNote)</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
     }
 }
 else
@@ -357,14 +394,15 @@ else
             What you can search
         </div>
         @foreach (var tip in new[]{
-            ("📚","Knowledge Base","Notes, lessons, quotes, ideas, frameworks"),
             ("🔗","Web Links","Bookmarks, tools, resources"),
             ("🔒","Vault","Accounts, emails, usernames"),
             ("◈","Projects","Project titles and notes"),
             ("✦","Tasks","Personal task titles and descriptions"),
-            ("✅","Habits","Habit names and identity statements"),
             ("⚡","Skills","Tech skill names and notes"),
-            ("📖","Study","Subject names and descriptions"),
+            ("📖","Study","Subject names, descriptions and study tasks"),
+            ("◈","Project tasks","Task titles, descriptions and notes"),
+            ("◎","Goals","Goal names and notes"),
+            ("☾","Spiritual","Gratitude and reflection notes"),
         })
         {
             <div style="display:flex; align-items:center; gap:10px; padding:8px 0;

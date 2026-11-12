@@ -10,17 +10,13 @@ namespace LifeOS.MVC.Data
 
         public DbSet<TechSkill> TechSkills { get; set; }
         public DbSet<Project> Projects { get; set; }
-        public DbSet<HealthEntry> HealthEntries { get; set; }
-        public DbSet<HabitEntry> HabitEntries { get; set; }
         public DbSet<SpiritualEntry> SpiritualEntries { get; set; }
         public DbSet<PersonalGoal> PersonalGoals { get; set; }
         public DbSet<ReviewEntry> ReviewEntries { get; set; }
 
-        // ── NEW TABLES ───────────────────────────────────────────────────
-        public DbSet<Habit> Habits { get; set; }
-        public DbSet<HabitLog> HabitLogs { get; set; }
-        public DbSet<Streak> Streaks { get; set; }
+        // ── TASKS ────────────────────────────────────────────────────────
         public DbSet<PersonalTask> PersonalTasks { get; set; }
+        public DbSet<TaskCompletion> TaskCompletions { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
 
         // ── PROJECT TASKS (NEW) ───────────────────────────────────────
@@ -33,56 +29,37 @@ namespace LifeOS.MVC.Data
         public DbSet<StudyNote> StudyNotes { get; set; }
         // ── TECH SKILL LOGS (NEW) ─────────────────────────────────────────
         public DbSet<TechSkillLog> TechSkillLogs { get; set; }
-        // ── KNOWLEDGE BASE, LINKS, VAULT (NEW) ───────────────────────────
-        public DbSet<KnowledgeEntry> KnowledgeEntries { get; set; }
+        // ── LINKS, VAULT ─────────────────────────────────────────────────
         public DbSet<WebLink> WebLinks { get; set; }
         public DbSet<VaultEntry> VaultEntries { get; set; }
-        public DbSet<MoneyTransaction> MoneyTransactions { get; set; }
-        public DbSet<MonthlyBudget> MonthlyBudgets { get; set; }
-        public DbSet<MoneyAccount> MoneyAccounts { get; set; }
-        public DbSet<MoneyLoan> MoneyLoans { get; set; }
-        public DbSet<LoanRepayment> LoanRepayments { get; set; }
-        public DbSet<AccountTransfer> AccountTransfers { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<MoneyTransaction>().Property(t => t.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<MonthlyBudget>().Property(t => t.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<MonthlyBudget>().HasIndex(b => b.Month).IsUnique();
 
-            modelBuilder.Entity<MoneyAccount>().Property(a => a.OpeningBalance).HasPrecision(18, 2);
-            modelBuilder.Entity<MoneyLoan>().Property(a => a.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<LoanRepayment>().Property(a => a.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<AccountTransfer>().Property(a => a.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<MoneyTransaction>().HasOne(t => t.MoneyAccount).WithMany().HasForeignKey(t => t.MoneyAccountId).OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<MoneyLoan>().HasOne(t => t.MoneyAccount).WithMany().HasForeignKey(t => t.MoneyAccountId).OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<LoanRepayment>().HasOne(t => t.MoneyLoan).WithMany(l => l.Repayments).HasForeignKey(t => t.MoneyLoanId).OnDelete(DeleteBehavior.Cascade);
-            modelBuilder.Entity<LoanRepayment>().HasOne(t => t.MoneyAccount).WithMany().HasForeignKey(t => t.MoneyAccountId).OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<AccountTransfer>().HasOne(t => t.FromAccount).WithMany().HasForeignKey(t => t.FromAccountId).OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<AccountTransfer>().HasOne(t => t.ToAccount).WithMany().HasForeignKey(t => t.ToAccountId).OnDelete(DeleteBehavior.Restrict);
-            // HabitLog: one log per habit per date
-            modelBuilder.Entity<HabitLog>()
-                .HasIndex(h => new { h.HabitId, h.CompletedDate })
+            // ── Spiritual: one entry per day ──────────────────────────────
+            modelBuilder.Entity<SpiritualEntry>()
+                .HasIndex(s => s.Date)
                 .IsUnique();
 
-            // Streak: one streak record per habit
-            modelBuilder.Entity<Streak>()
-                .HasIndex(s => s.HabitId)
+            // ── Tasks: repeat completions and goal link ──────────────────
+            modelBuilder.Entity<TaskCompletion>()
+                .HasOne(c => c.PersonalTask)
+                .WithMany(t => t.Completions)
+                .HasForeignKey(c => c.PersonalTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One completion per task per day
+            modelBuilder.Entity<TaskCompletion>()
+                .HasIndex(c => new { c.PersonalTaskId, c.Date })
                 .IsUnique();
 
-            // Habit → HabitLog cascade delete
-            modelBuilder.Entity<HabitLog>()
-                .HasOne(h => h.Habit)
-                .WithMany(h => h.HabitLogs)
-                .HasForeignKey(h => h.HabitId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Habit → Streak cascade delete
-            modelBuilder.Entity<Streak>()
-                .HasOne(s => s.Habit)
-                .WithOne(h => h.Streak)
-                .HasForeignKey<Streak>(s => s.HabitId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Deleting a goal keeps its tasks; they just lose the link
+            modelBuilder.Entity<PersonalTask>()
+                .HasOne(t => t.Goal)
+                .WithMany(g => g.Tasks)
+                .HasForeignKey(t => t.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // ── ProjectTask constraints ───────────────────────────────
             modelBuilder.Entity<ProjectTask>()

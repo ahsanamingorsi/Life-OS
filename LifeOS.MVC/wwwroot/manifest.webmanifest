@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Life OS",
   "short_name": "Life OS",
-  "description": "Your personal workspace for planning, projects, habits, learning, money and spiritual routines.",
+  "description": "Your personal workspace for planning, projects, habits, learning and spiritual routines.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -13,7 +13,6 @@
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
-    { "name": "My day", "url": "/Planner" },
-    { "name": "Money", "url": "/Money" }
+    { "name": "My day", "url": "/Planner" }
   ]
 }

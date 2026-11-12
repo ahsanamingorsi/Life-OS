@@ -1,4 +1,4 @@
-@model LifeOS.MVC.Models.StudySubject
+﻿@model LifeOS.MVC.Models.StudySubject
 @{ var tasks = Model.Tasks.OrderBy(t => t.IsCompleted).ThenBy(t => t.DueDate ?? DateTime.MaxValue).ThenByDescending(t => t.CreatedAt).ToList(); var done = tasks.Count(t => t.IsCompleted); }
 <section id="subjectTasks" class="los-card subject-tasks mb-4">
     <div class="subject-section-heading"><div><span class="eyebrow">YOUR NEXT STEPS</span><h2>Subject tasks</h2><p>Break your study into small, clear actions.</p></div><span class="badge badge-neutral">@done / @tasks.Count complete</span></div>
@@ -29,9 +29,9 @@
                     <form asp-action="UpdateTask" asp-controller="Study" method="post">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="Id" value="@task.Id" />
-                        <label class="form-label" for="editTaskTitle@task.Id">Task name</label><input id="editTaskTitle@task.Id" class="form-control" name="Title" value="@task.Title" required maxlength="200" />
-                        <label class="form-label" for="editTaskDue@task.Id">Due date</label><input id="editTaskDue@task.Id" class="form-control" name="DueDate" type="date" value="@task.DueDate?.ToString("yyyy-MM-dd")" />
-                        <label class="form-label" for="editTaskNotes@task.Id">Notes</label><textarea id="editTaskNotes@task.Id" class="form-control" name="Notes" maxlength="1000">@task.Notes</textarea>
+                        <label class="form-label" for="editTaskTitle@(task.Id)">Task name</label><input id="editTaskTitle@(task.Id)" class="form-control" name="Title" value="@task.Title" required maxlength="200" />
+                        <label class="form-label" for="editTaskDue@(task.Id)">Due date</label><input id="editTaskDue@(task.Id)" class="form-control" name="DueDate" type="date" value="@task.DueDate?.ToString("yyyy-MM-dd")" />
+                        <label class="form-label" for="editTaskNotes@(task.Id)">Notes</label><textarea id="editTaskNotes@(task.Id)" class="form-control" name="Notes" maxlength="1000">@task.Notes</textarea>
                         <button type="submit" class="btn-los btn-primary">Save task</button>
                     </form>
                 </details>

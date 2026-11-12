@@ -20,9 +20,8 @@ namespace LifeOS.Models
         [MaxLength(200)]
         public string? Email { get; set; }
 
-        // Stored as base64 simple encoding
-        // NOTE: For production use proper encryption (AES etc.)
-        // This is a personal local system so basic obfuscation is used
+        // Encrypted with Windows DPAPI by VaultCrypto ("dpapi:" + base64). Never sent to the page;
+        // the Show / Copy buttons fetch it from VaultController.Reveal.
         [MaxLength(500)]
         public string? PasswordEncoded { get; set; }
 
@@ -48,28 +47,5 @@ namespace LifeOS.Models
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
-        // Helper — NOT stored
-        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-        public string? PasswordPlain
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(PasswordEncoded)) return null;
-                try
-                {
-                    return System.Text.Encoding.UTF8.GetString(
-                        Convert.FromBase64String(PasswordEncoded));
-                }
-                catch { return PasswordEncoded; }
-            }
-            set
-            {
-                if (string.IsNullOrEmpty(value))
-                    PasswordEncoded = null;
-                else
-                    PasswordEncoded = Convert.ToBase64String(
-                        System.Text.Encoding.UTF8.GetBytes(value));
-            }
-        }
     }
 }

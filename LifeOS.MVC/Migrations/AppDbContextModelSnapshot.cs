@@ -17,40 +17,10 @@ namespace LifeOS.MVC.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("LifeOS.MVC.Models.AccountTransfer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("FromAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ToAccountId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FromAccountId");
-
-                    b.HasIndex("ToAccountId");
-
-                    b.ToTable("AccountTransfers");
-                });
 
             modelBuilder.Entity("LifeOS.MVC.Models.ActivityLog", b =>
                 {
@@ -85,310 +55,6 @@ namespace LifeOS.MVC.Migrations
                     b.ToTable("ActivityLogs");
                 });
 
-            modelBuilder.Entity("LifeOS.MVC.Models.Habit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Frequency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Habits");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.HabitEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("CommunicationPractice")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CreativityTask")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("LogicTask")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("PagesRead")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReadingNote")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ReflectionNote")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("HabitEntries");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.HabitLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CompletedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("HabitId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("LoggedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HabitId", "CompletedDate")
-                        .IsUnique();
-
-                    b.ToTable("HabitLogs");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.HealthEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("DietClean")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("DietNote")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("EnergyLevel")
-                        .HasColumnType("int");
-
-                    b.Property<double>("SleepHours")
-                        .HasColumnType("float");
-
-                    b.Property<double>("WaterLiters")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("WeightKg")
-                        .HasColumnType("float");
-
-                    b.Property<bool>("WorkoutDone")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("WorkoutNote")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("HealthEntries");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.LoanRepayment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MoneyAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MoneyLoanId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MoneyAccountId");
-
-                    b.HasIndex("MoneyLoanId");
-
-                    b.ToTable("LoanRepayments");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyAccount", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<decimal>("OpeningBalance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("MoneyAccounts");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyLoan", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Direction")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MoneyAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Person")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MoneyAccountId");
-
-                    b.ToTable("MoneyLoans");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("MoneyAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MoneyAccountId");
-
-                    b.ToTable("MoneyTransactions");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MonthlyBudget", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Month")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Month")
-                        .IsUnique();
-
-                    b.ToTable("MonthlyBudgets");
-                });
-
             modelBuilder.Entity("LifeOS.MVC.Models.PersonalGoal", b =>
                 {
                     b.Property<int>("Id")
@@ -420,6 +86,9 @@ namespace LifeOS.MVC.Migrations
                     b.Property<int>("ProgressPercent")
                         .HasColumnType("int");
 
+                    b.Property<int?>("TargetCount")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.ToTable("PersonalGoals");
@@ -446,6 +115,9 @@ namespace LifeOS.MVC.Migrations
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("GoalId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
@@ -454,12 +126,28 @@ namespace LifeOS.MVC.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<string>("Repeat")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("RepeatDayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RepeatDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("RepeatEndDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GoalId");
 
                     b.ToTable("PersonalTasks");
                 });
@@ -652,38 +340,10 @@ namespace LifeOS.MVC.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SpiritualEntries");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.Streak", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BestStreak")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CurrentStreak")
-                        .HasColumnType("int");
-
-                    b.Property<int>("HabitId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("LastCompletedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HabitId")
+                    b.HasIndex("Date")
                         .IsUnique();
 
-                    b.ToTable("Streaks");
+                    b.ToTable("SpiritualEntries");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.StudyNote", b =>
@@ -811,6 +471,9 @@ namespace LifeOS.MVC.Migrations
                     b.Property<int>("TargetHours")
                         .HasColumnType("int");
 
+                    b.Property<double>("WeeklyTargetHours")
+                        .HasColumnType("float");
+
                     b.HasKey("Id");
 
                     b.ToTable("StudySubjects");
@@ -853,6 +516,31 @@ namespace LifeOS.MVC.Migrations
                     b.HasIndex("StudySubjectId");
 
                     b.ToTable("StudyTasks");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.TaskCompletion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PersonalTaskId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonalTaskId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("TaskCompletions");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.TechSkill", b =>
@@ -953,58 +641,6 @@ namespace LifeOS.MVC.Migrations
                     b.HasIndex("TechSkillId");
 
                     b.ToTable("TechSkillLogs");
-                });
-
-            modelBuilder.Entity("LifeOS.Models.KnowledgeEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Content")
-                        .HasMaxLength(10000)
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsFavorite")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsPinned")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Tags")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("KnowledgeEntries");
                 });
 
             modelBuilder.Entity("LifeOS.Models.VaultEntry", b =>
@@ -1125,72 +761,14 @@ namespace LifeOS.MVC.Migrations
                     b.ToTable("WebLinks");
                 });
 
-            modelBuilder.Entity("LifeOS.MVC.Models.AccountTransfer", b =>
+            modelBuilder.Entity("LifeOS.MVC.Models.PersonalTask", b =>
                 {
-                    b.HasOne("LifeOS.MVC.Models.MoneyAccount", "FromAccount")
-                        .WithMany()
-                        .HasForeignKey("FromAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.HasOne("LifeOS.MVC.Models.PersonalGoal", "Goal")
+                        .WithMany("Tasks")
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("LifeOS.MVC.Models.MoneyAccount", "ToAccount")
-                        .WithMany()
-                        .HasForeignKey("ToAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("FromAccount");
-
-                    b.Navigation("ToAccount");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.HabitLog", b =>
-                {
-                    b.HasOne("LifeOS.MVC.Models.Habit", "Habit")
-                        .WithMany("HabitLogs")
-                        .HasForeignKey("HabitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Habit");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.LoanRepayment", b =>
-                {
-                    b.HasOne("LifeOS.MVC.Models.MoneyAccount", "MoneyAccount")
-                        .WithMany()
-                        .HasForeignKey("MoneyAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("LifeOS.MVC.Models.MoneyLoan", "MoneyLoan")
-                        .WithMany("Repayments")
-                        .HasForeignKey("MoneyLoanId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MoneyAccount");
-
-                    b.Navigation("MoneyLoan");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyLoan", b =>
-                {
-                    b.HasOne("LifeOS.MVC.Models.MoneyAccount", "MoneyAccount")
-                        .WithMany()
-                        .HasForeignKey("MoneyAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("MoneyAccount");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyTransaction", b =>
-                {
-                    b.HasOne("LifeOS.MVC.Models.MoneyAccount", "MoneyAccount")
-                        .WithMany()
-                        .HasForeignKey("MoneyAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("MoneyAccount");
+                    b.Navigation("Goal");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.ProjectTask", b =>
@@ -1202,17 +780,6 @@ namespace LifeOS.MVC.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("LifeOS.MVC.Models.Streak", b =>
-                {
-                    b.HasOne("LifeOS.MVC.Models.Habit", "Habit")
-                        .WithOne("Streak")
-                        .HasForeignKey("LifeOS.MVC.Models.Streak", "HabitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Habit");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.StudyNote", b =>
@@ -1248,6 +815,17 @@ namespace LifeOS.MVC.Migrations
                     b.Navigation("StudySubject");
                 });
 
+            modelBuilder.Entity("LifeOS.MVC.Models.TaskCompletion", b =>
+                {
+                    b.HasOne("LifeOS.MVC.Models.PersonalTask", "PersonalTask")
+                        .WithMany("Completions")
+                        .HasForeignKey("PersonalTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PersonalTask");
+                });
+
             modelBuilder.Entity("LifeOS.MVC.Models.TechSkillLog", b =>
                 {
                     b.HasOne("LifeOS.MVC.Models.TechSkill", "TechSkill")
@@ -1259,16 +837,14 @@ namespace LifeOS.MVC.Migrations
                     b.Navigation("TechSkill");
                 });
 
-            modelBuilder.Entity("LifeOS.MVC.Models.Habit", b =>
+            modelBuilder.Entity("LifeOS.MVC.Models.PersonalGoal", b =>
                 {
-                    b.Navigation("HabitLogs");
-
-                    b.Navigation("Streak");
+                    b.Navigation("Tasks");
                 });
 
-            modelBuilder.Entity("LifeOS.MVC.Models.MoneyLoan", b =>
+            modelBuilder.Entity("LifeOS.MVC.Models.PersonalTask", b =>
                 {
-                    b.Navigation("Repayments");
+                    b.Navigation("Completions");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.StudySubject", b =>

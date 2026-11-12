@@ -1,8 +1,117 @@
-@model List<LifeOS.MVC.Models.PersonalTask>
-@{ ViewData["Title"] = "Tasks"; var open=Model.Where(t=>!t.IsCompleted).ToList(); var completed=Model.Where(t=>t.IsCompleted).ToList(); }
-@if(TempData["Success"] != null){<div class="los-alert los-alert-success">@TempData["Success"]</div>}
-<div class="page-heading"><div><div class="eyebrow">CLEAR YOUR HEAD</div><h1>A place for every next step.</h1><p>Capture what matters, choose a priority, and move it forward.</p></div><div class="page-actions"><a href="/Planner" class="btn btn-secondary">My day ↗</a><button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#addTaskPanel" aria-expanded="false" aria-controls="addTaskPanel">＋ New task</button></div></div>
-<div class="collapse" id="addTaskPanel"><section class="los-panel"><h3>Add a task</h3><form asp-controller="PersonalTasks" asp-action="Create" method="post"><div class="row g-3"><div class="col-md-6"><label for="taskTitle">Task name</label><input id="taskTitle" name="Title" class="form-control" required maxlength="200" placeholder="What is your next step?" /></div><div class="col-md-3"><label for="taskPriority">Priority</label><select id="taskPriority" name="Priority" class="form-select"><option value="B">Normal</option><option value="A">High</option><option value="C">Low</option></select></div><div class="col-md-3"><label for="taskDate">Due date</label><input id="taskDate" name="DueDate" type="date" class="form-control" /></div><div class="col-12"><label for="taskDescription">Notes</label><textarea id="taskDescription" name="Description" maxlength="500" class="form-control" placeholder="Optional context"></textarea></div><div class="col-12 d-flex gap-2 justify-content-end"><button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#addTaskPanel">Cancel</button><button class="btn btn-primary">Save task</button></div></div></form></section></div>
-<div class="metric-grid mb-4"><div class="card card-p"><span class="eyebrow">OPEN</span><h2>@open.Count</h2><small>Ready for your attention</small></div><div class="card card-p"><span class="eyebrow">HIGH PRIORITY</span><h2>@open.Count(t=>t.Priority=="A")</h2><small>Focus on these first</small></div><div class="card card-p"><span class="eyebrow">OVERDUE</span><h2>@open.Count(t=>t.DueDate?.Date < DateTime.Today)</h2><small>Reschedule or take a step</small></div><div class="card card-p"><span class="eyebrow">COMPLETED</span><h2>@completed.Count</h2><small>Progress worth noticing</small></div></div>
-<section class="los-card task-list-card"><div class="section-heading mt-3"><h3>Your tasks</h3><span class="badge-soft">@open.Count open</span></div>@if(!open.Any()){<div class="empty-state"><h4>Nothing waiting on you</h4><p>Add a task when you have your next step in mind.</p></div>}@foreach(var task in open.OrderBy(t=>t.Priority).ThenBy(t=>t.DueDate)){@await Html.PartialAsync("_PersonalTaskRow",task)}</section>
-@if(completed.Any()){<section class="los-card task-list-card mt-4"><div class="section-heading mt-3"><h3>Completed</h3><span class="badge-soft">@completed.Count tasks</span></div>@foreach(var task in completed.OrderByDescending(t=>t.CompletedAt)){@await Html.PartialAsync("_PersonalTaskRow",task)}</section>}
+@model LifeOS.MVC.Models.TasksPageViewModel
+@{
+    ViewData["Title"] = "Tasks";
+    var todayIso = Model.Today.ToString("yyyy-MM-dd");
+    var here = Context.Request.Path + Context.Request.QueryString;
+    (string Key, string Label, int Count)[] filters =
+    {
+        ("open", "Open", Model.OpenCount), ("today", "Today", Model.TodayCount), ("repeated", "Repeated", Model.RepeatedCount),
+        ("overdue", "Overdue", Model.OverdueCount), ("done", "Done", Model.DoneCount), ("all", "All", -1),
+    };
+    string FilterUrl(string key) => Url.Action("Index", new { filter = key, goalId = Model.GoalId })!;
+}
+
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">Tasks</div>
+            <h1 class="db-title">Every next step, in one place.</h1>
+        </div>
+        <div class="db-actions">
+            <a class="lo-btn" href="/Planner">My day</a>
+            <a class="lo-btn lo-btn-primary" href="@Url.Action("Create", new { goalId = Model.GoalId, returnUrl = here })">@await Html.PartialAsync("_Icon", "plus") New task</a>
+        </div>
+    </div>
+
+    @if (TempData["Success"] is string ok) { <div class="lo-flash" role="status">@ok</div> }
+
+    <div class="db-grid-levels">
+        <div class="db-level"><span class="db-muted db-tiny">Today</span><span class="db-level-pct lo-num">@Model.TodayDone / @Model.TodayCount</span><span class="db-muted db-tiny">done today</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Open</span><span class="db-level-pct lo-num">@Model.OpenCount</span><span class="db-muted db-tiny">waiting on you</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Repeated</span><span class="db-level-pct lo-num">@Model.RepeatedCount</span><span class="db-muted db-tiny">daily, weekly, monthly</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Overdue</span><span class="db-level-pct lo-num @(Model.OverdueCount > 0 ? "db-neg" : "")">@Model.OverdueCount</span><span class="db-muted db-tiny">one-time tasks</span></div>
+    </div>
+
+    <section class="db-card" aria-labelledby="listTitle">
+        <div class="db-card-head" style="flex-wrap:wrap;">
+            <h2 id="listTitle" class="db-h2">Your tasks</h2>
+            <form method="get" class="lo-inline-form">
+                <input type="hidden" name="filter" value="@Model.Filter" />
+                <label for="goalFilter" class="db-muted db-small">Goal</label>
+                <select id="goalFilter" name="goalId" class="lo-select" onchange="this.form.submit()">
+                    <option value="">All goals</option>
+                    @foreach (var g in Model.Goals)
+                    {
+                        <option value="@g.Id" selected="@(Model.GoalId == g.Id)">@g.Goal</option>
+                    }
+                </select>
+                <noscript><button class="lo-btn" type="submit">Apply</button></noscript>
+            </form>
+        </div>
+
+        <nav class="db-filters" aria-label="Filter tasks">
+            @foreach (var f in filters)
+            {
+                <a class="db-chip lo-chip-link" href="@FilterUrl(f.Key)" aria-current="@(Model.Filter == f.Key ? "page" : null)" aria-pressed="@(Model.Filter == f.Key ? "true" : "false")">@f.Label@(f.Count >= 0 ? $" · {f.Count}" : "")</a>
+            }
+        </nav>
+
+        <div class="db-task-list">
+            @if (!Model.Rows.Any())
+            {
+                <p class="db-empty">No tasks in this view. <a class="db-link" href="@Url.Action("Create", new { goalId = Model.GoalId, returnUrl = here })">Add one</a></p>
+            }
+            @foreach (var row in Model.Rows)
+            {
+                var t = row.Task;
+                bool done = t.IsRepeated ? row.DoneToday : t.IsCompleted;
+                bool canToggle = !t.IsRepeated || row.OccursToday;
+                var meta = new List<string>();
+                if (t.IsRepeated)
+                {
+                    meta.Add(row.RepeatText);
+                    if (row.Streak > 0) meta.Add($"{row.Streak} streak");
+                    meta.Add(row.NextDate == null ? "Ended" : row.OccursToday && !row.DoneToday ? "Due today" : $"Next: {row.NextDate:ddd dd MMM}");
+                }
+                else if (t.IsCompleted) { meta.Add("Completed " + t.CompletedAt?.ToString("dd MMM")); }
+                else if (t.DueDate == null) { meta.Add("No due date"); }
+                else { meta.Add((row.IsOverdue ? "Overdue · " : t.DueDate.Value.Date == Model.Today ? "Due today · " : "Due ") + t.DueDate.Value.ToString("dd MMM")); }
+                if (t.Goal != null) { meta.Add("Goal: " + t.Goal.Goal); }
+
+                <div class="db-task @(done ? "is-done" : "") @(row.IsOverdue ? "is-overdue" : "")">
+                    @if (canToggle)
+                    {
+                        <form asp-action="ToggleComplete" method="post">
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <input type="hidden" name="date" value="@todayIso" />
+                            <input type="hidden" name="returnUrl" value="@here" />
+                            <button type="submit" class="db-check @(done ? "done" : "")" aria-label="@(done ? "Mark as not done" : "Mark as done")@(t.IsRepeated ? " for today" : ""): @t.Title">
+                                @if (done) { @await Html.PartialAsync("_Icon", "tick") }
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="db-check lo-check-off" title="Not scheduled today" aria-hidden="true"></span>
+                    }
+                    <div class="db-task-body">
+                        <div class="db-task-title">@t.Title</div>
+                        <div class="db-task-meta">@string.Join(" · ", meta)</div>
+                        @if (!string.IsNullOrWhiteSpace(t.Description)) { <div class="db-task-meta lo-task-note">@t.Description</div> }
+                    </div>
+                    @if (t.IsRepeated) { <span class="db-badge repeat-@t.Repeat.ToLowerInvariant()">@t.Repeat</span> }
+                    else if (t.Priority == "A") { <span class="db-badge high">High</span> }
+                    else if (t.Priority == "C") { <span class="db-badge">Low</span> }
+                    <div class="lo-row-actions">
+                        <a class="lo-btn lo-btn-sm" href="@Url.Action("Edit", new { id = t.Id, returnUrl = here })" aria-label="Edit @t.Title">Edit</a>
+                        <form asp-action="Delete" method="post">
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <input type="hidden" name="returnUrl" value="@here" />
+                            <button type="submit" class="lo-btn lo-btn-sm lo-btn-danger" aria-label="Delete @t.Title" data-confirm="Delete '@t.Title'?@(t.IsRepeated ? " Its completion history will be deleted too." : "")">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</div>

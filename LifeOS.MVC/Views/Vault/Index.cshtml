@@ -8,6 +8,7 @@
 }
 
 @if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
+<form id="vaultTokenForm" hidden>@Html.AntiForgeryToken()</form>
 
 <style>
 .vault-card {
@@ -358,7 +359,7 @@ else
                             <div style="display:flex; gap:3px;">
                                 <button class="btn-los btn-ghost btn-icon-sm"
                                         data-bs-toggle="modal"
-                                        data-bs-target="#editVault@v.Id">
+                                        data-bs-target="#editVault@(v.Id)">
                                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                                         <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
                                     </svg>
@@ -382,8 +383,8 @@ else
                         {
                             <div class="vault-field">
                                 <span class="vault-field-label">Username</span>
-                                <span class="vault-field-val" id="un@v.Id">@v.Username</span>
-                                <button class="copy-btn" onclick="copyText('@v.Username', this)"
+                                <span class="vault-field-val" id="un@(v.Id)">@v.Username</span>
+                                <button type="button" class="copy-btn" data-copy="@v.Username" onclick="copyText(this.dataset.copy, this)"
                                         title="Copy">⎘</button>
                             </div>
                         }
@@ -392,7 +393,7 @@ else
                             <div class="vault-field">
                                 <span class="vault-field-label">Email</span>
                                 <span class="vault-field-val">@v.Email</span>
-                                <button class="copy-btn" onclick="copyText('@v.Email', this)"
+                                <button type="button" class="copy-btn" data-copy="@v.Email" onclick="copyText(this.dataset.copy, this)"
                                         title="Copy">⎘</button>
                             </div>
                         }
@@ -400,16 +401,11 @@ else
                         {
                             <div class="vault-field">
                                 <span class="vault-field-label">Password</span>
-                                <span class="vault-field-val vault-pw"
-                                      id="pw@v.Id"
-                                      data-plain="@v.PasswordPlain">
-                                    ••••••••••
-                                </span>
-                                <button class="copy-btn" onclick="revealPw(@v.Id, this)"
-                                        title="Show/Hide">👁</button>
-                                <button class="copy-btn"
-                                        onclick="copyText(document.getElementById('pw@v.Id').dataset.plain, this)"
-                                        title="Copy">⎘</button>
+                                <span class="vault-field-val vault-pw" id="pw@(v.Id)" aria-live="polite">••••••••••</span>
+                                <button type="button" class="copy-btn" onclick="revealPw(@v.Id, this)"
+                                        title="Show password" aria-label="Show password for @v.Name">Show</button>
+                                <button type="button" class="copy-btn" onclick="copyPw(@v.Id, this)"
+                                        title="Copy password" aria-label="Copy password for @v.Name">Copy</button>
                             </div>
                         }
                         @if (!string.IsNullOrEmpty(v.Url))
@@ -429,7 +425,7 @@ else
                             <div class="vault-field">
                                 <span class="vault-field-label">Phone</span>
                                 <span class="vault-field-val">@v.PhoneNumber</span>
-                                <button class="copy-btn" onclick="copyText('@v.PhoneNumber', this)">⎘</button>
+                                <button type="button" class="copy-btn" data-copy="@v.PhoneNumber" onclick="copyText(this.dataset.copy, this)">⎘</button>
                             </div>
                         }
                         @if (!string.IsNullOrEmpty(v.RecoveryEmail))
@@ -460,7 +456,7 @@ else
                 </div>
 
                 <!-- Edit Modal -->
-                <div class="modal fade" id="editVault@v.Id" tabindex="-1">
+                <div class="modal fade" id="editVault@(v.Id)" tabindex="-1">
                     <div class="modal-dialog modal-dialog-centered modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">

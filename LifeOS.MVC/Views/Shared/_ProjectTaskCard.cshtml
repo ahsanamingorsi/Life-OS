@@ -109,7 +109,7 @@
 
         <!-- Edit -->
         <button class="btn-los btn-ghost btn-icon-sm"
-                data-bs-toggle="modal" data-bs-target="#editTask@Model.Id"
+                data-bs-toggle="modal" data-bs-target="#editTask@(Model.Id)"
                 title="Edit task">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                 <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
@@ -119,7 +119,7 @@
 
         <!-- Log time -->
         <button class="btn-los btn-ghost btn-icon-sm"
-                data-bs-toggle="modal" data-bs-target="#logTime@Model.Id"
+                data-bs-toggle="modal" data-bs-target="#logTime@(Model.Id)"
                 title="Log time" style="color:var(--teal);">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
@@ -145,7 +145,7 @@
 </div>
 
 <!-- Log Time Modal -->
-<div class="modal fade" id="logTime@Model.Id" tabindex="-1">
+<div class="modal fade" id="logTime@(Model.Id)" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
             <div class="modal-header">

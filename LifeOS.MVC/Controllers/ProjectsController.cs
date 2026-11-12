@@ -86,14 +86,27 @@ namespace LifeOS.MVC.Controllers
         // ── UPDATE PROJECT ───────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateStatus(int id, string status, int progress, string? nextTask)
+        public async Task<IActionResult> UpdateStatus(int id, string status, int? progress, string? nextTask,
+            string? title, string? category, string? priority, DateTime? deadline, string? notes)
         {
             var proj = await _db.Projects.FindAsync(id);
             if (proj == null) return NotFound();
 
             if (!new[] { "Active", "Paused", "Done" }.Contains(status)) return BadRequest("Invalid project status.");
+            title = title?.Trim();
+            if (string.IsNullOrEmpty(title) || title.Length > 150) { TempData["Error"] = "Enter a project title (up to 150 characters)."; return RedirectToAction("Detail", new { id }); }
+            if (priority is not ("A" or "B" or "C")) { TempData["Error"] = "Choose priority A, B or C."; return RedirectToAction("Detail", new { id }); }
+            if (category?.Length > 50 || notes?.Length > 500 || nextTask?.Length > 300) { TempData["Error"] = "One of the fields is too long."; return RedirectToAction("Detail", new { id }); }
+
+            proj.Title = title;
+            proj.Category = category?.Trim() ?? "";
+            proj.Priority = priority;
+            proj.Deadline = deadline?.Date;
+            proj.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
             proj.Status = status;
-            proj.ProgressPercent = Math.Clamp(progress, 0, 100);
+            // Progress is typed by hand only when the project has no tasks; otherwise tasks decide it.
+            bool hasTasks = await _db.ProjectTasks.AnyAsync(t => t.ProjectId == id);
+            if (!hasTasks && progress.HasValue) proj.ProgressPercent = Math.Clamp(progress.Value, 0, 100);
             if (nextTask != null) proj.NextTask = nextTask;
 
             await _db.SaveChangesAsync();

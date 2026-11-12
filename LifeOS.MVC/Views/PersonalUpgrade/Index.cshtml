@@ -1,129 +1,175 @@
-@model List<LifeOS.MVC.Models.PersonalGoal>
+@model List<LifeOS.MVC.Models.GoalCard>
 @{
-    ViewData["Title"] = "Personal Upgrade";
+    ViewData["Title"] = "Goals";
+    var categories = ViewBag.Categories as string[] ?? Array.Empty<string>();
+    var open = Model.Where(c => !c.Goal.IsAchieved).ToList();
+    int avg = open.Any() ? (int)Math.Round(open.Average(c => c.Progress)) : 0;
+    var todayIso = DateTime.Today.ToString("yyyy-MM-dd");
 }
 
-<div class="los-page-header">
-    <div>
-        <div class="los-page-title">Personal Upgrade</div>
-        <div class="los-page-subtitle">Elevate your standards. Become the best version of yourself.</div>
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">Goals</div>
+            <h1 class="db-title">Goals that your tasks move forward.</h1>
+        </div>
+        <div class="db-actions">
+            <a class="lo-btn lo-btn-primary" href="#addGoal">@await Html.PartialAsync("_Icon", "plus") New goal</a>
+        </div>
     </div>
-    <div class="los-page-actions">
-        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">+ Add Goal</button>
+
+    @if (TempData["Success"] is string ok) { <div class="lo-flash" role="status">@ok</div> }
+
+    <div class="db-grid-levels">
+        <div class="db-level"><span class="db-muted db-tiny">Goals</span><span class="db-level-pct lo-num">@Model.Count</span><span class="db-muted db-tiny">in total</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">In progress</span><span class="db-level-pct lo-num">@open.Count</span><span class="db-muted db-tiny">average @avg%</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Achieved</span><span class="db-level-pct lo-num">@(Model.Count - open.Count)</span><span class="db-muted db-tiny">well done</span></div>
     </div>
-</div>
 
-<div class="collapse" id="addGoalPanel">
-    <div class="los-panel">
-        <div class="los-panel-title">New Personal Goal</div>
-        <form method="post" asp-action="Add" asp-controller="PersonalUpgrade">
-            @Html.AntiForgeryToken()
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <div class="form-group">
-                        <label class="form-label">Goal *</label>
-                        <input name="Goal" class="form-control" required placeholder="e.g. Maintain professional grooming daily" maxlength="200" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select name="Category" class="form-control">
-                            <option>Grooming</option>
-                            <option>Confidence</option>
-                            <option>Lifestyle</option>
-                            <option>Standard</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Progress %</label>
-                        <input name="ProgressPercent" type="number" min="0" max="100" class="form-control" value="0" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <input name="Notes" class="form-control" placeholder="Optional" maxlength="300" />
-                    </div>
-                </div>
-                <div class="col-12 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">Cancel</button>
-                    <button type="submit" class="btn-los btn-primary">Save Goal</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+    <details class="db-card lo-help">
+        <summary class="db-h3">How goal progress is calculated</summary>
+        <ul class="db-muted db-small">
+            <li>No task linked: you set the progress yourself.</li>
+            <li>One-time tasks: done tasks ÷ all one-time tasks of the goal.</li>
+            <li>Repeated tasks: times done ÷ the goal's target count (for example 60 workouts).</li>
+            <li>When a goal has both, progress is the average of the two.</li>
+        </ul>
+    </details>
 
-@{
-    int avgGoalProgress = Model.Any() ? (int)Model.Average(g => g.ProgressPercent) : 0; int achievedCount = Model.Count(g => g.IsAchieved);
-}
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-violet">@await Html.PartialAsync("_Icon", "target")</div><div class="los-kpi-value">@Model.Count</div><div class="los-kpi-label">Total Goals</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-green">@await Html.PartialAsync("_Icon", "check")</div><div class="los-kpi-value" style="color:var(--green)">@achievedCount</div><div class="los-kpi-label">Achieved</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-rose">@await Html.PartialAsync("_Icon", "alert")</div><div class="los-kpi-value" style="color:var(--rose)">@(Model.Count - achievedCount)</div><div class="los-kpi-label">In Progress</div></div></div>
-    <div class="col-6 col-md-3"><div class="los-kpi"><div class="los-kpi-icon icon-bg-indigo">%</div><div class="los-kpi-value" style="color:var(--accent)">@avgGoalProgress%</div><div class="los-kpi-label">Avg Progress</div></div></div>
-</div>
+    @if (!Model.Any())
+    {
+        <section class="db-card"><p class="db-empty">No goals yet. Add your first goal below, then link tasks to it.</p></section>
+    }
 
-@foreach (var cat in new[] { "Grooming", "Confidence", "Lifestyle", "Standard" })
-{
-    var catGoals = Model.Where(g => g.Category == cat).ToList();
-    if (!catGoals.Any()) continue;
-
-    <div class="los-section-label">@cat</div>
-    <div class="row g-3 mb-4">
-        @foreach (var g in catGoals)
+    <div class="db-grid-2">
+        @foreach (var card in Model)
         {
-            <div class="col-lg-6">
-                <div class="los-card" style="@(g.IsAchieved ? "border-color:rgba(22,163,74,0.25);background:var(--green-soft);" : "")">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                        <div style="font-size:0.9rem; font-weight:600; color:@(g.IsAchieved ? "var(--green)" : "var(--text-primary)"); @(g.IsAchieved ? "text-decoration:line-through;" : "")">@g.Goal</div>
-                        <div style="display:flex; gap:4px; flex-shrink:0; margin-left:10px;">
-                            @if (g.IsAchieved)
-                            {
-                                <span class="badge badge-green">✓ Achieved</span>
-                            }
-                            <form method="post" asp-action="Delete" asp-controller="PersonalUpgrade">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@g.Id" />
-                                <button type="submit" class="btn-los btn-ghost btn-icon-sm" style="color:var(--rose);" data-confirm="Delete this goal?">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                                </button>
-                            </form>
-                        </div>
+            var g = card.Goal;
+            <section class="db-card lo-goal @(g.IsAchieved ? "is-achieved" : "")" aria-labelledby="goal-@g.Id">
+                <div class="db-card-head">
+                    <div style="min-width:0;">
+                        <div class="db-muted db-tiny">@(string.IsNullOrEmpty(g.Category) ? "Goal" : g.Category)</div>
+                        <h2 id="goal-@g.Id" class="db-h2 lo-goal-title">@g.Goal</h2>
                     </div>
-                    @if (!string.IsNullOrEmpty(g.Notes))
-                    {
-                        <div style="font-size:0.78rem; color:var(--text-tertiary); margin-bottom:10px;">@g.Notes</div>
-                    }
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-                        <div class="los-progress" style="flex:1;">
-                            <div class="los-progress-bar @(g.ProgressPercent >= 75 ? "green" : g.ProgressPercent >= 40 ? "" : "rose")" data-width="@g.ProgressPercent"></div>
-                        </div>
-                        <span style="font-size:0.8rem; font-weight:600; color:var(--accent); min-width:36px; text-align:right;">@g.ProgressPercent%</span>
-                    </div>
-                    <form method="post" asp-action="UpdateProgress" asp-controller="PersonalUpgrade" class="d-flex gap-2 align-items-center">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@g.Id" />
-                        <input name="progress" type="number" min="0" max="100" value="@g.ProgressPercent" class="form-control form-control-sm" style="width:72px;" />
-                        <label class="toggle-wrap" style="flex:1;">
-                            <div class="toggle" style="width:36px; height:20px;">
-                                <input name="achieved" type="checkbox" value="true" @(g.IsAchieved ? "checked" : "") />
-                                <div class="toggle-track"></div>
-                            </div>
-                            <span class="toggle-label">Achieved</span>
-                        </label>
-                        <button type="submit" class="btn-los btn-secondary btn-sm">Update</button>
-                    </form>
+                    @if (g.IsAchieved) { <span class="db-pill">Achieved</span> }
+                    else { <span class="db-level-pct lo-num">@card.Progress%</span> }
                 </div>
-            </div>
+                <div class="db-bar" role="progressbar" aria-label="Progress of @g.Goal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@card.Progress"><span class="@(card.Progress < 40 ? "low" : "")" style="width:@card.Progress%"></span></div>
+                <div class="db-muted db-tiny lo-num">
+                    @if (!card.IsAuto) { <text>Manual progress · no tasks linked yet</text> }
+                    else
+                    {
+                        var bits = new List<string>();
+                        if (card.OneTimeTotal > 0) { bits.Add($"{card.OneTimeDone} of {card.OneTimeTotal} one-time tasks done"); }
+                        if (card.RepeatedCount > 0) { bits.Add(g.TargetCount > 0 ? $"{card.Completions} of {g.TargetCount} repeats done" : $"{card.Completions} repeats done · set a target to count them"); }
+                        @string.Join(" · ", bits)
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(g.Notes)) { <p class="db-muted db-small" style="margin:0;">@g.Notes</p> }
+
+                <div class="lo-goal-tasks">
+                    @foreach (var line in card.Tasks)
+                    {
+                        <div class="db-task @(line.IsDone ? "is-done" : "")">
+                            @if (!line.Task.IsRepeated || LifeOS.MVC.Services.TaskService.OccursOn(line.Task, DateTime.Today))
+                            {
+                                <form asp-controller="PersonalTasks" asp-action="ToggleComplete" method="post">
+                                    <input type="hidden" name="id" value="@line.Task.Id" />
+                                    <input type="hidden" name="date" value="@todayIso" />
+                                    <input type="hidden" name="returnUrl" value="/PersonalUpgrade" />
+                                    <button type="submit" class="db-check @(line.IsDone ? "done" : "")" aria-label="@(line.IsDone ? "Mark as not done" : "Mark as done"): @line.Task.Title">
+                                        @if (line.IsDone) { @await Html.PartialAsync("_Icon", "tick") }
+                                    </button>
+                                </form>
+                            }
+                            else { <span class="db-check lo-check-off" title="Not scheduled today" aria-hidden="true"></span> }
+                            <div class="db-task-body">
+                                <div class="db-task-title">@line.Task.Title</div>
+                                <div class="db-task-meta">@line.Text</div>
+                            </div>
+                            @if (line.Task.IsRepeated) { <span class="db-badge repeat-@line.Task.Repeat.ToLowerInvariant()">@line.Task.Repeat</span> }
+                        </div>
+                    }
+                    <a class="db-link" href="/PersonalTasks/Create?goalId=@g.Id&returnUrl=%2FPersonalUpgrade">+ Add a task to this goal</a>
+                </div>
+
+                <details class="lo-goal-edit">
+                    <summary class="db-link">Edit goal</summary>
+                    <form asp-action="Edit" method="post" class="lo-form">
+                        <input type="hidden" name="Id" value="@g.Id" />
+                        <div class="lo-field">
+                            <label class="lo-label" for="goalName-@g.Id">Goal</label>
+                            <input id="goalName-@g.Id" name="Goal" class="lo-input" value="@g.Goal" required maxlength="200" />
+                        </div>
+                        <div class="lo-form-grid">
+                            <div class="lo-field">
+                                <label class="lo-label" for="goalCat-@g.Id">Category</label>
+                                <select id="goalCat-@g.Id" name="Category" class="lo-select">
+                                    @foreach (var c in categories) { <option selected="@(g.Category == c)">@c</option> }
+                                </select>
+                            </div>
+                            <div class="lo-field">
+                                <label class="lo-label" for="goalTarget-@g.Id">Target count <span class="db-muted">(repeats)</span></label>
+                                <input id="goalTarget-@g.Id" name="TargetCount" type="number" min="1" max="100000" class="lo-input" value="@g.TargetCount" placeholder="e.g. 60" />
+                            </div>
+                        </div>
+                        <div class="lo-field">
+                            <label class="lo-label" for="goalNotes-@g.Id">Notes</label>
+                            <input id="goalNotes-@g.Id" name="Notes" class="lo-input" value="@g.Notes" maxlength="300" />
+                        </div>
+                        <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Save goal</button></div>
+                    </form>
+                    <form asp-action="UpdateProgress" method="post" class="lo-form">
+                        <input type="hidden" name="id" value="@g.Id" />
+                        <div class="lo-form-grid">
+                            @if (!card.IsAuto)
+                            {
+                                <div class="lo-field">
+                                    <label class="lo-label" for="goalProg-@g.Id">Progress %</label>
+                                    <input id="goalProg-@g.Id" name="progress" type="number" min="0" max="100" class="lo-input" value="@g.ProgressPercent" />
+                                </div>
+                            }
+                            <label class="lo-check-label"><input type="checkbox" name="achieved" value="true" checked="@g.IsAchieved" /> Achieved</label>
+                        </div>
+                        <div class="lo-form-actions"><button type="submit" class="lo-btn">Update progress</button></div>
+                    </form>
+                    <form asp-action="Delete" method="post" class="lo-form-actions">
+                        <input type="hidden" name="id" value="@g.Id" />
+                        <button type="submit" class="lo-btn lo-btn-danger" data-confirm="Delete the goal '@g.Goal'? Its tasks will be kept.">Delete goal</button>
+                    </form>
+                </details>
+            </section>
         }
     </div>
-}
 
-@if (!Model.Any())
-{
-    <div class="los-card"><div class="empty-state"><div class="empty-state-title">No goals yet</div><div class="empty-state-desc">Set personal standards and track your self-development journey.</div><button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addGoalPanel">Add First Goal</button></div></div>
-}
+    <section class="db-card" id="addGoal" aria-labelledby="addGoalTitle">
+        <h2 id="addGoalTitle" class="db-h2">New goal</h2>
+        <form asp-action="Add" method="post" class="lo-form">
+            <div class="lo-field">
+                <label for="newGoal" class="lo-label">Goal <span aria-hidden="true">*</span></label>
+                <input id="newGoal" name="Goal" class="lo-input" required maxlength="200" placeholder="e.g. Get fit" />
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="newCategory" class="lo-label">Category</label>
+                    <select id="newCategory" name="Category" class="lo-select">
+                        @foreach (var c in categories) { <option>@c</option> }
+                    </select>
+                </div>
+                <div class="lo-field">
+                    <label for="newTarget" class="lo-label">Target count <span class="db-muted">(optional)</span></label>
+                    <input id="newTarget" name="TargetCount" type="number" min="1" max="100000" class="lo-input" placeholder="e.g. 60 workouts" />
+                </div>
+                <div class="lo-field">
+                    <label for="newProgress" class="lo-label">Starting progress %</label>
+                    <input id="newProgress" name="ProgressPercent" type="number" min="0" max="100" value="0" class="lo-input" />
+                </div>
+            </div>
+            <div class="lo-field">
+                <label for="newNotes" class="lo-label">Notes <span class="db-muted">(optional)</span></label>
+                <input id="newNotes" name="Notes" class="lo-input" maxlength="300" />
+            </div>
+            <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Add goal</button></div>
+        </form>
+    </section>
+</div>

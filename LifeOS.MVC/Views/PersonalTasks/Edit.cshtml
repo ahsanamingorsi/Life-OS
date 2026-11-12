@@ -1,59 +1,123 @@
-﻿@model LifeOS.MVC.Models.PersonalTask
-@{ ViewData["Title"] = "Edit Task"; }
+﻿@model LifeOS.MVC.Models.TaskFormViewModel
+@using LifeOS.MVC.Services
+@{
+    var t = Model.Task;
+    bool isNew = t.Id == 0;
+    ViewData["Title"] = isNew ? "New task" : "Edit task";
+    var back = Model.ReturnUrl ?? "/PersonalTasks";
+    var startDay = (t.DueDate ?? DateTime.Today).Date;
+    int days = t.RepeatDays != 0 ? t.RepeatDays : TaskService.DayBit(startDay.DayOfWeek);
+}
 
-<div class="los-page-header">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <a asp-action="Index" class="btn-los btn-secondary btn-sm">← Back</a>
+<div class="db lo-narrow">
+    <div class="db-head">
         <div>
-            <div class="los-page-title">Edit Task</div>
-            <div class="los-page-subtitle">Created @Model.CreatedAt.ToString("MMMM d, yyyy")</div>
+            <a class="db-link" href="@back">← Back</a>
+            <h1 class="db-title">@(isNew ? "New task" : "Edit task")</h1>
+            @if (!isNew) { <div class="db-date">Created @t.CreatedAt.ToString("d MMMM yyyy")</div> }
         </div>
     </div>
+
+    <section class="db-card">
+        <form method="post" asp-action="@(isNew ? "Create" : "Edit")" class="lo-form" id="taskForm">
+            @if (!isNew) { <input type="hidden" name="Id" value="@t.Id" /> }
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+
+            <div class="lo-field">
+                <label for="Title" class="lo-label">Task name <span aria-hidden="true">*</span></label>
+                <input id="Title" name="Title" class="lo-input" value="@t.Title" required maxlength="200" placeholder="What is your next step?" />
+            </div>
+
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="Repeat" class="lo-label">Repeat</label>
+                    <select id="Repeat" name="Repeat" class="lo-select">
+                        <option value="None" selected="@(t.Repeat == "None")">Does not repeat</option>
+                        <option value="Daily" selected="@(t.Repeat == "Daily")">Daily</option>
+                        <option value="Weekly" selected="@(t.Repeat == "Weekly")">Weekly</option>
+                        <option value="Monthly" selected="@(t.Repeat == "Monthly")">Monthly</option>
+                    </select>
+                </div>
+                <div class="lo-field">
+                    <label for="DueDate" class="lo-label" id="dueLabel">@(t.IsRepeated ? "Starts on" : "Due date")</label>
+                    <input id="DueDate" name="DueDate" type="date" class="lo-input" value="@(t.DueDate?.ToString("yyyy-MM-dd") ?? "")" />
+                </div>
+                <div class="lo-field">
+                    <label for="Priority" class="lo-label">Priority</label>
+                    <select id="Priority" name="Priority" class="lo-select">
+                        <option value="A" selected="@(t.Priority == "A")">High</option>
+                        <option value="B" selected="@(t.Priority == "B")">Normal</option>
+                        <option value="C" selected="@(t.Priority == "C")">Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <fieldset class="lo-field" data-show-for="Weekly">
+                <legend class="lo-label">Repeat on</legend>
+                <div class="lo-days">
+                    @foreach (var w in TaskService.WeekDays)
+                    {
+                        <label class="lo-day">
+                            <input type="checkbox" name="repeatDay" value="@w.Bit" checked="@((days & w.Bit) != 0)" />
+                            <span title="@w.Long">@w.Short</span>
+                        </label>
+                    }
+                </div>
+            </fieldset>
+
+            <div class="lo-field" data-show-for="Monthly">
+                <label for="RepeatDayOfMonth" class="lo-label">Day of the month</label>
+                <input id="RepeatDayOfMonth" name="RepeatDayOfMonth" type="number" min="1" max="31" class="lo-input lo-input-short" value="@(t.RepeatDayOfMonth ?? startDay.Day)" />
+                <div class="db-muted db-tiny">Months without this day use their last day.</div>
+            </div>
+
+            <div class="lo-field" data-show-for="Daily Weekly Monthly">
+                <label for="RepeatEndDate" class="lo-label">Ends on <span class="db-muted">(optional)</span></label>
+                <input id="RepeatEndDate" name="RepeatEndDate" type="date" class="lo-input lo-input-short" value="@(t.RepeatEndDate?.ToString("yyyy-MM-dd") ?? "")" />
+                <div class="db-muted db-tiny">Leave empty to repeat with no end.</div>
+            </div>
+
+            <div class="lo-field">
+                <label for="GoalId" class="lo-label">Goal <span class="db-muted">(optional)</span></label>
+                <select id="GoalId" name="GoalId" class="lo-select">
+                    <option value="">No goal</option>
+                    @foreach (var g in Model.Goals)
+                    {
+                        <option value="@g.Id" selected="@(t.GoalId == g.Id)">@g.Goal@(g.IsAchieved ? " (achieved)" : "")</option>
+                    }
+                </select>
+                @if (!Model.Goals.Any()) { <div class="db-muted db-tiny">No goals yet. <a class="db-link" href="/PersonalUpgrade">Add a goal</a></div> }
+            </div>
+
+            <div class="lo-field">
+                <label for="Description" class="lo-label">Notes <span class="db-muted">(optional)</span></label>
+                <textarea id="Description" name="Description" class="lo-input lo-textarea" maxlength="500">@t.Description</textarea>
+            </div>
+
+            <div class="lo-form-actions">
+                <a class="lo-btn" href="@back">Cancel</a>
+                <button type="submit" class="lo-btn lo-btn-primary">@(isNew ? "Add task" : "Save changes")</button>
+            </div>
+        </form>
+    </section>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-lg-6">
-        <div class="los-card">
-            <div class="los-card-title-lg" style="margin-bottom:20px;">Task Details</div>
-            <form method="post" asp-action="Edit" asp-controller="PersonalTasks">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="Id" value="@Model.Id" />
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="form-group">
-                            <label class="form-label">Title *</label>
-                            <input name="Title" class="form-control" value="@Model.Title" required maxlength="200" />
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label class="form-label">Priority</label>
-                            <select name="Priority" class="form-control">
-                                <option value="A" selected="@(Model.Priority == "A" ? true : null)">A — Critical</option>
-                                <option value="B" selected="@(Model.Priority == "B" ? true : null)">B — Important</option>
-                                <option value="C" selected="@(Model.Priority == "C" ? true : null)">C — Nice to have</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label class="form-label">Due Date</label>
-                            <input name="DueDate" type="date" class="form-control"
-                                   value="@(Model.DueDate?.ToString("yyyy-MM-dd") ?? "")" />
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="form-group">
-                            <label class="form-label">Description</label>
-                            <textarea name="Description" class="form-control" maxlength="500">@Model.Description</textarea>
-                        </div>
-                    </div>
-                    <div class="col-12 d-flex justify-content-end gap-2" style="margin-top:4px;">
-                        <a asp-action="Index" class="btn-los btn-secondary">Cancel</a>
-                        <button type="submit" class="btn-los btn-primary">Save Changes</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+@section Scripts {
+    <script>
+        (() => {
+            const repeat = document.getElementById('Repeat');
+            const dueLabel = document.getElementById('dueLabel');
+            const sync = () => {
+                const value = repeat.value;
+                document.querySelectorAll('[data-show-for]').forEach(el => {
+                    const show = el.dataset.showFor.split(' ').includes(value);
+                    el.hidden = !show;
+                    el.querySelectorAll('input').forEach(i => i.disabled = !show);
+                });
+                dueLabel.textContent = value === 'None' ? 'Due date' : 'Starts on';
+            };
+            repeat.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}

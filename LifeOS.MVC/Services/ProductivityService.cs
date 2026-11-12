@@ -1,4 +1,3 @@
-
 using LifeOS.MVC.Data;
 using LifeOS.MVC.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,107 +7,99 @@ namespace LifeOS.MVC.Services
     public class ProductivityService
     {
         private readonly AppDbContext _db;
+        private readonly TaskService _tasks;
 
-        public ProductivityService(AppDbContext db)
+        public ProductivityService(AppDbContext db, TaskService tasks)
         {
             _db = db;
+            _tasks = tasks;
         }
 
         /// <summary>
-        /// Calculates daily productivity score and assembles the
-        /// full ProductivityScoreViewModel for dashboard / module views.
+        /// Daily productivity score = equal average of the areas that had something
+        /// to measure that day: Tasks, Projects, Studies, Skills and Spiritual.
+        /// Goals and Review are not part of the daily score.
         /// </summary>
-        // Assume using System.Threading.Tasks; etc. are present
-
         public async Task<ProductivityScoreViewModel> GetDailyScoreAsync(DateTime? date = null)
         {
-            // 1. Determine the target day (Start of day in UTC or local depending on your DB setting, usually Date is sufficient)
-            var targetDate = (date ?? DateTime.Today).Date;
+            var day = (date ?? DateTime.Today).Date;
+            var next = day.AddDays(1);
+            var areas = new List<AreaScore>();
 
-            // --- A. Calculate Habits & Tasks (Existing Logic) ---
-            var activeHabits = await _db.Habits
-                .Where(h => h.IsActive)
-                .Include(h => h.HabitLogs)
-                .Include(h => h.Streak)
-                .ToListAsync();
+            // ── Tasks: one-time tasks due that day + repeated tasks that occur that day ──
+            var dayTasks = await _tasks.GetForDayAsync(day, includeOverdue: false);
+            int totalTasks = dayTasks.Count;
+            int doneTasks = dayTasks.Count(t => t.IsDone);
+            if (totalTasks > 0)
+                areas.Add(new AreaScore { Name = "Tasks", Percent = Pct(doneTasks, totalTasks), Value = $"{doneTasks}/{totalTasks}" });
 
-            // Get Habit IDs completed TODAY
-            var completedHabitIds = await _db.HabitLogs
-                .Where(l => l.CompletedDate.Date == targetDate)
-                .Select(l => l.HabitId)
-                .ToListAsync();
+            // ── Projects: project tasks finished that day vs those that were due by then ──
+            int projectDone = await _db.ProjectTasks.CountAsync(t => t.CompletedAt >= day && t.CompletedAt < next);
+            int projectOpenDue = await _db.ProjectTasks.CountAsync(t =>
+                t.DueDate < next && (!t.IsCompleted || t.CompletedAt >= next));
+            if (projectDone + projectOpenDue > 0)
+                areas.Add(new AreaScore { Name = "Projects", Percent = Pct(projectDone, projectDone + projectOpenDue), Value = $"{projectDone} done" });
 
-            var totalTasks = await _db.PersonalTasks.CountAsync(t => t.DueDate == targetDate);
-            // Ensure you are counting only tasks where the completion date matches today too, 
-            // or if PersonalTasks don't have a specific 'CompletedDate' column, adjust logic accordingly.
-            // Assuming PersonalTasks.IsCompleted means it was done recently, but for daily score:
-            var completedTasks = await _db.PersonalTasks.CountAsync(t => t.DueDate == targetDate && t.IsCompleted);
+            // ── Studies: hours that day vs one seventh of the weekly target ──
+            double studyDailyTarget = await _db.StudySubjects
+                .Where(s => s.Status == "Active")
+                .SumAsync(s => s.WeeklyTargetHours) / 7.0;
+            double studyHours = await _db.StudySessions
+                .Where(s => s.SessionDate >= day && s.SessionDate < next)
+                .SumAsync(s => s.DurationHours);
+            if (studyDailyTarget > 0)
+                areas.Add(new AreaScore { Name = "Studies", Percent = Pct(studyHours, studyDailyTarget), Value = $"{studyHours:0.#}h" });
 
-            int totalHabits = activeHabits.Count;
-            int completedHabits = activeHabits.Count(h => completedHabitIds.Contains(h.Id));
+            // ── Skills: hours that day vs one seventh of the weekly target ──
+            // Target = current skill plus any skill worked on in that week.
+            var weekStart = WeekStart(day);
+            double skillDailyTarget = await _db.TechSkills
+                .Where(s => s.IsCurrent || s.SkillLogs.Any(l => l.LogDate >= weekStart && l.LogDate < weekStart.AddDays(7)))
+                .SumAsync(s => s.WeeklyTargetHours) / 7.0;
+            double skillHours = await _db.TechSkillLogs
+                .Where(l => l.LogDate >= day && l.LogDate < next)
+                .SumAsync(l => l.Hours);
+            if (skillDailyTarget > 0)
+                areas.Add(new AreaScore { Name = "Skills", Percent = Pct(skillHours, skillDailyTarget), Value = $"{skillHours:0.#}h" });
 
-            // --- B. Calculate Prayers (NEW Logic) ---
-            // Query spiritual entries where the Date matches today's date
-            var completedPrayerEntries = await _db.SpiritualEntries
-                .Where(p => p.Date == targetDate)
-                .ToListAsync();
+            // ── Spiritual: prayers that day (always counted; default 5) ──
+            var spiritual = await _db.SpiritualEntries.AsNoTracking()
+                .Where(s => s.Date >= day && s.Date < next)
+                .OrderBy(s => s.Id)
+                .FirstOrDefaultAsync();
+            int prayerTarget = spiritual is { PrayersTotal: > 0 } ? spiritual.PrayersTotal : 5;
+            int prayersDone = Math.Clamp(spiritual?.PrayersDone ?? 0, 0, prayerTarget);
+            areas.Add(new AreaScore { Name = "Spiritual", Percent = Pct(prayersDone, prayerTarget), Value = $"{prayersDone}/{prayerTarget}" });
 
-            int totalPrayersToday = 0;
-            if (completedPrayerEntries.Any())
-            {
-                // Sum up the prayers done across all entries for today
-                totalPrayersToday = completedPrayerEntries.Sum(p => p.PrayersDone);
+            double score = areas.Count > 0 ? Math.Round(areas.Average(a => a.Percent), 1) : 0;
 
-                // Optional: Track total capacity if you have multiple entries per day, 
-                // but usually PrayersDone is the aggregate metric. 
-                // If your design allows multiple rows per day with different totals, this logic works.
-            }
-
-            // --- C. Calculate Denominator and Score ---
-            int completedPrayers = totalPrayersToday;
-
-            // Denominator includes Habits + Tasks + Prayers (as requested to add prayers)
-            int prayerTarget = completedPrayerEntries.FirstOrDefault()?.PrayersTotal ?? 5;
-            completedPrayers = Math.Clamp(completedPrayers, 0, prayerTarget);
-            int denominator = totalHabits + totalTasks + prayerTarget; // +1 to prevent division by zero if all are 0
-
-            double score = denominator > 0
-                ? Math.Round((double)(completedHabits + completedTasks + completedPrayers) / denominator * 100, 1)
-                : 0;
-
-            // --- D. Build Habit Details ---
-            var habitsWithStreaks = activeHabits.Select(h => new HabitWithStreakViewModel
-            {
-                Habit = h,
-                CompletedToday = completedHabitIds.Contains(h.Id),
-                CurrentStreak = h.Streak?.LastCompletedDate >= targetDate.AddDays(h.Frequency == "Weekly" ? -7 : -1) ? h.Streak.CurrentStreak : 0,
-                BestStreak = h.Streak?.BestStreak ?? 0
-            }).ToList();
-
-            // --- E. Build Recent Activity (Keep existing) ---
-            var recentActivity = await _db.ActivityLogs
+            var recentActivity = await _db.ActivityLogs.AsNoTracking()
                 .OrderByDescending(a => a.DateTime)
                 .Take(10)
                 .ToListAsync();
 
             return new ProductivityScoreViewModel
             {
-                TotalHabits = totalHabits,
-                CompletedHabitsToday = completedHabits,
-
                 TotalPersonalTasks = totalTasks,
-                CompletedPersonalTasks = completedTasks,
-
-                // --- Return Prayer Stats ---
+                CompletedPersonalTasks = doneTasks,
                 TotalPrayersToday = prayerTarget,
-                PrayersCompletedToday = completedPrayers,
-
+                PrayersCompletedToday = prayersDone,
                 ProductivityScore = score,
+                HasData = areas.Count > 0,
+                Areas = areas,
                 RecentActivity = recentActivity,
-                HabitsWithStreaks = habitsWithStreaks
             };
         }
 
+        /// <summary>Monday of the week that contains <paramref name="day"/>.</summary>
+        public static DateTime WeekStart(DateTime day)
+        {
+            int offset = ((int)day.DayOfWeek + 6) % 7; // Monday = 0
+            return day.Date.AddDays(-offset);
+        }
+
+        public static int Pct(double done, double total) =>
+            total <= 0 ? 0 : (int)Math.Round(Math.Clamp(done / total, 0, 1) * 100);
 
         /// <summary>
         /// Writes one ActivityLog row. Call from controllers after

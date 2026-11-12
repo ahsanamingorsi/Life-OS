@@ -36,12 +36,28 @@ namespace LifeOS.Controllers
             return View(links);
         }
 
+        /// <summary>
+        /// Adds https:// when no scheme is given and accepts only http/https web addresses,
+        /// so links like "javascript:" can never be saved. Returns null when the address is not valid.
+        /// </summary>
+        private static string? CleanUrl(string? url)
+        {
+            url = url?.Trim();
+            if (string.IsNullOrEmpty(url)) return null;
+            if (!url.Contains("://")) url = "https://" + url;
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                   && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                   && !string.IsNullOrEmpty(uri.Host)
+                ? uri.AbsoluteUri
+                : null;
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(WebLink link)
         {
-            // Auto-add https if missing
-            if (!link.Url.StartsWith("http"))
-                link.Url = "https://" + link.Url;
+            var url = CleanUrl(link.Url);
+            if (url == null) { TempData["Error"] = "Enter a valid web address (http or https)."; return RedirectToAction("Index"); }
+            link.Url = url;
 
             link.CreatedAt = DateTime.Now;
             _db.WebLinks.Add(link);
@@ -55,9 +71,11 @@ namespace LifeOS.Controllers
         {
             var link = await _db.WebLinks.FindAsync(updated.Id);
             if (link == null) return NotFound();
+            var url = CleanUrl(updated.Url);
+            if (url == null) { TempData["Error"] = "Enter a valid web address (http or https)."; return RedirectToAction("Index"); }
 
             link.Name = updated.Name;
-            link.Url = updated.Url;
+            link.Url = url;
             link.Description = updated.Description;
             link.Category = updated.Category;
             link.Tags = updated.Tags;

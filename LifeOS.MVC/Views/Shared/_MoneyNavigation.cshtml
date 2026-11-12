@@ -1,6 +1,0 @@
-@{ var action = ViewContext.RouteData.Values["action"]?.ToString(); }
-<nav class="module-nav" aria-label="Money sections">
-<a asp-controller="Money" asp-action="Index" aria-current="@(action == "Index" ? "page" : null)">Transactions</a>
-<a asp-controller="Money" asp-action="Accounts" aria-current="@(action == "Accounts" ? "page" : null)">Cash & online accounts</a>
-<a asp-controller="Money" asp-action="Loans" aria-current="@(action == "Loans" ? "page" : null)">Lending & borrowing</a>
-</nav>

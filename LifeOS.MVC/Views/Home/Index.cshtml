@@ -1,18 +1,265 @@
 @model LifeOS.MVC.Models.DashboardViewModel
-@{ ViewData["Title"] = "Dashboard"; }
-<div class="page-heading"><div><div class="eyebrow">YOUR PERSONAL OPERATING SYSTEM</div><h1>A little progress, every day.</h1><p>@Model.Today.ToString("dddd, MMMM d") · Welcome back, @Model.UserName</p></div><a class="btn btn-primary" href="/Planner">＋ Plan your day</a></div>
-<section class="dashboard-hero"><div class="eyebrow">TODAY'S INTENTION</div><h2 class="mt-2">Build a day you feel good about.</h2><p class="mt-2">@Model.TodaysMission</p><div class="d-flex gap-3 align-items-center flex-wrap"><button class="btn btn-light" onclick="timerToggle()">Start a focus session ↗</button><span id="liveClock"></span><span>@Model.ProductivityScore.ToString("0")% daily productivity</span></div></section>
-<div class="metric-grid">
-<a href="/Habits" class="card card-p"><span class="eyebrow">DAILY HABITS</span><h2>@Model.TodayHabitsDone <small>/ @Model.TodayHabitsTotal</small></h2><small>Small wins that add up ↗</small></a>
-<a href="/Projects" class="card card-p"><span class="eyebrow">ACTIVE PROJECTS</span><h2>@Model.ActiveProjects</h2><small>Keep your ideas moving ↗</small></a>
-<a href="/PersonalTasks" class="card card-p"><span class="eyebrow">TASKS COMPLETED</span><h2>@Model.CompletedPersonalTasks <small>/ @Model.TotalPersonalTasks</small></h2><small>Tasks due today ↗</small></a>
-<a href="/Habits" class="card card-p"><span class="eyebrow">CURRENT TOP STREAK</span><h2>@Model.CurrentTopStreak <small>days</small></h2><small>Best streak: @Model.BestHabitStreak ↗</small></a>
+@{
+    ViewData["Title"] = "Dashboard";
+    const double ringCirc = 2 * Math.PI * 54;
+    var ringDash = (Model.HasScore ? Model.Score : 0) / 100.0 * ringCirc;
+    string[] prayerNames = { "Fajr", "Dhuhr", "Asr", "Maghrib", "Isha" };
+    var todayIso = Model.Today.ToString("yyyy-MM-dd");
+}
+
+<div class="db">
+
+    <!-- Greeting -->
+    <div class="db-head">
+        <div>
+            <div class="db-date">@Model.Today.ToString("dddd, d MMMM")</div>
+            <h1 class="db-title">@Model.Greeting. Here is your day.</h1>
+        </div>
+        <div class="db-actions">
+            <a class="lo-btn" href="/Study">Log study or skill hours</a>
+            <a class="lo-btn lo-btn-primary" href="#quickTask">@await Html.PartialAsync("_Icon", "plus") Add task</a>
+        </div>
+    </div>
+
+    <div class="db-grid-3">
+
+        <!-- Today's productivity -->
+        <section class="db-card" aria-labelledby="scoreTitle">
+            <div class="db-card-head">
+                <h2 id="scoreTitle" class="db-h2">Today's productivity</h2>
+                @if (Model.ScoreChange is int change)
+                {
+                    <span class="db-pill @(change < 0 ? "down" : "")">@(change >= 0 ? "+" : "")@change% vs yesterday</span>
+                }
+            </div>
+            <div class="db-score">
+                <svg class="db-ring" role="img" aria-label="@(Model.HasScore ? $"Productivity score {Model.Score} percent" : "No productivity data yet today")" width="128" height="128" viewBox="0 0 128 128">
+                    <circle class="db-ring-track" cx="64" cy="64" r="54" fill="none" stroke-width="12"></circle>
+                    @if (Model.HasScore && Model.Score > 0)
+                    {
+                        <circle class="db-ring-value" cx="64" cy="64" r="54" fill="none" stroke-width="12" stroke-linecap="round"
+                                stroke-dasharray="@ringDash.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) @ringCirc.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" transform="rotate(-90 64 64)"></circle>
+                    }
+                    <text class="db-ring-text lo-num" x="64" y="64" text-anchor="middle" font-size="28" font-weight="800">@(Model.HasScore ? Model.Score + "%" : "–")</text>
+                    <text class="db-ring-sub" x="64" y="85" text-anchor="middle" font-size="12">@Model.ScoreLabel</text>
+                </svg>
+                <div class="db-parts">
+                    @foreach (var part in Model.ScoreParts)
+                    {
+                        <div class="db-part"><span class="db-muted">@part.Name</span><strong class="lo-num">@part.Value</strong></div>
+                    }
+                </div>
+            </div>
+            <p class="db-muted db-tiny" style="margin:0;">Score = equal average of Tasks, Projects, Studies, Skills and Spiritual (only areas with something to measure today).</p>
+        </section>
+
+        <!-- Today's tasks -->
+        <section class="db-card" aria-labelledby="tasksTitle">
+            <div class="db-card-head">
+                <h2 id="tasksTitle" class="db-h2">Today's tasks <span class="db-muted lo-num">@Model.TasksDoneToday / @Model.TasksDueToday</span></h2>
+                <a class="db-link" href="/PersonalTasks">All tasks</a>
+            </div>
+            <div class="db-filters" role="group" aria-label="Filter tasks" id="taskFilters">
+                <button type="button" class="db-chip" data-filter="all" aria-pressed="true">All</button>
+                <button type="button" class="db-chip" data-filter="today" aria-pressed="false">Today</button>
+                <button type="button" class="db-chip" data-filter="repeated" aria-pressed="false">Repeated</button>
+                <button type="button" class="db-chip" data-filter="overdue" aria-pressed="false">Overdue</button>
+                <button type="button" class="db-chip" data-filter="done" aria-pressed="false">Done</button>
+            </div>
+            <div class="db-task-list" id="taskList">
+                @if (!Model.Tasks.Any())
+                {
+                    <p class="db-empty">Nothing due today. Add one meaningful task below.</p>
+                }
+                @foreach (var task in Model.Tasks)
+                {
+                    var state = task.IsCompleted ? "done" : task.IsOverdue ? "overdue" : "today";
+                    <div class="db-task @(task.IsCompleted ? "is-done" : "") @(task.IsOverdue ? "is-overdue" : "")" data-state="@state" data-due="@(task.IsOverdue ? "overdue" : "today")" data-repeated="@(task.IsRepeated ? "yes" : "no")">
+                        <form asp-controller="PersonalTasks" asp-action="ToggleComplete" method="post">
+                            <input type="hidden" name="id" value="@task.Id" />
+                            <input type="hidden" name="date" value="@todayIso" />
+                            <input type="hidden" name="returnUrl" value="/" />
+                            <button type="submit" class="db-check @(task.IsCompleted ? "done" : "")" aria-label="@(task.IsCompleted ? "Mark as not done" : "Mark as done"): @task.Title">
+                                @if (task.IsCompleted) { @await Html.PartialAsync("_Icon", "tick") }
+                            </button>
+                        </form>
+                        <div class="db-task-body">
+                            <div class="db-task-title">@task.Title</div>
+                            <div class="db-task-meta">@task.Meta</div>
+                        </div>
+                        @if (task.IsRepeated) { <span class="db-badge repeat-@task.Repeat.ToLowerInvariant()">@task.Repeat</span> }
+                        else if (task.Priority == "A") { <span class="db-badge high">High</span> }
+                        else if (task.Priority == "C") { <span class="db-badge">Low</span> }
+                    </div>
+                }
+                <p class="db-empty" id="taskFilterEmpty" hidden>No tasks in this view.</p>
+            </div>
+            <form class="db-task-add" asp-controller="PersonalTasks" asp-action="Create" method="post">
+                <input type="hidden" name="DueDate" value="@todayIso" />
+                <input type="hidden" name="Priority" value="B" />
+                <input type="hidden" name="returnUrl" value="/" />
+                <label for="quickTask" class="lo-visually-hidden">New task for today</label>
+                <input id="quickTask" name="Title" maxlength="200" required placeholder="Add a task for today" />
+                <button type="submit" class="lo-btn lo-btn-primary">Add</button>
+            </form>
+        </section>
+
+        <!-- Spiritual + needs attention -->
+        <section class="db-card" aria-labelledby="prayTitle">
+            <div class="db-card-head">
+                <h2 id="prayTitle" class="db-h2">Spiritual today</h2>
+                <a class="db-link" href="/Spiritual">Open</a>
+            </div>
+            <div class="db-prayers">
+                @for (int i = 0; i < 5; i++)
+                {
+                    bool counted = i < Model.PrayersTotal;
+                    bool done = i < Model.PrayersDone;
+                    <div class="db-prayer @(done ? "done" : "")"><span>@prayerNames[i]</span><span>@(done ? "Done" : counted ? "Pending" : "—")</span></div>
+                }
+            </div>
+            <div class="db-muted db-small lo-num">@Model.PrayersDone of @Model.PrayersTotal prayers · @Model.PrayerStreak-day streak</div>
+
+            <div class="db-attention">
+                <h3 class="db-h3">Needs attention</h3>
+                @if (!Model.Alerts.Any())
+                {
+                    <div class="db-clear">@await Html.PartialAsync("_Icon", "check") All clear</div>
+                }
+                @foreach (var alert in Model.Alerts)
+                {
+                    <a class="db-alert" href="@alert.Url">@await Html.PartialAsync("_Icon", "alert") @alert.Text</a>
+                }
+            </div>
+        </section>
+    </div>
+
+    <!-- Productivity by area -->
+    <section class="db-section" aria-labelledby="levelsTitle">
+        <div class="db-section-head">
+            <h2 id="levelsTitle" class="db-h2-lg">Productivity by area</h2>
+            <span class="db-muted db-small">This week · since Monday</span>
+        </div>
+        <div class="db-grid-levels">
+            @foreach (var level in Model.Levels)
+            {
+                <a class="db-level" href="@level.Url">
+                    <div class="db-level-top">
+                        <span class="db-level-icon">@await Html.PartialAsync("_Icon", level.Icon)</span>
+                        <span class="db-level-name">@level.Name</span>
+                    </div>
+                    <span class="db-level-pct lo-num">@(level.Percent.HasValue ? level.Percent + "%" : "–")</span>
+                    <div class="db-bar" role="presentation"><span class="@(level.Percent < 40 ? "low" : "")" style="width:@(level.Percent ?? 0)%"></span></div>
+                    <div class="db-muted db-tiny lo-num">@level.Detail</div>
+                </a>
+            }
+        </div>
+    </section>
+
+    <div class="db-grid-2">
+
+        <!-- Projects in focus -->
+        <section class="db-card" aria-labelledby="projTitle">
+            <div class="db-card-head">
+                <h2 id="projTitle" class="db-h2">Projects in focus</h2>
+                <a class="db-link" href="/Projects">All projects</a>
+            </div>
+            @if (!Model.FocusProjects.Any())
+            {
+                <p class="db-empty">Your active projects will appear here.</p>
+            }
+            @foreach (var project in Model.FocusProjects)
+            {
+                var pct = Math.Clamp(project.ProgressPercent, 0, 100);
+                <a class="db-project" href="/Projects/Detail/@project.Id">
+                    <div class="db-project-top">
+                        <span class="db-pri @project.Priority.ToLowerInvariant()" aria-label="Priority @project.Priority">@project.Priority</span>
+                        <span class="db-project-name">@project.Title</span>
+                        <span class="lo-num" style="font-weight:700;">@pct%</span>
+                    </div>
+                    <div class="db-muted db-tiny">Next: @(project.NextTask ?? "set your next step") · @(project.Deadline.HasValue ? "due " + project.Deadline.Value.ToString("dd MMM") : "no deadline")</div>
+                    <div class="db-bar thin" role="presentation"><span style="width:@pct%"></span></div>
+                </a>
+            }
+        </section>
+
+        <!-- Last 7 days -->
+        <section class="db-card" aria-labelledby="chartTitle">
+            @{
+                var scored = Model.Week.Where(d => d.Score.HasValue).ToList();
+                var chartLabel = string.Join(", ", Model.Week.Select(d => $"{d.Date:ddd} {(d.Score.HasValue ? d.Score + " percent" : "no data")}"));
+            }
+            <div class="db-card-head">
+                <h2 id="chartTitle" class="db-h2">Last 7 days</h2>
+                <span class="db-muted db-small lo-num">@(scored.Any() ? $"Average {Math.Round(scored.Average(d => d.Score!.Value))}%" : "No data yet")</span>
+            </div>
+            <div class="db-chart" role="img" aria-label="Daily productivity, last 7 days: @chartLabel">
+                @foreach (var d in Model.Week)
+                {
+                    bool isToday = d.Date == Model.Today;
+                    <div class="db-chart-col">
+                        <span class="db-chart-val lo-num">@(d.Score.HasValue ? d.Score.ToString() : "–")</span>
+                        <div class="db-chart-bar @(isToday ? "today" : "") @(d.Score.HasValue ? "" : "empty")" style="height:@((d.Score ?? 0) * 1.4 + 4)px"></div>
+                        <span class="db-chart-day">@(isToday ? "Today" : d.Date.ToString("ddd"))</span>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+
+    <div class="db-grid-2">
+
+        <!-- Library -->
+        <section class="db-card" aria-labelledby="libTitle">
+            <h2 id="libTitle" class="db-h2">Library</h2>
+            <div class="db-tiles db-tiles-2">
+                <a class="db-tile" href="/Links"><span class="db-muted db-tiny">Links</span><strong class="lo-num">@Model.LinkCount</strong><span class="db-muted db-tiny">@Model.LinksPinned pinned</span></a>
+                <a class="db-tile" href="/Vault"><span class="db-muted db-tiny">Vault</span><strong class="lo-num">@Model.VaultCount</strong><span class="db-muted db-tiny">@Model.VaultWithout2FA without 2FA</span></a>
+            </div>
+        </section>
+
+        <!-- Recent activity -->
+        <section class="db-card" aria-labelledby="actTitle">
+            <div class="db-card-head">
+                <h2 id="actTitle" class="db-h2">Recent activity</h2>
+                <a class="db-link" href="/Analytics">Analytics</a>
+            </div>
+            @if (!Model.RecentActivity.Any())
+            {
+                <p class="db-empty">Your activity will appear here as you complete tasks and log time.</p>
+            }
+            @foreach (var log in Model.RecentActivity)
+            {
+                <div class="db-activity">
+                    <span>@log.Detail</span>
+                    <span class="db-muted lo-num">@(log.DateTime.Date == Model.Today ? log.DateTime.ToString("HH:mm") : log.DateTime.Date == Model.Today.AddDays(-1) ? "Yesterday" : log.DateTime.ToString("dd MMM"))</span>
+                </div>
+            }
+        </section>
+    </div>
 </div>
-<div class="dashboard-columns"><section class="card card-p"><div class="d-flex justify-content-between"><h3>Your priorities</h3><a href="/Projects" class="eyebrow">ALL PROJECTS ↗</a></div>
-@if(!Model.TopPriorities.Any()){<div class="empty-state"><h4>Space for your next big idea</h4><p>Add an active priority A project to bring it into focus.</p><a class="btn btn-secondary" href="/Projects">Explore projects</a></div>}
-@{var i=0;} @foreach(var project in Model.TopPriorities){i++;<a href="/Projects/Detail/@project.Id" class="priority-row"><span class="priority-number">@i.ToString("00")</span><div class="flex-grow-1"><strong>@project.Title</strong><div class="small" style="color:var(--text-3)">@(project.NextTask ?? "Choose your next step")</div><div class="progress mt-2"><div class="progress-bar" data-width="@Math.Clamp(project.ProgressPercent,0,100)"></div></div></div><span>@project.ProgressPercent%</span></a>}
-</section><section class="card card-p"><div class="d-flex justify-content-between"><h3>Money overview</h3><a href="/Money" class="eyebrow">MANAGE ↗</a></div><div class="eyebrow">THIS MONTH · PKR</div><h2 class="my-3">Rs @((Model.MonthlyIncome-Model.MonthlyExpenses).ToString("N2"))</h2><p class="small" style="color:var(--text-3)">Net balance after this month's expenses</p><div class="spend-row"><span>Income</span><strong style="color:var(--green)">Rs @Model.MonthlyIncome.ToString("N2")</strong></div><div class="spend-row"><span>Expenses</span><strong>Rs @Model.MonthlyExpenses.ToString("N2")</strong></div><a href="/Money" class="btn btn-secondary w-100 mt-3">Add income or expense</a></section></div>
-<div class="module-grid"><a class="card" href="/Planner"><strong>Plan your day ↗</strong><small>Tasks, routines, and your next step</small></a><a class="card" href="/Learning"><strong>Keep learning ↗</strong><small>@Model.SkillsInProgress active skills</small></a><a class="card" href="/Spiritual"><strong>Spiritual routine ↗</strong><small>@(Model.TodaySpiritual?.PrayersDone ?? 0) / @(Model.TodaySpiritual?.PrayersTotal ?? 5) prayers today</small></a></div>
-<div class="dashboard-columns"><section class="card card-p"><h3>Recent activity</h3>@if(!Model.RecentActivityLogs.Any()){<p style="color:var(--text-3)">Your activity will appear here as you complete habits and tasks.</p>}@foreach(var log in Model.RecentActivityLogs){<div class="spend-row"><span>@log.Detail</span><small>@log.DateTime.ToString("dd MMM, HH:mm")</small></div>}</section><section class="card card-p"><span class="eyebrow">A MOMENT OF PERSPECTIVE</span><p class="mt-3" style="font-size:1.1rem">@Model.DailyMotivation</p><a href="/Spiritual" class="btn btn-ghost mt-2">Write a reflection ↗</a></section></div>
 
-
+@section Scripts {
+    <script>
+        (() => {
+            const chips = document.querySelectorAll('#taskFilters .db-chip');
+            const rows = document.querySelectorAll('#taskList .db-task');
+            const empty = document.getElementById('taskFilterEmpty');
+            chips.forEach(chip => chip.addEventListener('click', () => {
+                const filter = chip.dataset.filter;
+                chips.forEach(c => c.setAttribute('aria-pressed', String(c === chip)));
+                let shown = 0;
+                rows.forEach(row => {
+                    const show = filter === 'all'
+                        || (filter === 'done' && row.dataset.state === 'done')
+                        || (filter === 'overdue' && row.dataset.state === 'overdue')
+                        || (filter === 'repeated' && row.dataset.repeated === 'yes')
+                        || (filter === 'today' && row.dataset.due === 'today');
+                    row.hidden = !show;
+                    if (show) shown++;
+                });
+                if (empty) empty.hidden = shown > 0 || rows.length === 0;
+            }));
+        })();
+    </script>
+}

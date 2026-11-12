@@ -1,5 +1,7 @@
 using LifeOS.Models;
 using LifeOS.MVC.Data;
+using LifeOS.MVC.Models;
+using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,16 +33,9 @@ namespace LifeOS.MVC.Controllers
                 scores.Add((d, s.ProductivityScore));
             }
 
-            // Habit completion last 30 days
-            var habitLogs = await _db.HabitLogs
-                .Where(l => l.CompletedDate >= last30)
-                .GroupBy(l => l.CompletedDate.Date)
-                .Select(g => new { Date = g.Key, Count = g.Count() })
-                .ToListAsync();
-
-            // Task completion stats
-            var completedTasks = await _db.PersonalTasks.CountAsync(t => t.IsCompleted);
-            var openTasks = await _db.PersonalTasks.CountAsync(t => !t.IsCompleted);
+            // Task completion stats (one-time tasks)
+            var completedTasks = await _db.PersonalTasks.CountAsync(t => t.Repeat == "None" && t.IsCompleted);
+            var openTasks = await _db.PersonalTasks.CountAsync(t => t.Repeat == "None" && !t.IsCompleted);
             var totalTasks = completedTasks + openTasks;
 
             // Skill hours last 7 days
@@ -59,13 +54,24 @@ namespace LifeOS.MVC.Controllers
                 .Take(5)
                 .ToListAsync();
 
-            // Habit streaks
-            var bestStreaks = await _db.Habits
-                .Where(h => h.IsActive)
-                .OrderByDescending(h => h.Streak == null ? 0 : h.Streak.CurrentStreak)
-                .Take(5)
-                .Select(h => new { h.Name, CurrentStreak = h.Streak == null ? 0 : h.Streak.CurrentStreak, BestStreak = h.Streak == null ? 0 : h.Streak.BestStreak })
+            // Repeated task streaks
+            var repeatedTasks = await _db.PersonalTasks.AsNoTracking()
+                .Include(t => t.Completions)
+                .Where(t => t.Repeat != "None")
                 .ToListAsync();
+            var taskStreaks = repeatedTasks
+                .Select(t => new RepeatedTaskStreak
+                {
+                    TaskId = t.Id,
+                    Title = t.Title,
+                    Repeat = t.Repeat,
+                    CurrentStreak = TaskService.Streak(t, t.Completions.Select(c => c.Date.Date).ToHashSet(), today),
+                    Last30Days = t.Completions.Count(c => c.Date >= last30),
+                    Total = t.Completions.Count,
+                })
+                .OrderByDescending(s => s.CurrentStreak).ThenByDescending(s => s.Total)
+                .Take(8)
+                .ToList();
 
             // Activity last 7 days
             var recentActivity = await _db.ActivityLogs
@@ -74,14 +80,13 @@ namespace LifeOS.MVC.Controllers
                 .ToListAsync();
 
             ViewBag.Scores = scores;
-            ViewBag.HabitLogs = habitLogs;
             ViewBag.CompletedTasks = completedTasks;
             ViewBag.OpenTasks = openTasks;
             ViewBag.TotalTasks = totalTasks;
             ViewBag.SkillHours = skillHours;
             ViewBag.StudyHours = studyHours;
             ViewBag.Reviews = reviews;
-            ViewBag.BestStreaks = bestStreaks;
+            ViewBag.TaskStreaks = taskStreaks;
             ViewBag.Activity = recentActivity;
             ViewBag.AvgScore = scores.Any() ? scores.Average(s => s.score) : 0;
             ViewBag.Today = today;

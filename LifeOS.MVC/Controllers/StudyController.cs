@@ -18,6 +18,25 @@ namespace LifeOS.MVC.Controllers
             _productivity = productivity;
         }
 
+        /// <summary>
+        /// Subject progress: average of (hours ÷ target hours) and (tasks done ÷ all tasks),
+        /// using only the parts that exist. With neither, the manual progress stays.
+        /// </summary>
+        public static bool IsAutoProgress(StudySubject s, int taskCount) => s.TargetHours > 0 || taskCount > 0;
+
+        private async Task RecalculateProgressAsync(int subjectId)
+        {
+            var subject = await _db.StudySubjects.FindAsync(subjectId);
+            if (subject == null) return;
+            var tasks = await _db.StudyTasks.Where(t => t.StudySubjectId == subjectId).Select(t => t.IsCompleted).ToListAsync();
+
+            var parts = new List<double>();
+            if (subject.TargetHours > 0) parts.Add(Math.Min(1.0, subject.HoursLogged / subject.TargetHours));
+            if (tasks.Any()) parts.Add((double)tasks.Count(done => done) / tasks.Count);
+            if (parts.Any()) subject.ProgressPercent = Math.Clamp((int)Math.Round(parts.Average() * 100), 0, 100);
+            await _db.SaveChangesAsync();
+        }
+
         // ── DASHBOARD ────────────────────────────────────────────────
         public async Task<IActionResult> Index()
         {
@@ -110,6 +129,7 @@ namespace LifeOS.MVC.Controllers
             task.CreatedAt = DateTime.Now;
             _db.StudyTasks.Add(task);
             await _db.SaveChangesAsync();
+            await RecalculateProgressAsync(task.StudySubjectId);
             TempData["Success"] = "Subject task added.";
             return RedirectToAction("Subject", new { id = task.StudySubjectId });
         }
@@ -136,6 +156,7 @@ namespace LifeOS.MVC.Controllers
             task.IsCompleted = !task.IsCompleted;
             task.CompletedAt = task.IsCompleted ? DateTime.Now : null;
             await _db.SaveChangesAsync();
+            await RecalculateProgressAsync(task.StudySubjectId);
             return RedirectToAction("Subject", new { id = task.StudySubjectId });
         }
 
@@ -147,6 +168,7 @@ namespace LifeOS.MVC.Controllers
             var subjectId = task.StudySubjectId;
             _db.StudyTasks.Remove(task);
             await _db.SaveChangesAsync();
+            await RecalculateProgressAsync(subjectId);
             TempData["Success"] = "Task removed.";
             return RedirectToAction("Subject", new { id = subjectId });
         }
@@ -177,11 +199,17 @@ namespace LifeOS.MVC.Controllers
             subject.Category = updated.Category;
             subject.Status = updated.Status;
             subject.TargetHours = updated.TargetHours;
-            subject.ProgressPercent = updated.ProgressPercent;
+            subject.WeeklyTargetHours = updated.WeeklyTargetHours;
             subject.ResourceUrl = updated.ResourceUrl;
             subject.CurrentTopic = updated.CurrentTopic;
 
+            // Manual progress only when there is no target and no task to calculate it from.
+            int taskCount = await _db.StudyTasks.CountAsync(t => t.StudySubjectId == subject.Id);
+            if (!IsAutoProgress(subject, taskCount))
+                subject.ProgressPercent = Math.Clamp(updated.ProgressPercent, 0, 100);
+
             await _db.SaveChangesAsync();
+            await RecalculateProgressAsync(subject.Id);
             TempData["Success"] = $"'{subject.Name}' updated.";
             return RedirectToAction("Subject", new { id = subject.Id });
         }
@@ -218,13 +246,10 @@ namespace LifeOS.MVC.Controllers
                 if (!string.IsNullOrEmpty(session.TopicCovered))
                     subject.CurrentTopic = session.TopicCovered;
 
-                // Auto-update progress if target set
-                if (subject.TargetHours > 0)
-                    subject.ProgressPercent = Math.Min(100,
-                        (int)(subject.HoursLogged / subject.TargetHours * 100));
             }
 
             await _db.SaveChangesAsync();
+            await RecalculateProgressAsync(session.StudySubjectId);
             await _productivity.LogActivityAsync("Study", session.StudySubjectId,
                 "SessionLogged",
                 $"{session.DurationHours}h study session logged — {session.TopicCovered}");
@@ -246,11 +271,11 @@ namespace LifeOS.MVC.Controllers
                 {
                     subject.HoursLogged = Math.Max(0,
                         subject.HoursLogged - session.DurationHours);
-                    if (subject.TargetHours > 0) subject.ProgressPercent = Math.Clamp((int)(subject.HoursLogged / subject.TargetHours * 100), 0, 100);
                 }
 
                 _db.StudySessions.Remove(session);
                 await _db.SaveChangesAsync();
+                await RecalculateProgressAsync(subjectId);
             }
             TempData["Info"] = "Session removed.";
             return RedirectToAction("Subject", new { id = subjectId });

@@ -1,7 +1,13 @@
 @model LifeOS.MVC.Models.SpiritualEntry
 @{
-    ViewData["Title"] = "Spiritual"; int streak = (int)(ViewBag.Streak ?? 0);
+    ViewData["Title"] = "Spiritual";
+    int streak = (int)(ViewBag.Streak ?? 0);
+    int perfectDays = (int)(ViewBag.PerfectDays ?? 0);
+    var day = (DateTime)ViewBag.Day;
+    var today = (DateTime)ViewBag.Today;
+    var history = ViewBag.History as List<LifeOS.MVC.Models.SpiritualEntry> ?? new();
 }
+@if (TempData["Success"] != null) { <div class="alert alert-success" role="status">@TempData["Success"]</div> }
 
 <div class="los-page-header">
     <div>
@@ -13,10 +19,15 @@
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="los-card">
-            <div class="los-card-title-lg" style="margin-bottom:18px;">Log Today</div>
+            <div class="los-card-title-lg" style="margin-bottom:18px;">@(day == today ? "Log Today" : "Log " + day.ToString("dddd, d MMM"))</div>
+            <form method="get" asp-action="Index" asp-controller="Spiritual" class="mb-3">
+                <label class="form-label" for="spiritDay">Day</label>
+                <input id="spiritDay" name="date" type="date" class="form-control" value="@day.ToString("yyyy-MM-dd")" max="@today.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+                <noscript><button class="btn-los btn-secondary btn-sm mt-2" type="submit">Open day</button></noscript>
+            </form>
             <form method="post" asp-action="Save" asp-controller="Spiritual">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="Date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="Date" value="@day.ToString("yyyy-MM-dd")" />
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="form-group">
@@ -43,7 +54,7 @@
                         </div>
                     </div>
                     <div class="col-12" style="margin-top:4px;">
-                        <button type="submit" class="btn-los btn-primary w-100">Save Today</button>
+                        <button type="submit" class="btn-los btn-primary w-100">@(day == today ? "Save Today" : "Save " + day.ToString("d MMM"))</button>
                     </div>
                 </div>
             </form>
@@ -60,11 +71,11 @@
                             <div class="streak-flame">🕌</div>
                             <div>
                                 <div class="streak-number">@streak</div>
-                                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber);">Perfect Days</div>
+                                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber);">Day streak</div>
                             </div>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days with all planned prayers completed. Keep showing up, one day at a time.</div>
+                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days in a row with all planned prayers completed. @perfectDays perfect days in total. Keep showing up, one day at a time.</div>
                         </div>
                     </div>
                 </div>
@@ -92,13 +103,43 @@
                         }
                     </div>
                     <div style="font-size:0.8rem; color:var(--text-tertiary); margin-top:12px;">
-                        @Model.PrayersDone of @(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal) prayers completed today
+                        @Model.PrayersDone of @(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal) prayers completed @(day == today ? "today" : "on " + day.ToString("d MMM"))
                     </div>
                     @if (Model.PrayersDone > 0 && !string.IsNullOrEmpty(Model.GratitudeNote))
                     {
                         <div style="margin-top:14px; padding:12px 14px; background:var(--amber-soft); border-radius:var(--radius-sm); border-left:3px solid var(--amber);">
                             <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber); margin-bottom:4px;">Today's Gratitude</div>
                             <div style="font-size:0.845rem; color:var(--text-secondary); font-style:italic;">@Model.GratitudeNote</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Last 30 days -->
+            <div class="col-12">
+                <div class="los-card">
+                    <div class="los-card-title" style="margin-bottom:14px;">Last 30 days</div>
+                    @if (!history.Any())
+                    {
+                        <div style="font-size:0.85rem; color:var(--text-tertiary);">No entries in the last 30 days.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th scope="col">Day</th><th scope="col">Prayers</th><th scope="col">Gratitude</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+                                <tbody>
+                                    @foreach (var h in history)
+                                    {
+                                        <tr>
+                                            <td>@h.Date.ToString("ddd, d MMM")</td>
+                                            <td style="font-weight:600; color:@(h.PrayersTotal > 0 && h.PrayersDone >= h.PrayersTotal ? "var(--green)" : "inherit");">@h.PrayersDone / @h.PrayersTotal</td>
+                                            <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@h.GratitudeNote</td>
+                                            <td><a href="/Spiritual?date=@h.Date.ToString("yyyy-MM-dd")" class="btn-los btn-secondary btn-sm" aria-label="Open @h.Date.ToString("d MMMM")">Open</a></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     }
                 </div>

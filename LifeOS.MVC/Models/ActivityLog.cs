@@ -7,7 +7,7 @@ namespace LifeOS.MVC.Models
         public int Id { get; set; }
 
         [MaxLength(50)]
-        public string Type { get; set; } = ""; // Habit | PersonalTask
+        public string Type { get; set; } = ""; // PersonalTask | Project | ProjectTask | Study | TechSkill | Goal
 
         public int ReferenceId { get; set; } // Id of the related record
 

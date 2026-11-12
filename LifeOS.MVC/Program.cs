@@ -10,7 +10,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 //Services
 builder.Services.AddScoped<LifeOS.MVC.Services.ProductivityService>();
-builder.Services.AddScoped<LifeOS.MVC.Services.StreakService>();
+builder.Services.AddScoped<LifeOS.MVC.Services.TaskService>();
+builder.Services.AddScoped<LifeOS.MVC.Services.DashboardService>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

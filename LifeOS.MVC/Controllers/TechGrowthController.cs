@@ -131,6 +131,12 @@ namespace LifeOS.MVC.Controllers
                 return RedirectToAction("Index");
             }
 
+            if (logDate.HasValue && logDate.Value.Date > DateTime.Today)
+            {
+                TempData["Error"] = "You cannot log hours for a future date.";
+                return RedirectToAction("Index");
+            }
+
             var skill = await _db.TechSkills.FindAsync(skillId);
             if (skill == null) return NotFound();
 
@@ -158,9 +164,18 @@ namespace LifeOS.MVC.Controllers
             skill.UpdatedAt = DateTime.Now;
             await _db.SaveChangesAsync();
 
-            await _productivity.LogActivityAsync("TechSkill", skillId, "HoursLogged",
-                $"{hours}h logged on '{skill.Name}'" + (topic != null ? $" — {topic}" : ""));
-            TempData["Success"] = $"{hours}h logged on '{skill.Name}'.";
+            if (hours > 0)
+            {
+                await _productivity.LogActivityAsync("TechSkill", skillId, "HoursLogged",
+                    $"{hours}h logged on '{skill.Name}'" + (topic != null ? $" — {topic}" : ""));
+                TempData["Success"] = $"{hours}h logged on '{skill.Name}'.";
+            }
+            else
+            {
+                await _productivity.LogActivityAsync("TechSkill", skillId, "Updated",
+                    $"Progress of '{skill.Name}' set to {skill.ProgressPercent}%");
+                TempData["Success"] = $"Progress of '{skill.Name}' updated to {skill.ProgressPercent}%.";
+            }
             return RedirectToAction("Index");
         }
 

@@ -20,10 +20,11 @@ function initNavHighlight() {
     const path = '/' + (window.location.pathname.split('/').filter(Boolean)[0] || '');
     document.querySelectorAll('.los-nav-link').forEach(link => {
         const href = (link.getAttribute('href') || '').toLowerCase();
-        if (href === '/' && (path === '' || path === '/')) {
+        const current = (href === '/' && (path === '' || path === '/'))
+            || (href !== '/' && path.toLowerCase() === href);
+        if (current) {
             link.classList.add('active');
-        } else if (href !== '/' && path.toLowerCase().startsWith(href)) {
-            link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
         }
     });
 }
@@ -358,19 +359,48 @@ function initTimer() {
 }
 
 /* ── VAULT HELPERS ────────────────────────────────────────────── */
-window.revealPw = (id, btn) => {
+// Passwords are never in the page; they are fetched one at a time from /Vault/Reveal.
+async function fetchVaultPassword(id) {
+    const token = document.querySelector('#vaultTokenForm input[name="__RequestVerificationToken"]')?.value || '';
+    const body = new URLSearchParams({ id: String(id), __RequestVerificationToken: token });
+    const res = await fetch('/Vault/Reveal', { method: 'POST', body, credentials: 'same-origin', cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not read this password.');
+    return data.password;
+}
+
+const vaultHideTimers = {};
+window.revealPw = async (id, btn) => {
     const el = document.getElementById('pw' + id);
     if (!el) return;
-    const hidden = !el.classList.contains('revealed');
-    if (hidden) {
-        el.textContent = el.dataset.plain || '(empty)';
+    const hide = () => { el.textContent = '••••••••••'; el.classList.remove('revealed'); btn.textContent = 'Show'; btn.title = 'Show password'; };
+    if (el.classList.contains('revealed')) { clearTimeout(vaultHideTimers[id]); hide(); return; }
+    btn.disabled = true;
+    try {
+        el.textContent = await fetchVaultPassword(id) || '(empty)';
         el.classList.add('revealed');
-        btn.textContent = '🙈';
-        setTimeout(() => { el.textContent = '••••••••'; el.classList.remove('revealed'); btn.textContent = '👁'; }, 8000);
-    } else {
-        el.textContent = '••••••••';
-        el.classList.remove('revealed');
-        btn.textContent = '👁';
+        btn.textContent = 'Hide';
+        btn.title = 'Hide password';
+        clearTimeout(vaultHideTimers[id]);
+        vaultHideTimers[id] = setTimeout(hide, 8000);
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        btn.disabled = false;
+    }
+};
+
+window.copyPw = async (id, btn) => {
+    btn.disabled = true;
+    try {
+        await navigator.clipboard.writeText(await fetchVaultPassword(id));
+        const orig = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        btn.disabled = false;
     }
 };
 
@@ -386,7 +416,13 @@ window.copyText = (text, btn) => {
 // Persist the chosen theme while retaining a system default on first visit.
 document.addEventListener('DOMContentLoaded', () => {
     const button = document.getElementById('themeToggle');
-    const update = () => { if(button) { button.textContent = document.documentElement.dataset.theme === 'dark' ? '☀ Light mode' : '☾ Dark mode'; button.setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark')); } };
+    const update = () => {
+        if (!button) return;
+        const dark = document.documentElement.dataset.theme === 'dark';
+        button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+        button.setAttribute('aria-pressed', String(dark));
+        button.title = dark ? 'Light mode' : 'Dark mode';
+    };
     button?.addEventListener('click', () => {
         document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
         try { localStorage.setItem('lifeos-theme', document.documentElement.dataset.theme); } catch {}

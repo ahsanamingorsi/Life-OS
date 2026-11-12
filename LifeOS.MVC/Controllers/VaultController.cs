@@ -1,6 +1,7 @@
 ﻿
 using LifeOS.Models;
 using LifeOS.MVC.Data;
+using LifeOS.MVC.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,7 +60,8 @@ namespace LifeOS.Controllers
                 UpdatedAt = DateTime.Now,
             };
 
-            entry.PasswordPlain = PasswordPlain;
+            if (VaultCrypto.IsTooLong(PasswordPlain)) { TempData["Error"] = "Passwords can be up to 100 characters."; return RedirectToAction("Index"); }
+            entry.PasswordEncoded = VaultCrypto.Encrypt(PasswordPlain);
             _db.VaultEntries.Add(entry);
             await _db.SaveChangesAsync();
             TempData["Success"] = $"'{Name}' saved to vault.";
@@ -90,11 +92,29 @@ namespace LifeOS.Controllers
             entry.UpdatedAt = DateTime.Now;
 
             if (!string.IsNullOrEmpty(PasswordPlain))
-                entry.PasswordPlain = PasswordPlain;
+            {
+                if (VaultCrypto.IsTooLong(PasswordPlain)) { TempData["Error"] = "Passwords can be up to 100 characters."; return RedirectToAction("Index"); }
+                entry.PasswordEncoded = VaultCrypto.Encrypt(PasswordPlain);
+            }
 
             await _db.SaveChangesAsync();
             TempData["Success"] = "Updated.";
             return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Returns one password for the Show / Copy buttons. POST + antiforgery token,
+        /// never cached, so the password is not in the page source.
+        /// </summary>
+        [HttpPost, ValidateAntiForgeryToken]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+        public async Task<IActionResult> Reveal(int id)
+        {
+            var stored = await _db.VaultEntries.Where(v => v.Id == id).Select(v => v.PasswordEncoded).FirstOrDefaultAsync();
+            if (stored == null) return NotFound();
+            var plain = VaultCrypto.Decrypt(stored);
+            if (plain == null) return StatusCode(409, new { error = "This password cannot be read by the current Windows user." });
+            return Json(new { password = plain });
         }
 
         [HttpPost, ValidateAntiForgeryToken]

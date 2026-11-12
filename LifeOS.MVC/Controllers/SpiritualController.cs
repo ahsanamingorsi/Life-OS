@@ -10,22 +10,63 @@ namespace LifeOS.MVC.Controllers
         private readonly AppDbContext _db;
         public SpiritualController(AppDbContext db) { _db = db; }
 
-        public async Task<IActionResult> Index()
+        /// <summary>Entry for one day (today by default), last 30 days of history and the current streak.</summary>
+        public async Task<IActionResult> Index(DateTime? date)
         {
             var today = DateTime.Today;
-            var todayEntry = await _db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == today);
-            var streak = await _db.SpiritualEntries.CountAsync(s => s.PrayersTotal > 0 && s.PrayersDone == s.PrayersTotal);
-            ViewBag.Streak = streak;
-            return View(todayEntry ?? new SpiritualEntry());
+            var day = (date ?? today).Date;
+            if (day > today) { TempData["Error"] = "You cannot log a future day."; day = today; }
+
+            var entry = await _db.SpiritualEntries.AsNoTracking().FirstOrDefaultAsync(s => s.Date == day);
+
+            var history = await _db.SpiritualEntries.AsNoTracking()
+                .Where(s => s.Date >= today.AddDays(-29) && s.Date <= today)
+                .OrderByDescending(s => s.Date)
+                .ToListAsync();
+
+            ViewBag.Day = day;
+            ViewBag.Today = today;
+            ViewBag.History = history;
+            ViewBag.Streak = await CurrentStreakAsync(today);
+            ViewBag.PerfectDays = await _db.SpiritualEntries.CountAsync(s => s.PrayersTotal > 0 && s.PrayersDone >= s.PrayersTotal);
+            return View(entry ?? new SpiritualEntry { Date = day });
         }
 
-        [HttpPost]
+        /// <summary>Consecutive days (ending today, or yesterday if today is not complete yet) with all prayers done.</summary>
+        private async Task<int> CurrentStreakAsync(DateTime today)
+        {
+            var fullDays = (await _db.SpiritualEntries.AsNoTracking()
+                    .Where(s => s.Date >= today.AddDays(-800) && s.PrayersTotal > 0 && s.PrayersDone >= s.PrayersTotal)
+                    .Select(s => s.Date)
+                    .ToListAsync())
+                .Select(d => d.Date).ToHashSet();
+            int streak = 0;
+            var cursor = fullDays.Contains(today) ? today : today.AddDays(-1);
+            while (fullDays.Contains(cursor)) { streak++; cursor = cursor.AddDays(-1); }
+            return streak;
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Save(SpiritualEntry entry)
         {
-            if (entry.PrayersTotal < 1 || entry.PrayersTotal > 5 || entry.PrayersDone < 0 || entry.PrayersDone > entry.PrayersTotal) { TempData["Error"] = "Prayers completed must be between zero and your daily total (1–5)."; return RedirectToAction("Index"); }
             entry.Date = entry.Date.Date;
+            if (entry.Date == default || entry.Date > DateTime.Today)
+            {
+                TempData["Error"] = "Choose today or a past day.";
+                return RedirectToAction("Index");
+            }
+            if (entry.PrayersTotal < 1 || entry.PrayersTotal > 5 || entry.PrayersDone < 0 || entry.PrayersDone > entry.PrayersTotal)
+            {
+                TempData["Error"] = "Prayers completed must be between zero and your daily total (1–5).";
+                return RedirectToAction("Index", new { date = entry.Date.ToString("yyyy-MM-dd") });
+            }
+
             var existing = await _db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == entry.Date);
-            if (existing == null) { _db.SpiritualEntries.Add(entry); }
+            if (existing == null)
+            {
+                entry.Id = 0;
+                _db.SpiritualEntries.Add(entry);
+            }
             else
             {
                 existing.PrayersDone = entry.PrayersDone;
@@ -34,7 +75,8 @@ namespace LifeOS.MVC.Controllers
                 existing.ReflectionNote = entry.ReflectionNote;
             }
             await _db.SaveChangesAsync();
-            return RedirectToAction("Index");
+            TempData["Success"] = $"Saved {entry.Date:dddd, d MMM}.";
+            return RedirectToAction("Index", new { date = entry.Date.ToString("yyyy-MM-dd") });
         }
     }
 }

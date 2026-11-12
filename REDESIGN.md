@@ -1,6 +1,6 @@
-# Life OS redesign and money management
+# Life OS redesign
 
-The shared layout supports a persisted light/dark theme, responsive glass surfaces, and a redesigned dashboard. Money management uses SQL Server through the existing AppDbContext. Amounts are in PKR.
+The shared layout supports a persisted light/dark theme, responsive glass surfaces, and a redesigned dashboard. Money management and the Knowledge base were removed on November 12, 2026 (migration `RemoveMoneyAndKnowledge`).
 
 ## Database setup
 
@@ -11,7 +11,7 @@ dotnet tool restore --tool-manifest dotnet-tools.json
 dotnet tool run dotnet-ef migrations list
 ```
 
-Verify the existing migrations are already applied before updating. The new `AddMoneyManagement` migration only creates `MoneyTransactions`, `MonthlyBudgets`, and a unique monthly budget index. Earlier existing migrations include table deletions; review any earlier pending migrations before applying them.
+Verify the existing migrations are already applied before updating. Earlier existing migrations include table deletions; review any earlier pending migrations before applying them.
 
 ```powershell
 dotnet tool run dotnet-ef database update
@@ -23,19 +23,15 @@ The SQL Server connection is configured by `ConnectionStrings:DefaultConnection`
 ## Verification
 
 - Switch themes, reload, and navigate to confirm the preference persists.
-- Open the dashboard and Money on desktop and mobile widths.
-- Record income and expenses, filter by month, and confirm balances and spending categories.
-- Set a monthly budget and check remaining/over-budget amounts.
-- Submit a zero or negative amount: validation must reject it.
-- Delete a transaction after confirmation and verify the totals update.
+- Open the dashboard on desktop and mobile widths.
 - Open and close the focus timer with Escape; the backdrop must close too.
 
-Build verification completed with no errors. The database connection now uses the local .\SQLEXPRESS instance instead of an old machine name. AddMoneyManagement has been applied to LifeOSDb. HTTP checks for Dashboard, Money, Analytics, Projects, and Habits returned 200 successfully. Visual browser verification remains outstanding.
+Build verification completed with no errors. The database connection now uses the local .\SQLEXPRESS instance instead of an old machine name. HTTP checks for Dashboard, Analytics, Projects, and Habits returned 200 successfully. Visual browser verification remains outstanding.
 
 
 ## Simplified workspace (October 7, 2026)
 
-Primary navigation now contains Dashboard, My day, Projects, Habits, Learning, Money, and Spiritual. Extra modules have been removed from the main workspace; existing records and legacy routes are preserved. Skills and Study remain accessible through Learning, and the full task list through My day.
+Primary navigation now contains Dashboard, My day, Projects, Habits, Learning, and Spiritual. Extra modules have been removed from the main workspace; existing records and legacy routes are preserved. Skills and Study remain accessible through Learning, and the full task list through My day.
 
 My day includes real date selection, overdue and undated open tasks, quick task capture, task completion, routine completion/undo, and current projects. Placeholder progress widgets and inactive day controls were replaced.
 

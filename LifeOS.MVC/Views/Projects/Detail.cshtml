@@ -1,4 +1,4 @@
-@model LifeOS.MVC.Models.ProjectDetailViewModel
+﻿@model LifeOS.MVC.Models.ProjectDetailViewModel
 @{ ViewData["Title"] = Model.Project.Title; }
 
 @if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
@@ -54,24 +54,65 @@
             @Html.AntiForgeryToken()
             <input type="hidden" name="id" value="@Model.Project.Id" />
             <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label" for="projTitle">Title *</label>
+                        <input id="projTitle" name="title" class="form-control" required maxlength="150" value="@Model.Project.Title" />
+                    </div>
+                </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-control">
+                        <label class="form-label" for="projCategory">Category</label>
+                        <input id="projCategory" name="category" class="form-control" maxlength="50" value="@Model.Project.Category" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label" for="projPriority">Priority</label>
+                        <select id="projPriority" name="priority" class="form-control">
+                            <option value="A" selected="@(Model.Project.Priority == "A")">A — Critical</option>
+                            <option value="B" selected="@(Model.Project.Priority == "B")">B — Important</option>
+                            <option value="C" selected="@(Model.Project.Priority == "C")">C — Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label" for="projStatus">Status</label>
+                        <select id="projStatus" name="status" class="form-control">
                             <option value="Active" selected="@(Model.Project.Status == "Active")">Active</option>
                             <option value="Paused" selected="@(Model.Project.Status == "Paused")">Paused</option>
                             <option value="Done" selected="@(Model.Project.Status == "Done")">Done</option>
                         </select>
                     </div>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <div class="form-group">
-                        <label class="form-label">Progress %</label>
-                        <input name="progress" type="number" min="0" max="100"
-                               class="form-control" value="@Model.Project.ProgressPercent" />
+                        <label class="form-label" for="projDeadline">Deadline</label>
+                        <input id="projDeadline" name="deadline" type="date" class="form-control" value="@(Model.Project.Deadline?.ToString("yyyy-MM-dd") ?? "")" />
                     </div>
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="form-label" for="projProgress">Progress %</label>
+                        @if (Model.Tasks.Any())
+                        {
+                            <input id="projProgress" class="form-control" value="@Model.Project.ProgressPercent% (from tasks)" disabled />
+                        }
+                        else
+                        {
+                            <input id="projProgress" name="progress" type="number" min="0" max="100"
+                                   class="form-control" value="@Model.Project.ProgressPercent" />
+                        }
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label class="form-label" for="projNotes">Notes</label>
+                        <textarea id="projNotes" name="notes" class="form-control" maxlength="500">@Model.Project.Notes</textarea>
+                    </div>
+                </div>
+                <div class="col-md-10">
                     <div class="form-group">
                         <label class="form-label">Next Task (override)</label>
                         <input name="nextTask" class="form-control"
@@ -359,7 +400,7 @@ else
 <!-- Edit Task Modals (one per task) -->
 @foreach (var t in Model.Tasks)
 {
-    <div class="modal fade" id="editTask@t.Id" tabindex="-1">
+    <div class="modal fade" id="editTask@(t.Id)" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
