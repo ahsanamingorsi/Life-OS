@@ -1,6 +1,19 @@
 # ── Not part of the public app ───────────────────────────────
 .verification/
 DesktopApp/
+launcher/
+.claude/
+CLAUDE.md
+REDESIGN.md
+RUN-LIFE-OS.md
+Start Life OS.cmd
+Stop Life OS.cmd
+Update Life OS.cmd
+verify-study-tasks.ps1
+module-layout-preview.png
+projects-updated.png
+redesign-preview.png
+study-subject-updated.png
 
 # ── Build output ──────────────────────────────────────────────
 [Bb]in/
