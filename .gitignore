@@ -1,2 +1,55 @@
+# ── Not part of the public app ───────────────────────────────
 .verification/
 DesktopApp/
+
+# ── Build output ──────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+publish/
+out/
+*.pdb
+
+# ── IDE / editor files ───────────────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# ── NuGet ─────────────────────────────────────────────────────
+*.nupkg
+*.snupkg
+.nuget/
+
+# ── Test results ──────────────────────────────────────────────
+TestResults/
+[Cc]overage/
+*.trx
+
+# ── Local databases and backups (never commit personal data) ────
+*.db
+*.db-shm
+*.db-wal
+*.lifeos-backup
+*.lifeos.json
+LifeOS Backups/
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS files ──────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ── Secrets (should never be committed) ────────────────────────
+*.pfx
+*.p12
+appsettings.*.local.json
+.env

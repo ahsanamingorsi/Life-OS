@@ -1,44 +1,54 @@
-# Life OS redesign
+# Life OS — current state (November 12, 2026)
 
-The shared layout supports a persisted light/dark theme, responsive glass surfaces, and a redesigned dashboard. Money management and the Knowledge base were removed on November 12, 2026 (migration `RemoveMoneyAndKnowledge`).
+Life OS is an ASP.NET Core MVC app (.NET 10) with SQL Server (`LifeOSDb` on `.\SQLEXPRESS`).
+
+## Navigation
+
+- **Plan:** Dashboard, My day, Tasks, Projects, Studies, Skills
+- **Life:** Spiritual, Goals, Review
+- **Library:** Links, Vault
+- **Insights:** Analytics
+
+Removed modules: Habits, Mind and Health (replaced by repeated tasks), Learning (Studies and Skills are separate), Money management and the Knowledge base. Their tables were dropped by the migrations `RepeatedTasksGoalsRemoveHabits` and `RemoveMoneyAndKnowledge`.
+
+## Design
+
+- New design built with the UI UX Pro Max skill: flat style, teal primary `#0F766E`, orange accent `#C2410C`, Plus Jakarta Sans.
+- Light and dark themes (saved per browser) and a mobile layout with a slide-out sidebar.
+- Styles live in `wwwroot/css/lifeos-v2.css`, loaded after the older `lifeos.css` and `workspace.css`.
+- Done in the new design: shell (sidebar, top bar, focus timer popup), Dashboard, My day, Tasks and Goals. The other pages still use the older look.
+
+## How things work
+
+- **Productivity score (dashboard):** equal average of Tasks, Projects, Studies, Skills and Spiritual for the day. Areas with nothing to measure that day are left out. Goals and Review appear only as weekly area cards.
+- **Tasks:** one-time or repeated (Daily, Weekly on chosen days, Monthly on a day of the month), with an optional end date. Each day of a repeated task is stored in `TaskCompletions`, which gives history and streaks. A task can be linked to a goal.
+- **Goal progress:** no linked task → manual progress. Otherwise the average of the parts that exist: one-time tasks done ÷ all one-time tasks, and repeated completions ÷ the goal's target count.
+- **Project progress:** calculated from project tasks; typed by hand only when the project has no tasks.
+- **Study subject progress:** average of hours ÷ target hours and subject tasks done ÷ all subject tasks; manual only when neither exists. Subjects also have weekly target hours.
+- **Spiritual:** one entry per day (unique index), past days can be logged, 30-day history, streak of consecutive complete days.
+- **Vault:** passwords are encrypted with Windows DPAPI for the current Windows user (`Services/VaultCrypto.cs`). They are never written into the page; the Show and Copy buttons fetch one password at a time from `/Vault/Reveal`. Passwords cannot be read by another Windows user or after reinstalling Windows.
+- **Links:** only `http` and `https` addresses are saved; `https://` is added when missing.
 
 ## Database setup
 
-From the LifeOS.MVC directory:
+From the `LifeOS.MVC` directory:
 
 ```powershell
 dotnet tool restore --tool-manifest dotnet-tools.json
 dotnet tool run dotnet-ef migrations list
-```
-
-Verify the existing migrations are already applied before updating. Earlier existing migrations include table deletions; review any earlier pending migrations before applying them.
-
-```powershell
 dotnet tool run dotnet-ef database update
-dotnet run
 ```
 
-The SQL Server connection is configured by `ConnectionStrings:DefaultConnection`; an environment variable `ConnectionStrings__DefaultConnection` can override it. Do not commit database credentials.
+Several migrations drop tables. Review any pending migration before applying it. The connection string is `ConnectionStrings:DefaultConnection`; the environment variable `ConnectionStrings__DefaultConnection` can override it. Do not commit database credentials.
 
-## Verification
+## Running and updating the desktop app
 
-- Switch themes, reload, and navigate to confirm the preference persists.
-- Open the dashboard on desktop and mobile widths.
-- Open and close the focus timer with Escape; the backdrop must close too.
+- The desktop "Life OS" icon runs `launcher\Start-LifeOS.ps1`: it starts the published server (`DesktopApp`, port 5199) if needed and opens an Edge app window. See `RUN-LIFE-OS.md`.
+- To publish changes: run `Update Life OS.cmd`, then open the app from the desktop icon.
 
-Build verification completed with no errors. The database connection now uses the local .\SQLEXPRESS instance instead of an old machine name. HTTP checks for Dashboard, Analytics, Projects, and Habits returned 200 successfully. Visual browser verification remains outstanding.
+## Testing changes
 
-
-## Simplified workspace (October 7, 2026)
-
-Primary navigation now contains Dashboard, My day, Projects, Habits, Learning, and Spiritual. Extra modules have been removed from the main workspace; existing records and legacy routes are preserved. Skills and Study remain accessible through Learning, and the full task list through My day.
-
-My day includes real date selection, overdue and undated open tasks, quick task capture, task completion, routine completion/undo, and current projects. Placeholder progress widgets and inactive day controls were replaced.
-
-Shared workspace styling applies to both legacy and current card classes, all forms, page headers, tables, buttons, navigation, and modals. Manual light/dark selection persists. Focus timing uses a real deadline and persists in the browser tab across navigation.
-
-Validation rejects blank required fields and out-of-range learning values. Project task counts now use a typed model. Reopened project tasks reactivate completed projects, and removing study sessions recalculates hours and progress. Daily habit totals exclude inactive habits, prayer capacity is reported correctly, and expired streaks display zero.
-
-Verification: isolated build succeeds with zero errors (five existing warnings). Eleven retained pages return HTTP 200. Fifteen form/database checks passed using temporary records, which were cleaned up. Light/dark surfaces and the responsive My day layout were visually inspected; timer navigation persistence and Escape closure were verified in the browser. Run `verify-workflows.ps1` only against a local test instance on port 5190; it creates and removes clearly marked temporary records in LifeOSDb.
-
-If Visual Studio has the app running, stop and restart it to load the updated Razor views and controllers. An isolated `.verification` build was used because the existing running app locks the normal output executable.
+- Build: `dotnet build` in `LifeOS.MVC`.
+- Run a separate test server: `dotnet run --no-launch-profile --urls http://127.0.0.1:5190` (Razor views are compiled at build time, so rebuild and restart after view changes).
+- Use clearly marked test records (for example titles starting with `ZZ TEST`) and delete them, and their activity log rows, after testing.
+- `verify-study-tasks.ps1` is the only remaining check script.

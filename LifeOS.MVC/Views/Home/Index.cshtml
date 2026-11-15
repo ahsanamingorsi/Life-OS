@@ -113,9 +113,8 @@
             <div class="db-prayers">
                 @for (int i = 0; i < 5; i++)
                 {
-                    bool counted = i < Model.PrayersTotal;
-                    bool done = i < Model.PrayersDone;
-                    <div class="db-prayer @(done ? "done" : "")"><span>@prayerNames[i]</span><span>@(done ? "Done" : counted ? "Pending" : "—")</span></div>
+                    bool done = Model.PrayerFlags[i];
+                    <div class="db-prayer @(done ? "done" : "")"><span>@prayerNames[i]</span><span>@(done ? "Done" : "Pending")</span></div>
                 }
             </div>
             <div class="db-muted db-small lo-num">@Model.PrayersDone of @Model.PrayersTotal prayers · @Model.PrayerStreak-day streak</div>
@@ -212,9 +211,8 @@
         <!-- Library -->
         <section class="db-card" aria-labelledby="libTitle">
             <h2 id="libTitle" class="db-h2">Library</h2>
-            <div class="db-tiles db-tiles-2">
+            <div class="db-tiles db-tiles-1">
                 <a class="db-tile" href="/Links"><span class="db-muted db-tiny">Links</span><strong class="lo-num">@Model.LinkCount</strong><span class="db-muted db-tiny">@Model.LinksPinned pinned</span></a>
-                <a class="db-tile" href="/Vault"><span class="db-muted db-tiny">Vault</span><strong class="lo-num">@Model.VaultCount</strong><span class="db-muted db-tiny">@Model.VaultWithout2FA without 2FA</span></a>
             </div>
         </section>
 

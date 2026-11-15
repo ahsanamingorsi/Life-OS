@@ -358,52 +358,7 @@ function initTimer() {
     if (resumeTimer) window.tStart(); else updateUI();
 }
 
-/* ── VAULT HELPERS ────────────────────────────────────────────── */
-// Passwords are never in the page; they are fetched one at a time from /Vault/Reveal.
-async function fetchVaultPassword(id) {
-    const token = document.querySelector('#vaultTokenForm input[name="__RequestVerificationToken"]')?.value || '';
-    const body = new URLSearchParams({ id: String(id), __RequestVerificationToken: token });
-    const res = await fetch('/Vault/Reveal', { method: 'POST', body, credentials: 'same-origin', cache: 'no-store' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Could not read this password.');
-    return data.password;
-}
-
-const vaultHideTimers = {};
-window.revealPw = async (id, btn) => {
-    const el = document.getElementById('pw' + id);
-    if (!el) return;
-    const hide = () => { el.textContent = '••••••••••'; el.classList.remove('revealed'); btn.textContent = 'Show'; btn.title = 'Show password'; };
-    if (el.classList.contains('revealed')) { clearTimeout(vaultHideTimers[id]); hide(); return; }
-    btn.disabled = true;
-    try {
-        el.textContent = await fetchVaultPassword(id) || '(empty)';
-        el.classList.add('revealed');
-        btn.textContent = 'Hide';
-        btn.title = 'Hide password';
-        clearTimeout(vaultHideTimers[id]);
-        vaultHideTimers[id] = setTimeout(hide, 8000);
-    } catch (e) {
-        alert(e.message);
-    } finally {
-        btn.disabled = false;
-    }
-};
-
-window.copyPw = async (id, btn) => {
-    btn.disabled = true;
-    try {
-        await navigator.clipboard.writeText(await fetchVaultPassword(id));
-        const orig = btn.textContent;
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = orig; }, 1500);
-    } catch (e) {
-        alert(e.message);
-    } finally {
-        btn.disabled = false;
-    }
-};
-
+/* ── COPY HELPER ──────────────────────────────────────────────── */
 window.copyText = (text, btn) => {
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {

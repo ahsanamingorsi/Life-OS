@@ -1,3 +1,6 @@
 <Solution>
+  <Project Path="LifeOS.App/LifeOS.App.csproj" />
+  <Project Path="LifeOS.Core/LifeOS.Core.csproj" />
+  <Project Path="LifeOS.Data.Sqlite/LifeOS.Data.Sqlite.csproj" />
   <Project Path="LifeOS.MVC/LifeOS.MVC.csproj" />
 </Solution>

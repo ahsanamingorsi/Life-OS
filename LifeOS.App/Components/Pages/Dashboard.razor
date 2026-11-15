@@ -1,0 +1,286 @@
+@page "/"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@inject LifeOS.App.Services.FocusTimer Timer
+
+@if (vm == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">@vm.Today.ToString("dddd, d MMMM")</div>
+                <h1 class="db-title">@vm.Greeting. Here is your day.</h1>
+            </div>
+            <div class="db-actions">
+                <a class="lo-btn" href="studies">Log study or skill hours</a>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick="Timer.Toggle"><Icon Name="clock" /> Focus</button>
+            </div>
+        </div>
+
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+
+        <div class="db-grid-3">
+            <section class="db-card" aria-labelledby="scoreTitle">
+                <div class="db-card-head">
+                    <h2 id="scoreTitle" class="db-h2">Today's productivity</h2>
+                    @if (vm.ScoreChange is int change) { <span class="db-pill @(change < 0 ? "down" : "")">@(change >= 0 ? "+" : "")@change% vs yesterday</span> }
+                </div>
+                <div class="db-score">
+                    <svg class="db-ring" role="img" aria-label="@(vm.HasScore ? $"Productivity score {vm.Score} percent" : "No productivity data yet today")" width="128" height="128" viewBox="0 0 128 128">
+                        <circle class="db-ring-track" cx="64" cy="64" r="54" fill="none" stroke-width="12"></circle>
+                        @if (vm.HasScore && vm.Score > 0)
+                        {
+                            <circle class="db-ring-value" cx="64" cy="64" r="54" fill="none" stroke-width="12" stroke-linecap="round"
+                                    stroke-dasharray="@RingDash" transform="rotate(-90 64 64)"></circle>
+                        }
+                        <text class="db-ring-text lo-num" x="64" y="64" text-anchor="middle" font-size="28" font-weight="800">@(vm.HasScore ? vm.Score + "%" : "–")</text>
+                        <text class="db-ring-sub" x="64" y="85" text-anchor="middle" font-size="12">@vm.ScoreLabel</text>
+                    </svg>
+                    <div class="db-parts">
+                        @foreach (var part in vm.ScoreParts)
+                        {
+                            <div class="db-part"><span class="db-muted">@part.Name</span><strong class="lo-num">@part.Value</strong></div>
+                        }
+                    </div>
+                </div>
+                <p class="db-muted db-tiny" style="margin:0;">Score = equal average of Tasks, Projects, Studies, Skills and Spiritual (only areas with something to measure today).</p>
+            </section>
+
+            <section class="db-card" aria-labelledby="tasksTitle">
+                <div class="db-card-head">
+                    <h2 id="tasksTitle" class="db-h2">Today's tasks <span class="db-muted lo-num">@vm.TasksDoneToday / @vm.TasksDueToday</span></h2>
+                    <a class="db-link" href="tasks">All tasks</a>
+                </div>
+                <div class="db-filters" role="group" aria-label="Filter tasks">
+                    @foreach (var f in new[] { ("all", "All"), ("today", "Today"), ("repeated", "Repeated"), ("overdue", "Overdue"), ("done", "Done") })
+                    {
+                        <button type="button" class="db-chip" aria-pressed="@(filter == f.Item1 ? "true" : "false")" @onclick="() => filter = f.Item1">@f.Item2</button>
+                    }
+                </div>
+                <div class="db-task-list">
+                    @if (!vm.Tasks.Any()) { <p class="db-empty">Nothing due today. Add one meaningful task below.</p> }
+                    else if (!ShownTasks.Any()) { <p class="db-empty">No tasks in this view.</p> }
+                    @foreach (var task in ShownTasks)
+                    {
+                        <div class="db-task @(task.IsCompleted ? "is-done" : "") @(task.IsOverdue ? "is-overdue" : "")">
+                            <button type="button" class="db-check @(task.IsCompleted ? "done" : "")" disabled="@busy"
+                                    aria-label="@(task.IsCompleted ? "Mark as not done" : "Mark as done"): @task.Title" @onclick="() => ToggleTask(task)">
+                                @if (task.IsCompleted) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@task.Title</div>
+                                <div class="db-task-meta">@task.Meta</div>
+                            </div>
+                            @if (task.IsRepeated) { <span class="db-badge repeat-@task.Repeat.ToLowerInvariant()">@task.Repeat</span> }
+                            else if (task.Priority == "A") { <span class="db-badge high">High</span> }
+                            else if (task.Priority == "C") { <span class="db-badge">Low</span> }
+                        </div>
+                    }
+                </div>
+                <form class="db-task-add" @onsubmit="AddTask" @onsubmit:preventDefault>
+                    <label for="quickTask" class="lo-visually-hidden">New task for today</label>
+                    <input id="quickTask" maxlength="200" placeholder="Add a task for today" @bind="newTask" />
+                    <button type="submit" class="lo-btn lo-btn-primary" disabled="@busy">Add</button>
+                </form>
+            </section>
+
+            <section class="db-card" aria-labelledby="prayTitle">
+                <div class="db-card-head">
+                    <h2 id="prayTitle" class="db-h2">Spiritual today</h2>
+                    <a class="db-link" href="spiritual">Open</a>
+                </div>
+                <div class="db-prayers">
+                    @for (int i = 0; i < 5; i++)
+                    {
+                        var done = vm.PrayerFlags[i];
+                        <div class="db-prayer @(done ? "done" : "")"><span>@SpiritualEntry.PrayerNames[i]</span><span>@(done ? "Done" : "Pending")</span></div>
+                    }
+                </div>
+                <div class="db-muted db-small lo-num">@vm.PrayersDone of @vm.PrayersTotal prayers · @vm.PrayerStreak-day streak</div>
+                <div class="db-attention">
+                    <h3 class="db-h3">Needs attention</h3>
+                    @if (!vm.Alerts.Any()) { <div class="db-clear"><Icon Name="check" /> All clear</div> }
+                    @foreach (var alert in vm.Alerts)
+                    {
+                        <a class="db-alert" href="@AppHref(alert.Url)"><Icon Name="alert" /> @alert.Text</a>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <section class="db-section" aria-labelledby="levelsTitle">
+            <div class="db-section-head">
+                <h2 id="levelsTitle" class="db-h2-lg">Productivity by area</h2>
+                <span class="db-muted db-small">This week · since Monday</span>
+            </div>
+            <div class="db-grid-levels">
+                @foreach (var level in vm.Levels)
+                {
+                    <a class="db-level" href="@AppHref(level.Url)">
+                        <div class="db-level-top">
+                            <span class="db-level-icon"><Icon Name="@level.Icon" /></span>
+                            <span class="db-level-name">@level.Name</span>
+                        </div>
+                        <span class="db-level-pct lo-num">@(level.Percent.HasValue ? level.Percent + "%" : "–")</span>
+                        <div class="db-bar" role="presentation"><span class="@(level.Percent < 40 ? "low" : "")" style="width:@(level.Percent ?? 0)%"></span></div>
+                        <div class="db-muted db-tiny lo-num">@level.Detail</div>
+                    </a>
+                }
+            </div>
+        </section>
+
+        <div class="db-grid-2">
+            <section class="db-card" aria-labelledby="projTitle">
+                <div class="db-card-head">
+                    <h2 id="projTitle" class="db-h2">Projects in focus</h2>
+                    <a class="db-link" href="projects">All projects</a>
+                </div>
+                @if (!vm.FocusProjects.Any()) { <p class="db-empty">Your active projects will appear here.</p> }
+                @foreach (var project in vm.FocusProjects)
+                {
+                    var pct = Math.Clamp(project.ProgressPercent, 0, 100);
+                    <a class="db-project" href="projects/@project.Id">
+                        <div class="db-project-top">
+                            <span class="db-pri @project.Priority.ToLowerInvariant()" aria-label="Priority @project.Priority">@project.Priority</span>
+                            <span class="db-project-name">@project.Title</span>
+                            <span class="lo-num" style="font-weight:700;">@pct%</span>
+                        </div>
+                        <div class="db-muted db-tiny">Next: @(project.NextTask ?? "set your next step") · @(project.Deadline.HasValue ? "due " + project.Deadline.Value.ToString("dd MMM") : "no deadline")</div>
+                        <div class="db-bar thin" role="presentation"><span style="width:@pct%"></span></div>
+                    </a>
+                }
+            </section>
+
+            <section class="db-card" aria-labelledby="chartTitle">
+                <div class="db-card-head">
+                    <h2 id="chartTitle" class="db-h2">Last 7 days</h2>
+                    <span class="db-muted db-small lo-num">@(Scored.Any() ? $"Average {Math.Round(Scored.Average(d => d.Score!.Value))}%" : "No data yet")</span>
+                </div>
+                <div class="db-chart" role="img" aria-label="Daily productivity, last 7 days: @string.Join(", ", vm.Week.Select(d => $"{d.Date:ddd} {(d.Score.HasValue ? d.Score + " percent" : "no data")}"))">
+                    @foreach (var d in vm.Week)
+                    {
+                        bool isToday = d.Date == vm.Today;
+                        <div class="db-chart-col">
+                            <span class="db-chart-val lo-num">@(d.Score.HasValue ? d.Score.ToString() : "–")</span>
+                            <div class="db-chart-bar @(isToday ? "today" : "") @(d.Score.HasValue ? "" : "empty")" style="height:@((d.Score ?? 0) * 1.4 + 4)px"></div>
+                            <span class="db-chart-day">@(isToday ? "Today" : d.Date.ToString("ddd"))</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="db-grid-2">
+            <section class="db-card" aria-labelledby="libTitle">
+                <h2 id="libTitle" class="db-h2">Library</h2>
+                <div class="db-tiles db-tiles-1">
+                    <a class="db-tile" href="links"><span class="db-muted db-tiny">Links</span><strong class="lo-num">@vm.LinkCount</strong><span class="db-muted db-tiny">@vm.LinksPinned pinned</span></a>
+                </div>
+            </section>
+            <section class="db-card" aria-labelledby="actTitle">
+                <div class="db-card-head">
+                    <h2 id="actTitle" class="db-h2">Recent activity</h2>
+                    <a class="db-link" href="analytics">Analytics</a>
+                </div>
+                @if (!vm.RecentActivity.Any()) { <p class="db-empty">Your activity will appear here as you complete tasks and log time.</p> }
+                @foreach (var log in vm.RecentActivity)
+                {
+                    <div class="db-activity">
+                        <span>@log.Detail</span>
+                        <span class="db-muted lo-num">@(log.DateTime.Date == vm.Today ? log.DateTime.ToString("HH:mm") : log.DateTime.Date == vm.Today.AddDays(-1) ? "Yesterday" : log.DateTime.ToString("dd MMM"))</span>
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardViewModel? vm;
+    private string filter = "all";
+    private string newTask = "";
+    private string? message;
+    private bool busy;
+
+    private const double RingCirc = 2 * Math.PI * 54;
+    private string RingDash => $"{((vm!.HasScore ? vm.Score : 0) / 100.0 * RingCirc).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} {RingCirc.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}";
+    private List<DayScore> Scored => vm!.Week.Where(d => d.Score.HasValue).ToList();
+
+    private IEnumerable<DashboardTask> ShownTasks => filter switch
+    {
+        "today" => vm!.Tasks.Where(t => !t.IsOverdue),
+        "repeated" => vm!.Tasks.Where(t => t.IsRepeated),
+        "overdue" => vm!.Tasks.Where(t => t.IsOverdue && !t.IsCompleted),
+        "done" => vm!.Tasks.Where(t => t.IsCompleted),
+        _ => vm!.Tasks,
+    };
+
+    // Dashboard links were written for the website ("/PersonalTasks", "/Study" …); map them to app pages.
+    private static string AppHref(string url) => url switch
+    {
+        "/PersonalTasks" => "tasks",
+        "/Projects" => "projects",
+        "/Study" => "studies",
+        "/TechGrowth" => "skills",
+        "/Spiritual" => "spiritual",
+        "/PersonalUpgrade" => "goals",
+        "/Review" => "review",
+        _ => url.TrimStart('/').ToLowerInvariant(),
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        // A fresh scope (and DbContext) for every load, so the numbers are never stale.
+        using var scope = ScopedServices.CreateScope();
+        vm = await scope.ServiceProvider.GetRequiredService<DashboardService>().BuildAsync(DateTime.Now);
+    }
+
+    private async Task ToggleTask(DashboardTask task)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
+            var state = await tasks.ToggleAsync(task.Id, DateTime.Today);
+            if (state != null)
+            {
+                string action = state.Value ? "Completed" : "Reopened";
+                await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                    .LogActivityAsync("PersonalTask", task.Id, action, $"Task '{task.Title}' {action.ToLower()}");
+                message = $"Task '{task.Title}' {action.ToLower()}.";
+            }
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task AddTask()
+    {
+        var title = newTask.Trim();
+        if (title.Length == 0) return;
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var task = new PersonalTask { Title = title.Length > 200 ? title[..200] : title, DueDate = DateTime.Today, Priority = "B", Repeat = "None", CreatedAt = DateTime.Now };
+            db.PersonalTasks.Add(task);
+            await db.SaveChangesAsync();
+            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                .LogActivityAsync("PersonalTask", task.Id, "Created", $"Task '{task.Title}' created");
+            message = $"Task '{task.Title}' added.";
+            newTask = "";
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+}

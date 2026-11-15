@@ -27,11 +27,6 @@ namespace LifeOS.Controllers
                             (l.Tags != null && l.Tags.Contains(term)))
                 .Take(8).ToListAsync();
 
-            vm.VaultResults = await _db.VaultEntries
-                .Where(v => v.Name.Contains(term) ||
-                            (v.Username != null && v.Username.Contains(term)) ||
-                            (v.Email != null && v.Email.Contains(term)))
-                .Take(6).ToListAsync();
 
             vm.ProjectResults = await _db.Projects
                 .Where(p => p.Title.Contains(term) ||

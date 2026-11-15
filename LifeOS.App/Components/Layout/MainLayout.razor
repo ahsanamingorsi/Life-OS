@@ -1,0 +1,147 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject LifeOS.App.Services.FocusTimer Timer
+
+<a class="lo-skip" href="#main-content">Skip to main content</a>
+
+@if (navOpen)
+{
+    <div id="navOverlay" class="active" @onclick="CloseNav"></div>
+}
+@if (Timer.IsOpen)
+{
+    <div id="timerBackdrop" class="active" @onclick="Timer.Close"></div>
+}
+
+<div class="los-shell">
+    <nav class="los-nav @(navOpen ? "mobile-open" : "")" aria-label="Main">
+        <div class="los-nav-brand">
+            <img class="los-nav-logo" src="images/logo.png" alt="" aria-hidden="true" />
+            <div class="los-nav-brand-text">
+                <div class="los-nav-brand-name">Life OS</div>
+                <div class="los-nav-brand-tag">Personal workspace</div>
+            </div>
+        </div>
+
+        <div class="los-nav-items">
+            @foreach (var group in Groups)
+            {
+                <div class="lo-nav-group" role="group" aria-labelledby="nav-@group.Label">
+                    <div class="lo-nav-group-label" id="nav-@group.Label">@group.Label</div>
+                    @foreach (var item in group.Items)
+                    {
+                        <NavLink class="los-nav-link" href="@item.Href" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)" @onclick="CloseNav">
+                            <span class="los-nav-icon"><Icon Name="@item.Icon" /></span><span class="los-nav-label">@item.Text</span>
+                        </NavLink>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="los-nav-footer">@DateTime.Now.ToString("dddd, d MMMM")</div>
+    </nav>
+
+    <div class="los-main">
+        <header class="los-topbar">
+            <button aria-label="Open navigation" aria-expanded="@(navOpen ? "true" : "false")" id="navToggle" type="button" class="lo-icon-btn" @onclick="() => navOpen = true">
+                <Icon Name="menu" />
+            </button>
+
+            <div class="los-topbar-title">@PageTitle</div>
+
+            <div class="los-topbar-right">
+                <form role="search" @onsubmit="Search" @onsubmit:preventDefault>
+                    <div class="los-search-wrap">
+                        <Icon Name="search" />
+                        <label for="globalSearch" class="lo-visually-hidden">Search Life OS</label>
+                        <input id="globalSearch" type="search" class="los-search" placeholder="Search everything" autocomplete="off" @bind="searchText" />
+                    </div>
+                </form>
+
+                <button type="button" class="los-timer-btn @(Timer.IsRunning ? "running" : Timer.RemainingSeconds < Timer.TotalSeconds ? "active" : "")"
+                        @onclick="Timer.Toggle" title="Focus timer" aria-label="Open focus timer">
+                    <Icon Name="clock" />
+                    <span class="lo-timer-label lo-num">@(Timer.IsRunning || Timer.RemainingSeconds < Timer.TotalSeconds ? Timer.Display : "Focus")</span>
+                </button>
+
+                <button type="button" class="lo-icon-btn" aria-label="@(dark ? "Switch to light mode" : "Switch to dark mode")" aria-pressed="@(dark ? "true" : "false")" title="@(dark ? "Light mode" : "Dark mode")" @onclick="ToggleTheme">
+                    <Icon Name="@(dark ? "sun" : "moon")" />
+                </button>
+            </div>
+        </header>
+
+        <main class="los-content" id="main-content" tabindex="-1">
+            @Body
+        </main>
+    </div>
+</div>
+
+<FocusTimerPanel />
+
+@code {
+    private record NavItem(string Href, string Text, string Icon);
+    private record NavGroup(string Label, NavItem[] Items);
+
+    private static readonly NavGroup[] Groups =
+    {
+        new("Plan", new NavItem[] { new("", "Dashboard", "dashboard"), new("planner", "My day", "clock"), new("tasks", "Tasks", "tasks"), new("projects", "Projects", "projects"), new("studies", "Studies", "studies"), new("skills", "Skills", "skills") }),
+        new("Life", new NavItem[] { new("spiritual", "Spiritual", "spiritual"), new("goals", "Goals", "goals"), new("review", "Review", "review") }),
+        new("Library", new NavItem[] { new("links", "Links", "links") }),
+        new("Insights", new NavItem[] { new("analytics", "Analytics", "analytics"), new("settings", "Settings", "settings") }),
+    };
+
+    private bool navOpen;
+    private bool dark;
+    private string searchText = "";
+
+    private string PageTitle
+    {
+        get
+        {
+            var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Split('/')[0];
+            return Groups.SelectMany(g => g.Items).FirstOrDefault(i => i.Href == path)?.Text ?? (path == "search" ? "Search" : "Life OS");
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Timer.Changed += OnTimerChanged;
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            dark = await JS.InvokeAsync<string>("lifeosTheme.get") == "dark";
+            StateHasChanged();
+        }
+        catch (JSException) { }
+    }
+
+    private async Task ToggleTheme()
+    {
+        dark = !dark;
+        await JS.InvokeVoidAsync("lifeosTheme.set", dark ? "dark" : "light");
+    }
+
+    private void CloseNav() => navOpen = false;
+
+    private void Search()
+    {
+        var q = searchText.Trim();
+        if (q.Length > 0) Nav.NavigateTo("search?q=" + Uri.EscapeDataString(q));
+    }
+
+    private void OnTimerChanged() => InvokeAsync(StateHasChanged);
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Timer.Changed -= OnTimerChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}

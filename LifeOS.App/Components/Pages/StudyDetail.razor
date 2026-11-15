@@ -1,0 +1,326 @@
+@page "/studies/{Id:int}"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (subject == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    var s = subject;
+    <div class="db">
+        <div class="db-head">
+            <div style="min-width:0;">
+                <a class="db-link" href="studies">← Studies</a>
+                <h1 class="db-title">@s.Name</h1>
+                <div class="lo-chips">
+                    <span class="db-badge">@s.Category</span>
+                    <span class="db-badge">@s.Status</span>
+                    <span class="lo-num">@s.ProgressPercent%</span>
+                </div>
+            </div>
+            <div class="db-actions">
+                <button type="button" class="lo-btn" @onclick="() => showEdit = !showEdit">Edit subject</button>
+                <button type="button" class="lo-btn lo-btn-danger" @onclick="DeleteSubject">Delete</button>
+            </div>
+        </div>
+
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+        @if (!string.IsNullOrWhiteSpace(s.Description)) { <section class="db-card"><p class="db-small">@s.Description</p></section> }
+
+        @if (showEdit)
+        {
+            <section class="db-card lo-narrow">
+                <h2 class="db-h2">Edit subject</h2>
+                <div class="lo-form">
+                    <div class="lo-field"><label class="lo-label">Name</label><input class="lo-input" @bind="s.Name" maxlength="150" /></div>
+                    <div class="lo-form-grid">
+                        <div class="lo-field"><label class="lo-label">Category</label><input class="lo-input" @bind="s.Category" maxlength="50" /></div>
+                        <div class="lo-field"><label class="lo-label">Status</label>
+                            <select class="lo-select" @bind="s.Status"><option>Active</option><option>Paused</option><option>Completed</option></select>
+                        </div>
+                        <div class="lo-field"><label class="lo-label">Target hours</label><input type="number" min="0" max="100000" class="lo-input" @bind="s.TargetHours" /></div>
+                        <div class="lo-field"><label class="lo-label">Weekly target hours</label><input type="number" min="0" max="168" step="0.5" class="lo-input" @bind="s.WeeklyTargetHours" /></div>
+                    </div>
+                    <div class="lo-field"><label class="lo-label">Description</label><textarea class="lo-input lo-textarea" maxlength="300" @bind="s.Description"></textarea></div>
+                    <div class="lo-form-actions">
+                        <button type="button" class="lo-btn" @onclick="() => showEdit = false" disabled="@busy">Cancel</button>
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick="SaveSubject" disabled="@busy">Save</button>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <div class="db-grid-2">
+            <section class="db-card">
+                <h2 class="db-h2">Log a session</h2>
+                <div class="lo-form">
+                    <div class="lo-form-grid">
+                        <div class="lo-field"><label class="lo-label">Hours <span aria-hidden="true">*</span></label><input type="number" min="0" max="24" step="0.25" class="lo-input" @bind="sessionHours" /></div>
+                        <div class="lo-field"><label class="lo-label">Topic</label><input class="lo-input" @bind="sessionTopic" maxlength="200" /></div>
+                    </div>
+                    <div class="lo-form-actions" style="justify-content:flex-start;">
+                        <button type="button" class="lo-btn lo-btn-primary lo-btn-sm" @onclick="LogSession" disabled="@busy">Log session</button>
+                    </div>
+                </div>
+                <div class="db-task-list" style="margin-top:8px;">
+                    @foreach (var sess in sessions!.Take(8))
+                    {
+                        <div class="db-task">
+                            <div class="db-task-body">
+                                <div class="db-task-title">@sess.DurationHours.ToString("0.#")h @(string.IsNullOrEmpty(sess.TopicCovered) ? "" : "— " + sess.TopicCovered)</div>
+                                <div class="db-task-meta">@sess.SessionDate.ToString("dd MMM")</div>
+                            </div>
+                            <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteSession(sess.Id)">Delete</button>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card">
+                <h2 class="db-h2">Tasks</h2>
+                <div class="lo-form">
+                    <div class="lo-form-grid">
+                        <div class="lo-field"><label class="lo-label">Title <span aria-hidden="true">*</span></label><input class="lo-input" @bind="taskTitle" maxlength="200" /></div>
+                    </div>
+                    <div class="lo-form-actions" style="justify-content:flex-start;">
+                        <button type="button" class="lo-btn lo-btn-primary lo-btn-sm" @onclick="AddTask" disabled="@busy">Add task</button>
+                    </div>
+                </div>
+                <div class="db-task-list">
+                    @foreach (var t in tasks!)
+                    {
+                        <div class="db-task @(t.IsCompleted ? "is-done" : "")">
+                            <button type="button" class="db-check @(t.IsCompleted ? "done" : "")" @onclick="() => ToggleTask(t.Id)">@if (t.IsCompleted) { <Icon Name="tick" /> }</button>
+                            <div class="db-task-body"><div class="db-task-title">@t.Title</div></div>
+                            <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteTask(t.Id)">Delete</button>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <section class="db-card">
+            <h2 class="db-h2">Notes</h2>
+            <div class="lo-form">
+                <div class="lo-field"><label class="lo-label">Title <span aria-hidden="true">*</span></label><input class="lo-input" @bind="noteTitle" maxlength="200" /></div>
+                <div class="lo-field"><label class="lo-label">Content</label><textarea class="lo-input lo-textarea" maxlength="4000" @bind="noteContent"></textarea></div>
+                <div class="lo-form-actions" style="justify-content:flex-start;">
+                    <button type="button" class="lo-btn lo-btn-primary lo-btn-sm" @onclick="AddNote" disabled="@busy">Save note</button>
+                </div>
+            </div>
+            <div class="db-task-list" style="margin-top:8px;">
+                @foreach (var n in notes!)
+                {
+                    <div class="db-task">
+                        <div class="db-task-body">
+                            <div class="db-task-title">@n.Title @(n.IsPinned ? "📌" : "")</div>
+                            @if (!string.IsNullOrWhiteSpace(n.Content)) { <div class="db-task-meta">@n.Content</div> }
+                        </div>
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => TogglePin(n.Id)">@(n.IsPinned ? "Unpin" : "Pin")</button>
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteNote(n.Id)">Delete</button>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private StudySubject? subject;
+    private List<StudySession>? sessions;
+    private List<StudyTask>? tasks;
+    private List<StudyNote>? notes;
+    private string? message;
+    private bool busy;
+    private bool showEdit;
+
+    private double? sessionHours;
+    private string? sessionTopic;
+    private string? taskTitle;
+    private string? noteTitle;
+    private string? noteContent;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        subject = await db.StudySubjects.AsNoTracking().Include(x => x.StudySessions).Include(x => x.StudyNotes).Include(x => x.Tasks)
+            .FirstOrDefaultAsync(x => x.Id == Id);
+        if (subject == null) return;
+        sessions = subject.StudySessions.OrderByDescending(x => x.SessionDate).ToList();
+        notes = subject.StudyNotes.OrderByDescending(x => x.IsPinned).ThenByDescending(x => x.CreatedAt).ToList();
+        tasks = subject.Tasks.OrderBy(x => x.IsCompleted).ThenBy(x => x.Title).ToList();
+    }
+
+    private async Task RecalculateProgress(AppDbContext db)
+    {
+        var subj = await db.StudySubjects.FindAsync(Id);
+        if (subj == null) return;
+        var done = await db.StudyTasks.Where(t => t.StudySubjectId == Id).Select(t => t.IsCompleted).ToListAsync();
+        subj.HoursLogged = await db.StudySessions.Where(x => x.StudySubjectId == Id).SumAsync(x => x.DurationHours);
+        var parts = new List<double>();
+        if (subj.TargetHours > 0) parts.Add(Math.Min(1.0, subj.HoursLogged / subj.TargetHours));
+        if (done.Any()) parts.Add((double)done.Count(d => d) / done.Count);
+        if (parts.Any()) subj.ProgressPercent = Math.Clamp((int)Math.Round(parts.Average() * 100), 0, 100);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task SaveSubject()
+    {
+        subject!.Name = (subject.Name ?? "").Trim();
+        if (subject.Name.Length == 0) { message = "Enter a subject name."; return; }
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var subj = await db.StudySubjects.FindAsync(Id);
+            if (subj == null) return;
+            subj.Name = subject.Name; subj.Category = subject.Category; subj.Status = subject.Status;
+            subj.TargetHours = subject.TargetHours; subj.WeeklyTargetHours = subject.WeeklyTargetHours; subj.Description = subject.Description;
+            int taskCount = await db.StudyTasks.CountAsync(t => t.StudySubjectId == Id);
+            if (subj.TargetHours <= 0 && taskCount == 0) subj.ProgressPercent = Math.Clamp(subject.ProgressPercent, 0, 100);
+            await db.SaveChangesAsync();
+            await RecalculateProgress(db);
+            message = $"'{subj.Name}' updated.";
+            showEdit = false;
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DeleteSubject()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var subj = await db.StudySubjects.FindAsync(Id);
+        if (subj == null) return;
+        db.StudySubjects.Remove(subj);
+        await db.SaveChangesAsync();
+        Nav.NavigateTo("studies");
+    }
+
+    [Microsoft.AspNetCore.Components.Inject] private Microsoft.AspNetCore.Components.NavigationManager Nav { get; set; } = null!;
+
+    private async Task LogSession()
+    {
+        double hours = sessionHours ?? 0;
+        if (hours <= 0 || hours > 24) { message = "Enter study hours between 0 and 24."; return; }
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.StudySessions.Add(new StudySession { StudySubjectId = Id, SessionDate = DateTime.Today, DurationHours = hours, TopicCovered = sessionTopic, LoggedAt = DateTime.Now });
+            var subj = await db.StudySubjects.FindAsync(Id);
+            if (subj != null)
+            {
+                subj.HoursLogged += hours;
+                if (!string.IsNullOrEmpty(sessionTopic)) subj.CurrentTopic = sessionTopic;
+            }
+            await db.SaveChangesAsync();
+            await RecalculateProgress(db);
+            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                .LogActivityAsync("Study", Id, "SessionLogged", $"{hours}h study session logged — {sessionTopic}");
+            message = $"{hours}h session logged.";
+            sessionHours = null; sessionTopic = null;
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DeleteSession(int sessionId)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var sess = await db.StudySessions.FindAsync(sessionId);
+        if (sess == null) return;
+        var subj = await db.StudySubjects.FindAsync(Id);
+        if (subj != null) subj.HoursLogged = Math.Max(0, subj.HoursLogged - sess.DurationHours);
+        db.StudySessions.Remove(sess);
+        await db.SaveChangesAsync();
+        await RecalculateProgress(db);
+        await LoadAsync();
+    }
+
+    private async Task AddTask()
+    {
+        var title = (taskTitle ?? "").Trim();
+        if (title.Length == 0) { message = "Enter a task name."; return; }
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.StudyTasks.Add(new StudyTask { StudySubjectId = Id, Title = title, CreatedAt = DateTime.Now });
+        await db.SaveChangesAsync();
+        await RecalculateProgress(db);
+        taskTitle = null;
+        await LoadAsync();
+    }
+
+    private async Task ToggleTask(int id)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var t = await db.StudyTasks.FindAsync(id);
+        if (t == null) return;
+        t.IsCompleted = !t.IsCompleted;
+        t.CompletedAt = t.IsCompleted ? DateTime.Now : null;
+        await db.SaveChangesAsync();
+        await RecalculateProgress(db);
+        await LoadAsync();
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var t = await db.StudyTasks.FindAsync(id);
+        if (t == null) return;
+        db.StudyTasks.Remove(t);
+        await db.SaveChangesAsync();
+        await RecalculateProgress(db);
+        await LoadAsync();
+    }
+
+    private async Task AddNote()
+    {
+        var title = (noteTitle ?? "").Trim();
+        if (title.Length == 0) { message = "Enter a note title."; return; }
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.StudyNotes.Add(new StudyNote { StudySubjectId = Id, Title = title, Content = noteContent, CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now });
+        await db.SaveChangesAsync();
+        noteTitle = null; noteContent = null;
+        await LoadAsync();
+    }
+
+    private async Task TogglePin(int id)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var n = await db.StudyNotes.FindAsync(id);
+        if (n == null) return;
+        n.IsPinned = !n.IsPinned;
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task DeleteNote(int id)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var n = await db.StudyNotes.FindAsync(id);
+        if (n == null) return;
+        db.StudyNotes.Remove(n);
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

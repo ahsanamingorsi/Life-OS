@@ -1,0 +1,38 @@
+/* Life OS Windows app — base styles. The shared design (tokens, shell, pages) is in lifeos-v2.css. */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; line-height: 1.5; font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif; }
+h1, h2, h3, h4, p { margin-top: 0; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: var(--lo-primary); }
+img, svg { max-width: 100%; }
+.app-icon { flex-shrink: 0; }
+
+/* Overlay behind the mobile/narrow-window menu and the timer */
+#navOverlay { display: none; position: fixed; inset: 0; z-index: 299; }
+#navOverlay.active { display: block; }
+#timerBackdrop { display: none; position: fixed; inset: 0; z-index: 9998; }
+#timerBackdrop.active { display: block; }
+
+/* Focus timer popup (Blazor version) */
+#timerWidget {
+    position: fixed; right: 20px; width: 320px; max-width: calc(100vw - 32px); z-index: 9999;
+    opacity: 0; pointer-events: none; transform: translateY(-6px);
+    transition: opacity .15s ease, transform .15s ease;
+}
+#timerWidget.open { opacity: 1; pointer-events: all; transform: none; }
+.lo-timer-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--lo-border); background: var(--lo-surface-2); border-radius: var(--lo-radius) var(--lo-radius) 0 0; }
+.lo-timer-title { display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--lo-text-2); }
+.lo-timer-title .app-icon { color: var(--lo-primary); }
+.lo-timer-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.lo-timer-ring { position: relative; width: 140px; height: 140px; margin: 0 auto; }
+.lo-timer-ring svg { position: absolute; inset: 0; }
+.lo-timer-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.lo-timer-status { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--lo-text-2); text-align: center; }
+.lo-timer-presets { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.lo-timer-controls { display: flex; gap: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -164,37 +164,6 @@
             </div>
         }
 
-        <!-- Vault -->
-        @if (Model.VaultResults.Any())
-        {
-            <div class="sr-section">
-                <div class="sr-section-title">
-                    🔒 Vault
-                    <span class="sr-section-count">@Model.VaultResults.Count</span>
-                </div>
-                @foreach (var v in Model.VaultResults)
-                {
-                    <a asp-action="Index" asp-controller="Vault"
-                       asp-route-search="@Model.Query" class="sr-item">
-                        <div class="sr-item-icon">🔑</div>
-                        <div>
-                            <div class="sr-item-title">@v.Name</div>
-                            <div class="sr-item-sub">
-                                @v.Category
-                                @if (!string.IsNullOrEmpty(v.Email))
-                                {
-                                    <span> · @v.Email</span>
-                                }
-                                @if (v.TwoFactorEnabled)
-                                {
-                                    <span class="badge badge-green" style="margin-left:6px;">🛡 2FA</span>
-                                }
-                            </div>
-                        </div>
-                    </a>
-                }
-            </div>
-        }
 
         <!-- Projects -->
         @if (Model.ProjectResults.Any())
@@ -395,7 +364,6 @@ else
         </div>
         @foreach (var tip in new[]{
             ("🔗","Web Links","Bookmarks, tools, resources"),
-            ("🔒","Vault","Accounts, emails, usernames"),
             ("◈","Projects","Project titles and notes"),
             ("✦","Tasks","Personal task titles and descriptions"),
             ("⚡","Skills","Tech skill names and notes"),

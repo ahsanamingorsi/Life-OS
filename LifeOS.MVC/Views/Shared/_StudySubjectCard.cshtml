@@ -1,81 +1,26 @@
 ﻿@model LifeOS.MVC.Models.StudySubject
 @{
-    int hoursProgress = Model.TargetHours > 0
-        ? Math.Min(100, (int)(Model.HoursLogged / Model.TargetHours * 100))
-        : Model.ProgressPercent;
+    int pct = Math.Clamp(Model.ProgressPercent, 0, 100);
+    double hours = Model.StudySessions.Sum(s => s.DurationHours);
+    var weekStart = LifeOS.MVC.Services.ProductivityService.WeekStart(DateTime.Today);
+    double week = Model.StudySessions.Where(s => s.SessionDate >= weekStart).Sum(s => s.DurationHours);
 }
-
-<div class="los-card" style="height:100%;">
-    <!-- Header -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;
-        margin-bottom:10px;">
-        <div style="flex:1; min-width:0;">
-            <a asp-action="Subject" asp-controller="Study" asp-route-id="@Model.Id"
-               style="font-size:0.95rem; font-weight:600; color:var(--text-primary);
-                text-decoration:none; display:block; margin-bottom:4px;">
-                @Model.Name
-            </a>
-            <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                <span class="badge badge-neutral">@Model.Category</span>
-                <span class="badge @(Model.Status == "Active" ? "badge-green" : Model.Status == "Completed" ? "badge-sky" : "badge-amber")">
-                    @Model.Status
-                </span>
-            </div>
+<article class="db-card lo-project-card">
+    <div class="db-card-head">
+        <div style="min-width:0;">
+            <div class="db-muted db-tiny">@Model.Category · @Model.Status</div>
+            <h3 class="db-h2 lo-goal-title"><a class="lo-plain-link" href="/Study/Subject/@Model.Id">@Model.Name</a></h3>
         </div>
-        <a asp-action="Subject" asp-controller="Study" asp-route-id="@Model.Id"
-           class="btn-los btn-secondary btn-sm" style="flex-shrink:0; margin-left:8px;">
-            Open →
-        </a>
+        <span class="db-level-pct lo-num">@pct%</span>
     </div>
-
-    @if (!string.IsNullOrEmpty(Model.Description))
-    {
-        <div style="font-size:0.78rem; color:var(--text-tertiary); margin-bottom:10px;
-            line-height:1.5;">
-            @Model.Description
-        </div>
-    }
-
-    @if (!string.IsNullOrEmpty(Model.CurrentTopic))
-    {
-        <div style="font-size:0.78rem; padding:6px 10px; background:var(--accent-soft);
-            border-left:2px solid var(--accent); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
-            color:var(--accent); margin-bottom:10px;">
-            📍 @Model.CurrentTopic
-        </div>
-    }
-
-    <!-- Progress -->
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-        <div class="los-progress" style="flex:1;">
-            <div class="los-progress-bar @(hoursProgress >= 75 ? "green" : hoursProgress >= 40 ? "" : "amber")"
-                 data-width="@hoursProgress"></div>
-        </div>
-        <span style="font-size:0.8rem; font-weight:600; color:var(--accent);
-            min-width:36px; text-align:right;">
-            @hoursProgress%
-        </span>
+    @if (!string.IsNullOrEmpty(Model.CurrentTopic)) { <div class="db-muted db-tiny">Now: @Model.CurrentTopic</div> }
+    <div class="db-bar" role="progressbar" aria-label="Progress of @Model.Name" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@pct"><span class="@(pct < 40 ? "low" : "")" style="width:@pct%"></span></div>
+    <div class="lo-card-foot db-tiny db-muted lo-num">
+        <span>@hours.ToString("0.#")h@(Model.TargetHours > 0 ? $" of {Model.TargetHours}h" : "")</span>
+        <span>@(Model.WeeklyTargetHours > 0 ? $"{week:0.#} / {Model.WeeklyTargetHours:0.#}h this week" : $"{week:0.#}h this week")</span>
     </div>
-
-    <!-- Stats row -->
-    <div style="display:flex; gap:14px; font-size:0.75rem; color:var(--text-tertiary);">
-        <span>
-            <strong style="color:var(--teal);">@Model.HoursLogged.ToString("F1")h</strong>
-            @if (Model.TargetHours > 0)
-            {
-                <span> / @Model.TargetHours h target</span>
-            }
-            else
-            {
-
-                <span> logged</span>
-            }
-        </span>
-        <span>
-            <strong style="color:var(--violet);">@Model.StudyNotes.Count</strong> notes
-        </span>
-        <span>
-            <strong style="color:var(--indigo, #4f46e5);">@Model.StudySessions.Count</strong> sessions
-        </span>
+    <div class="lo-card-foot db-tiny db-muted lo-num">
+        <span>@Model.StudySessions.Count sessions · @Model.StudyNotes.Count notes</span>
+        <a class="db-link" href="/Study/Subject/@Model.Id">Open</a>
     </div>
-</div>
+</article>

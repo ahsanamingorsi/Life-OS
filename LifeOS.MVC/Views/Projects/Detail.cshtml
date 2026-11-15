@@ -1,476 +1,161 @@
 ﻿@model LifeOS.MVC.Models.ProjectDetailViewModel
-@{ ViewData["Title"] = Model.Project.Title; }
+@{
+    var p = Model.Project;
+    ViewData["Title"] = p.Title;
+    var categories = ViewBag.Categories as List<string> ?? new();
+    var today = DateTime.Today;
+    bool overdueProject = p.Deadline.HasValue && p.Deadline.Value.Date < today && p.Status != "Done";
+    string Minutes(int m) => m >= 60 ? $"{m / 60}h {m % 60}m" : $"{m}m";
+    (string Key, string Label, List<LifeOS.MVC.Models.ProjectTask> Tasks, string Empty)[] columns =
+    {
+        ("Todo", "To do", Model.TodoTasks, "No tasks waiting."),
+        ("InProgress", "In progress", Model.InProgressTasks, "Start a task to see it here."),
+        ("Done", "Done", Model.DoneTasks, "Finished tasks appear here."),
+    };
+}
 
-@if (TempData["Success"] != null) { <div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
-@if (TempData["Info"] != null)    { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
-
-<!-- Page Header -->
-<div class="los-page-header">
-    <div style="display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;">
-        <a asp-action="Index" asp-controller="Projects" class="btn-los btn-secondary btn-sm"
-           style="margin-top:6px;">← Projects</a>
-        <div>
-            <div class="los-page-title">@Model.Project.Title</div>
-            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center;">
-                <span class="badge badge-priority-@Model.Project.Priority.ToLower()">
-                    Priority @Model.Project.Priority
-                </span>
-                <span class="badge badge-@Model.Project.Status.ToLower()">@Model.Project.Status</span>
-                @if (!string.IsNullOrEmpty(Model.Project.Category))
-                {
-                    <span class="badge badge-neutral">@Model.Project.Category</span>
-                }
-                @if (Model.Project.Deadline.HasValue)
-                {
-                    bool od = Model.Project.Deadline.Value.Date < DateTime.Today && Model.Project.Status != "Done";
-                    <span class="badge @(od?"badge-rose":"badge-neutral")">
-                        Due @Model.Project.Deadline.Value.ToString("MMM d, yyyy")
-                    </span>
-                }
+<div class="db">
+    <div class="db-head">
+        <div style="min-width:0;">
+            <a class="db-link" href="/Projects">← Projects</a>
+            <h1 class="db-title lo-goal-title">@p.Title</h1>
+            <div class="lo-chips">
+                <span class="db-pri @p.Priority.ToLowerInvariant()">Priority @p.Priority</span>
+                <span class="db-badge">@p.Status</span>
+                @if (!string.IsNullOrEmpty(p.Category)) { <span class="db-badge">@p.Category</span> }
+                <span class="db-badge @(overdueProject ? "high" : "")">@(p.Deadline.HasValue ? (overdueProject ? "Overdue · " : "Due ") + p.Deadline.Value.ToString("d MMM yyyy") : "No deadline")</span>
             </div>
         </div>
+        <div class="db-actions">
+            <a class="lo-btn" href="#editProject">Edit project</a>
+            <a class="lo-btn lo-btn-primary" href="#addTask">@await Html.PartialAsync("_Icon", "plus") Add task</a>
+        </div>
     </div>
-    <div class="los-page-actions">
-        <button class="btn-los btn-secondary" data-bs-toggle="collapse" data-bs-target="#editProjectPanel">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-            </svg>
-            Edit Project
-        </button>
-        <button class="btn-los btn-primary" data-bs-toggle="collapse" data-bs-target="#addTaskPanel">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            Add Task
-        </button>
-    </div>
-</div>
 
-<!-- Edit Project Panel -->
-<div class="collapse" id="editProjectPanel">
-    <div class="los-panel">
-        <div class="los-panel-title">Edit Project</div>
-        <form method="post" asp-action="UpdateStatus" asp-controller="Projects">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="id" value="@Model.Project.Id" />
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label" for="projTitle">Title *</label>
-                        <input id="projTitle" name="title" class="form-control" required maxlength="150" value="@Model.Project.Title" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label" for="projCategory">Category</label>
-                        <input id="projCategory" name="category" class="form-control" maxlength="50" value="@Model.Project.Category" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label" for="projPriority">Priority</label>
-                        <select id="projPriority" name="priority" class="form-control">
-                            <option value="A" selected="@(Model.Project.Priority == "A")">A — Critical</option>
-                            <option value="B" selected="@(Model.Project.Priority == "B")">B — Important</option>
-                            <option value="C" selected="@(Model.Project.Priority == "C")">C — Low</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label" for="projStatus">Status</label>
-                        <select id="projStatus" name="status" class="form-control">
-                            <option value="Active" selected="@(Model.Project.Status == "Active")">Active</option>
-                            <option value="Paused" selected="@(Model.Project.Status == "Paused")">Paused</option>
-                            <option value="Done" selected="@(Model.Project.Status == "Done")">Done</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label" for="projDeadline">Deadline</label>
-                        <input id="projDeadline" name="deadline" type="date" class="form-control" value="@(Model.Project.Deadline?.ToString("yyyy-MM-dd") ?? "")" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label" for="projProgress">Progress %</label>
-                        @if (Model.Tasks.Any())
-                        {
-                            <input id="projProgress" class="form-control" value="@Model.Project.ProgressPercent% (from tasks)" disabled />
-                        }
-                        else
-                        {
-                            <input id="projProgress" name="progress" type="number" min="0" max="100"
-                                   class="form-control" value="@Model.Project.ProgressPercent" />
-                        }
-                    </div>
-                </div>
-                <div class="col-md-12">
-                    <div class="form-group">
-                        <label class="form-label" for="projNotes">Notes</label>
-                        <textarea id="projNotes" name="notes" class="form-control" maxlength="500">@Model.Project.Notes</textarea>
-                    </div>
-                </div>
-                <div class="col-md-10">
-                    <div class="form-group">
-                        <label class="form-label">Next Task (override)</label>
-                        <input name="nextTask" class="form-control"
-                               value="@Model.Project.NextTask"
-                               placeholder="Auto-filled from tasks, or override here" />
-                    </div>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn-los btn-primary w-100">Save</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+    @if (TempData["Success"] is string ok) { <div class="lo-flash" role="status">@ok</div> }
 
-<!-- Add Task Panel -->
-<div class="collapse" id="addTaskPanel">
-    <div class="los-panel">
-        <div class="los-panel-title">Add Task to Project</div>
-        <form method="post" asp-action="AddTask" asp-controller="Projects">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <div class="form-group">
-                        <label class="form-label">Task Title *</label>
-                        <input name="Title" class="form-control" required
-                               placeholder="What needs to be done?" maxlength="200" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Priority</label>
-                        <select name="Priority" class="form-control">
-                            <option value="A">A — Critical</option>
-                            <option value="B" selected>B — Important</option>
-                            <option value="C">C — Low</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Due Date</label>
-                        <input name="DueDate" type="date" class="form-control" />
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <div class="form-group">
-                        <label class="form-label">Est. (min)</label>
-                        <input name="EstimatedMinutes" type="number" min="0"
-                               class="form-control" placeholder="60" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <input name="Description" class="form-control"
-                               placeholder="Optional" maxlength="500" />
-                    </div>
-                </div>
-                <div class="col-12 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-los btn-secondary"
-                            data-bs-toggle="collapse" data-bs-target="#addTaskPanel">Cancel</button>
-                    <button type="submit" class="btn-los btn-primary">Add Task</button>
-                </div>
-            </div>
-        </form>
+    <div class="db-grid-levels">
+        <div class="db-level"><span class="db-muted db-tiny">Progress</span><span class="db-level-pct lo-num">@Math.Clamp(p.ProgressPercent, 0, 100)%</span><div class="db-bar" role="presentation"><span style="width:@Math.Clamp(p.ProgressPercent, 0, 100)%"></span></div></div>
+        <div class="db-level"><span class="db-muted db-tiny">Tasks done</span><span class="db-level-pct lo-num">@Model.CompletedTasks / @Model.TotalTasks</span><span class="db-muted db-tiny">@Model.InProgressTasks.Count in progress</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Overdue</span><span class="db-level-pct lo-num @(Model.OverdueTasks > 0 ? "db-neg" : "")">@Model.OverdueTasks</span><span class="db-muted db-tiny">open tasks past due</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Time</span><span class="db-level-pct lo-num">@Minutes(Model.TotalActualMinutes)</span><span class="db-muted db-tiny">logged of @Minutes(Model.TotalEstimatedMinutes) planned</span></div>
     </div>
-</div>
 
-<!-- ── PROJECT STATS ─────────────────────────────────────────────── -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-indigo">@await Html.PartialAsync("_Icon", "plan")</div>
-            <div class="los-kpi-value">@Model.TotalTasks</div>
-            <div class="los-kpi-label">Total Tasks</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-green">
-                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8l3 3 7-6" stroke="currentColor" stroke-width="1.5"
-                          stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <div class="los-kpi-value" style="color:var(--green)">@Model.CompletedTasks</div>
-            <div class="los-kpi-label">Done</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-rose">@await Html.PartialAsync("_Icon", "alert")</div>
-            <div class="los-kpi-value"
-                 style="color:@(Model.OverdueTasks > 0 ? "var(--rose)" : "var(--text-primary)")">
-                @Model.OverdueTasks
-            </div>
-            <div class="los-kpi-label">Overdue</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-amber">%</div>
-            <div class="los-kpi-value"
-                 style="color:@(Model.ProgressPercent>=75?"var(--green)":Model.ProgressPercent>=40?"var(--amber)":"var(--rose)")">
-                @Model.ProgressPercent%
-            </div>
-            <div class="los-kpi-label">Progress</div>
-        </div>
-    </div>
-</div>
+    @if (!string.IsNullOrWhiteSpace(p.Notes)) { <section class="db-card"><p class="db-small" style="margin:0; white-space:pre-line;">@p.Notes</p></section> }
 
-<!-- Overall progress bar -->
-@if (Model.TotalTasks > 0)
-{
-    <div class="los-card mb-4" style="padding:14px 20px;">
-        <div style="display:flex; align-items:center; gap:14px;">
-            <span style="font-size:0.78rem; color:var(--text-tertiary); min-width:80px;">
-                @Model.CompletedTasks / @Model.TotalTasks tasks
-            </span>
-            <div class="los-progress los-progress-lg" style="flex:1;">
-                <div class="los-progress-bar
-                            @(Model.ProgressPercent>=75?"green":Model.ProgressPercent>=40?"":"amber")"
-                     data-width="@Model.ProgressPercent">
-                </div>
-            </div>
-            <span style="font-size:0.9rem; font-weight:700; color:var(--accent); min-width:44px; text-align:right;">
-                @Model.ProgressPercent%
-            </span>
-        </div>
-        @if (Model.TotalEstimatedMinutes > 0)
+    <div class="lo-kanban">
+        @foreach (var col in columns)
         {
-            <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:8px;">
-                Estimated: @(Model.TotalEstimatedMinutes / 60)h @(Model.TotalEstimatedMinutes % 60)m
-                @if (Model.TotalActualMinutes > 0)
+            <section class="lo-kanban-col lo-col-@col.Key.ToLowerInvariant()" aria-labelledby="col-@col.Key">
+                <div class="lo-kanban-head"><h2 id="col-@col.Key" class="db-h3">@col.Label</h2><span class="db-badge lo-num">@col.Tasks.Count</span></div>
+                @if (!col.Tasks.Any()) { <p class="db-empty db-small">@col.Empty</p> }
+                @foreach (var t in col.Tasks)
                 {
-                    <span style="margin-left:10px;">
-                        Actual: @(Model.TotalActualMinutes / 60)h @(Model.TotalActualMinutes % 60)m
-                    </span>
+                    bool overdue = !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value.Date < today;
+                    <article class="lo-task-card @(t.IsCompleted ? "is-done" : "") @(overdue ? "is-overdue" : "")">
+                        <div class="lo-task-top">
+                            <h3 class="lo-task-title">@t.Title</h3>
+                            <span class="db-pri @t.Priority.ToLowerInvariant()" aria-label="Priority @t.Priority">@t.Priority</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(t.Description)) { <p class="db-muted db-tiny" style="margin:0;">@t.Description</p> }
+                        <div class="lo-chips db-tiny">
+                            @if (t.DueDate.HasValue) { <span class="@(overdue ? "db-neg" : "db-muted")">@(overdue ? "Overdue · " : "Due ")@t.DueDate.Value.ToString("d MMM")</span> }
+                            @if (t.EstimatedMinutes > 0) { <span class="db-muted">~@Minutes(t.EstimatedMinutes.Value) planned</span> }
+                            @if (t.ActualMinutes > 0) { <span class="db-muted">@Minutes(t.ActualMinutes.Value) logged</span> }
+                            @if (t.IsCompleted && t.CompletedAt.HasValue) { <span class="db-muted">Done @t.CompletedAt.Value.ToString("d MMM")</span> }
+                        </div>
+                        <div class="lo-task-actions">
+                            @if (t.Status == "Todo")
+                            {
+                                <form method="post" asp-action="MoveTask"><input type="hidden" name="taskId" value="@t.Id" /><input type="hidden" name="status" value="InProgress" /><button type="submit" class="lo-btn lo-btn-sm">Start</button></form>
+                            }
+                            @if (t.Status == "InProgress")
+                            {
+                                <form method="post" asp-action="MoveTask"><input type="hidden" name="taskId" value="@t.Id" /><input type="hidden" name="status" value="Todo" /><button type="submit" class="lo-btn lo-btn-sm">Back to To do</button></form>
+                            }
+                            @if (t.Status != "Done")
+                            {
+                                <form method="post" asp-action="MoveTask"><input type="hidden" name="taskId" value="@t.Id" /><input type="hidden" name="status" value="Done" /><button type="submit" class="lo-btn lo-btn-sm lo-btn-primary">Done</button></form>
+                            }
+                            else
+                            {
+                                <form method="post" asp-action="MoveTask"><input type="hidden" name="taskId" value="@t.Id" /><input type="hidden" name="status" value="Todo" /><button type="submit" class="lo-btn lo-btn-sm">Reopen</button></form>
+                            }
+                        </div>
+                        <details class="lo-task-more">
+                            <summary class="db-link">Edit, log time or delete</summary>
+                            <form method="post" asp-action="LogTime" class="lo-inline-form">
+                                <input type="hidden" name="taskId" value="@t.Id" />
+                                <label for="log-@(t.Id)" class="db-small">Minutes spent</label>
+                                <input id="log-@(t.Id)" name="minutes" type="number" min="1" max="1440" required class="lo-input lo-input-tiny" placeholder="45" />
+                                <button type="submit" class="lo-btn lo-btn-sm">Log time</button>
+                            </form>
+                            <form method="post" asp-action="EditTask" class="lo-form">
+                                <input type="hidden" name="Id" value="@t.Id" />
+                                <input type="hidden" name="ProjectId" value="@p.Id" />
+                                <div class="lo-field"><label class="lo-label" for="tTitle-@(t.Id)">Title</label><input id="tTitle-@(t.Id)" name="Title" class="lo-input" value="@t.Title" required maxlength="200" /></div>
+                                <div class="lo-form-grid">
+                                    <div class="lo-field"><label class="lo-label" for="tPri-@(t.Id)">Priority</label><select id="tPri-@(t.Id)" name="Priority" class="lo-select"><option value="A" selected="@(t.Priority == "A")">A — Critical</option><option value="B" selected="@(t.Priority == "B")">B — Important</option><option value="C" selected="@(t.Priority == "C")">C — Low</option></select></div>
+                                    <div class="lo-field"><label class="lo-label" for="tDue-@(t.Id)">Due date</label><input id="tDue-@(t.Id)" name="DueDate" type="date" class="lo-input" value="@(t.DueDate?.ToString("yyyy-MM-dd") ?? "")" /></div>
+                                    <div class="lo-field"><label class="lo-label" for="tEst-@(t.Id)">Planned min</label><input id="tEst-@(t.Id)" name="EstimatedMinutes" type="number" min="0" max="100000" class="lo-input" value="@t.EstimatedMinutes" /></div>
+                                    <div class="lo-field"><label class="lo-label" for="tAct-@(t.Id)">Logged min</label><input id="tAct-@(t.Id)" name="ActualMinutes" type="number" min="0" max="100000" class="lo-input" value="@t.ActualMinutes" /></div>
+                                </div>
+                                <div class="lo-field"><label class="lo-label" for="tDesc-@(t.Id)">Description</label><textarea id="tDesc-@(t.Id)" name="Description" class="lo-input lo-textarea" maxlength="500">@t.Description</textarea></div>
+                                <div class="lo-field"><label class="lo-label" for="tNotes-@(t.Id)">Notes</label><textarea id="tNotes-@(t.Id)" name="Notes" class="lo-input lo-textarea" maxlength="300">@t.Notes</textarea></div>
+                                <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary lo-btn-sm">Save task</button></div>
+                            </form>
+                            <form method="post" asp-action="DeleteTask" class="lo-form-actions">
+                                <input type="hidden" name="taskId" value="@t.Id" />
+                                <input type="hidden" name="projectId" value="@p.Id" />
+                                <button type="submit" class="lo-btn lo-btn-sm lo-btn-danger" data-confirm="Delete the task '@t.Title'?">Delete task</button>
+                            </form>
+                        </details>
+                    </article>
                 }
-            </div>
+            </section>
         }
     </div>
-}
 
-<!-- ── KANBAN BOARD ──────────────────────────────────────────────── -->
-@if (!Model.Tasks.Any())
-{
-    <div class="los-card">
-        <div class="empty-state">
-            <div class="empty-state-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                          stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-            </div>
-            <div class="empty-state-title">No tasks yet</div>
-            <div class="empty-state-desc">Break this project into clear, actionable tasks. Each completed task moves you forward.</div>
-            <button class="btn-los btn-primary"
-                    data-bs-toggle="collapse" data-bs-target="#addTaskPanel">
-                Add First Task
-            </button>
-        </div>
-    </div>
-}
-else
-{
-    <!-- KANBAN: 3 columns -->
-    <div class="row g-3">
+    <div class="db-grid-2">
+        <section class="db-card" id="addTask" aria-labelledby="addTaskTitle">
+            <h2 id="addTaskTitle" class="db-h2">Add a task</h2>
+            <form method="post" asp-action="AddTask" class="lo-form">
+                <input type="hidden" name="ProjectId" value="@p.Id" />
+                <div class="lo-field"><label for="nTitle" class="lo-label">Title <span aria-hidden="true">*</span></label><input id="nTitle" name="Title" class="lo-input" required maxlength="200" placeholder="What needs to be done?" /></div>
+                <div class="lo-form-grid">
+                    <div class="lo-field"><label for="nPri" class="lo-label">Priority</label><select id="nPri" name="Priority" class="lo-select"><option value="A">A — Critical</option><option value="B" selected>B — Important</option><option value="C">C — Low</option></select></div>
+                    <div class="lo-field"><label for="nDue" class="lo-label">Due date</label><input id="nDue" name="DueDate" type="date" class="lo-input" /></div>
+                    <div class="lo-field"><label for="nEst" class="lo-label">Planned min</label><input id="nEst" name="EstimatedMinutes" type="number" min="0" max="100000" class="lo-input" placeholder="60" /></div>
+                </div>
+                <div class="lo-field"><label for="nDesc" class="lo-label">Description <span class="db-muted">(optional)</span></label><textarea id="nDesc" name="Description" class="lo-input lo-textarea" maxlength="500"></textarea></div>
+                <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Add task</button></div>
+            </form>
+        </section>
 
-        <!-- ── TODO ───────────────────────────────────────────────── -->
-        <div class="col-lg-4">
-            <div style="background:var(--surface-2); border:1px solid var(--border);
-                        border-radius:var(--radius-lg); overflow:hidden;">
-                <!-- Column header -->
-                <div style="padding:12px 16px; border-bottom:1px solid var(--border);
-                            display:flex; align-items:center; gap:8px;">
-                    <div style="width:10px; height:10px; border-radius:50%;
-                                background:var(--text-disabled);"></div>
-                    <span style="font-size:0.75rem; font-weight:700; text-transform:uppercase;
-                                 letter-spacing:.1em; color:var(--text-tertiary);">
-                        To Do
-                    </span>
-                    <span style="margin-left:auto; background:var(--surface-3);
-                                 border:1px solid var(--border); border-radius:var(--radius-full);
-                                 padding:1px 8px; font-size:0.7rem; font-weight:700;
-                                 color:var(--text-tertiary);">
-                        @Model.TodoTasks.Count
-                    </span>
-                </div>
-                <!-- Tasks -->
-                <div style="padding:10px; display:flex; flex-direction:column; gap:8px; min-height:100px;">
-                    @if (!Model.TodoTasks.Any())
-                    {
-                        <div style="text-align:center; padding:20px 10px;
-                                    font-size:0.8rem; color:var(--text-disabled);">
-                            No tasks here
-                        </div>
-                    }
-                    @foreach (var t in Model.TodoTasks)
-                    {
-                        @await Html.PartialAsync("_ProjectTaskCard", t,
-                            new ViewDataDictionary(ViewData) { { "ProjectId", Model.Project.Id } })
-                    }
-                </div>
-            </div>
-        </div>
-
-        <!-- ── IN PROGRESS ────────────────────────────────────────── -->
-        <div class="col-lg-4">
-            <div style="background:var(--accent-soft); border:1px solid rgba(79,70,229,0.15);
-                        border-radius:var(--radius-lg); overflow:hidden;">
-                <div style="padding:12px 16px; border-bottom:1px solid rgba(79,70,229,0.15);
-                            display:flex; align-items:center; gap:8px;">
-                    <div style="width:10px; height:10px; border-radius:50%;
-                                background:var(--accent);"></div>
-                    <span style="font-size:0.75rem; font-weight:700; text-transform:uppercase;
-                                 letter-spacing:.1em; color:var(--accent);">
-                        In Progress
-                    </span>
-                    <span style="margin-left:auto; background:var(--accent-muted);
-                                 border:1px solid rgba(79,70,229,0.2); border-radius:var(--radius-full);
-                                 padding:1px 8px; font-size:0.7rem; font-weight:700;
-                                 color:var(--accent);">
-                        @Model.InProgressTasks.Count
-                    </span>
-                </div>
-                <div style="padding:10px; display:flex; flex-direction:column; gap:8px; min-height:100px;">
-                    @if (!Model.InProgressTasks.Any())
-                    {
-                        <div style="text-align:center; padding:20px 10px;
-                                    font-size:0.8rem; color:var(--accent); opacity:.5;">
-                            Move tasks here when working
-                        </div>
-                    }
-                    @foreach (var t in Model.InProgressTasks)
-                    {
-                        @await Html.PartialAsync("_ProjectTaskCard", t,
-                            new ViewDataDictionary(ViewData) { { "ProjectId", Model.Project.Id } })
-                    }
-                </div>
-            </div>
-        </div>
-
-        <!-- ── DONE ───────────────────────────────────────────────── -->
-        <div class="col-lg-4">
-            <div style="background:var(--green-soft); border:1px solid rgba(22,163,74,0.15);
-                        border-radius:var(--radius-lg); overflow:hidden;">
-                <div style="padding:12px 16px; border-bottom:1px solid rgba(22,163,74,0.15);
-                            display:flex; align-items:center; gap:8px;">
-                    <div style="width:10px; height:10px; border-radius:50%;
-                                background:var(--green);"></div>
-                    <span style="font-size:0.75rem; font-weight:700; text-transform:uppercase;
-                                 letter-spacing:.1em; color:var(--green);">
-                        Done
-                    </span>
-                    <span style="margin-left:auto; background:var(--green-muted);
-                                 border:1px solid rgba(22,163,74,0.2); border-radius:var(--radius-full);
-                                 padding:1px 8px; font-size:0.7rem; font-weight:700;
-                                 color:var(--green);">
-                        @Model.DoneTasks.Count
-                    </span>
-                </div>
-                <div style="padding:10px; display:flex; flex-direction:column; gap:8px; min-height:100px;">
-                    @if (!Model.DoneTasks.Any())
-                    {
-                        <div style="text-align:center; padding:20px 10px;
-                                    font-size:0.8rem; color:var(--green); opacity:.5;">
-                            Completed tasks appear here
-                        </div>
-                    }
-                    @foreach (var t in Model.DoneTasks)
-                    {
-                        @await Html.PartialAsync("_ProjectTaskCard", t,
-                            new ViewDataDictionary(ViewData) { { "ProjectId", Model.Project.Id } })
-                    }
-                </div>
-            </div>
-        </div>
-
-    </div>
-}
-
-<!-- Edit Task Modals (one per task) -->
-@foreach (var t in Model.Tasks)
-{
-    <div class="modal fade" id="editTask@(t.Id)" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Task</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="post" asp-action="EditTask" asp-controller="Projects">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="Id" value="@t.Id" />
-                    <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="form-group">
-                                    <label class="form-label">Title *</label>
-                                    <input name="Title" class="form-control" value="@t.Title" required />
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label class="form-label">Priority</label>
-                                    <select name="Priority" class="form-control">
-                                        <option value="A" selected="@(t.Priority == "A")">A — Critical</option>
-                                        <option value="B" selected="@(t.Priority == "B")">B — Important</option>
-                                        <option value="C" selected="@(t.Priority == "C")">C — Low</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label class="form-label">Due Date</label>
-                                    <input name="DueDate" type="date" class="form-control"
-                                           value="@(t.DueDate?.ToString("yyyy-MM-dd") ?? "")" />
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label class="form-label">Est. Minutes</label>
-                                    <input name="EstimatedMinutes" type="number" min="0"
-                                           class="form-control" value="@t.EstimatedMinutes" />
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label class="form-label">Actual Minutes</label>
-                                    <input name="ActualMinutes" type="number" min="0"
-                                           class="form-control" value="@t.ActualMinutes" />
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-group">
-                                    <label class="form-label">Description</label>
-                                    <textarea name="Description" class="form-control">@t.Description</textarea>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-group">
-                                    <label class="form-label">Notes</label>
-                                    <textarea name="Notes" class="form-control">@t.Notes</textarea>
-                                </div>
-                            </div>
-                        </div>
+        <section class="db-card" id="editProject" aria-labelledby="editProjectTitle">
+            <h2 id="editProjectTitle" class="db-h2">Edit project</h2>
+            <form method="post" asp-action="UpdateStatus" class="lo-form">
+                <input type="hidden" name="id" value="@p.Id" />
+                <div class="lo-field"><label for="eTitle" class="lo-label">Title <span aria-hidden="true">*</span></label><input id="eTitle" name="title" class="lo-input" required maxlength="150" value="@p.Title" /></div>
+                <div class="lo-form-grid">
+                    <div class="lo-field"><label for="eCat" class="lo-label">Category</label><input id="eCat" name="category" class="lo-input" maxlength="50" list="projectCategories" value="@p.Category" /></div>
+                    <div class="lo-field"><label for="ePri" class="lo-label">Priority</label><select id="ePri" name="priority" class="lo-select"><option value="A" selected="@(p.Priority == "A")">A — Critical</option><option value="B" selected="@(p.Priority == "B")">B — Important</option><option value="C" selected="@(p.Priority == "C")">C — Low</option></select></div>
+                    <div class="lo-field"><label for="eStatus" class="lo-label">Status</label><select id="eStatus" name="status" class="lo-select"><option value="Active" selected="@(p.Status == "Active")">Active</option><option value="Paused" selected="@(p.Status == "Paused")">Paused</option><option value="Done" selected="@(p.Status == "Done")">Done</option></select></div>
+                    <div class="lo-field"><label for="eDeadline" class="lo-label">Deadline</label><input id="eDeadline" name="deadline" type="date" class="lo-input" value="@(p.Deadline?.ToString("yyyy-MM-dd") ?? "")" /></div>
+                    <div class="lo-field">
+                        <label for="eProgress" class="lo-label">Progress %</label>
+                        @if (Model.Tasks.Any()) { <input id="eProgress" class="lo-input" value="@p.ProgressPercent% (from tasks)" disabled /> }
+                        else { <input id="eProgress" name="progress" type="number" min="0" max="100" class="lo-input" value="@p.ProgressPercent" /> }
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn-los btn-secondary"
-                                data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn-los btn-primary">Save Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </div>
+                <div class="lo-field"><label for="eNext" class="lo-label">Next task <span class="db-muted">(filled from tasks, or type your own)</span></label><input id="eNext" name="nextTask" class="lo-input" maxlength="300" value="@p.NextTask" /></div>
+                <div class="lo-field"><label for="eNotes" class="lo-label">Goal / notes</label><textarea id="eNotes" name="notes" class="lo-input lo-textarea" maxlength="500">@p.Notes</textarea></div>
+                <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Save project</button></div>
+            </form>
+        </section>
     </div>
-}
+</div>
+
+<datalist id="projectCategories">
+    @foreach (var c in categories) { <option value="@c"></option> }
+</datalist>

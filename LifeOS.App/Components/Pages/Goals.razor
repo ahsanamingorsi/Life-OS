@@ -1,0 +1,280 @@
+@page "/goals"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (cards == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Goals</div>
+                <h1 class="db-title">What you're working toward.</h1>
+            </div>
+            <div class="db-actions">
+                <button type="button" class="lo-btn lo-btn-primary" @onclick="OpenAdd"><Icon Name="plus" /> New goal</button>
+            </div>
+        </div>
+
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+
+        @if (showForm)
+        {
+            <section class="db-card lo-narrow">
+                <h2 class="db-h2">@(formGoal.Id == 0 ? "New goal" : "Edit goal")</h2>
+                @if (formError != null) { <div class="lo-flash lo-flash-error" role="alert">@formError</div> }
+                <div class="lo-form">
+                    <div class="lo-field">
+                        <label for="goalName" class="lo-label">Goal <span aria-hidden="true">*</span></label>
+                        <input id="goalName" class="lo-input" @bind="formGoal.Goal" maxlength="200" placeholder="What do you want to achieve?" />
+                    </div>
+                    <div class="lo-form-grid">
+                        <div class="lo-field">
+                            <label for="goalCat" class="lo-label">Category</label>
+                            <select id="goalCat" class="lo-select" @bind="formGoal.Category">
+                                <option value="">None</option>
+                                @foreach (var c in Categories)
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="lo-field">
+                            <label for="goalTarget" class="lo-label">Target count <span class="db-muted">(optional)</span></label>
+                            <input id="goalTarget" type="number" min="1" max="100000" class="lo-input lo-input-short" value="@formGoal.TargetCount"
+                                   @onchange="e => formGoal.TargetCount = string.IsNullOrEmpty((string?)e.Value) ? null : int.Parse((string)e.Value!)" />
+                            <div class="db-muted db-tiny">How many times its repeated tasks should be completed in total.</div>
+                        </div>
+                    </div>
+                    @if (formGoal.Id == 0 || !cards!.First(c => c.Goal.Id == formGoal.Id).IsAuto)
+                    {
+                        <div class="lo-field">
+                            <label for="goalProgress" class="lo-label">Manual progress</label>
+                            <input id="goalProgress" type="number" min="0" max="100" class="lo-input lo-input-short" @bind="formGoal.ProgressPercent" /> %
+                            <div class="db-muted db-tiny">Used only while no task is linked to this goal yet.</div>
+                        </div>
+                    }
+                    <div class="lo-field">
+                        <label for="goalNotes" class="lo-label">Notes <span class="db-muted">(optional)</span></label>
+                        <textarea id="goalNotes" class="lo-input lo-textarea" maxlength="300" @bind="formGoal.Notes"></textarea>
+                    </div>
+                    <div class="lo-form-actions">
+                        <button type="button" class="lo-btn" @onclick="CancelForm" disabled="@busy">Cancel</button>
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick="SaveForm" disabled="@busy">@(formGoal.Id == 0 ? "Add goal" : "Save changes")</button>
+                    </div>
+                </div>
+            </section>
+        }
+
+        @if (!cards.Any())
+        {
+            <section class="db-card"><p class="db-empty">No goals yet. Add one to start tracking progress.</p></section>
+        }
+        <div class="db-grid-2">
+            @foreach (var card in cards)
+            {
+                var g = card.Goal;
+                <section class="db-card @(g.IsAchieved ? "is-done" : "")">
+                    <div class="db-card-head">
+                        <h2 class="db-h2">@g.Goal @(g.IsAchieved ? "✓" : "")</h2>
+                        <span class="lo-num" style="font-weight:700;">@card.Progress%</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(g.Category)) { <span class="db-badge">@g.Category</span> }
+                    <div class="db-bar thin" role="presentation"><span style="width:@card.Progress%"></span></div>
+                    <div class="db-muted db-tiny lo-num">
+                        @if (card.IsAuto)
+                        {
+                            @if (card.OneTimeTotal > 0) { @($"{card.OneTimeDone}/{card.OneTimeTotal} one-time tasks done") }
+                            @if (card.RepeatedCount > 0) { @($"{(card.OneTimeTotal > 0 ? " · " : "")}{card.Completions} completions" + (g.TargetCount.HasValue ? $" / {g.TargetCount}" : "")) }
+                        }
+                        else
+                        {
+                            @("Manual progress")
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(g.Notes)) { <p class="db-muted db-small">@g.Notes</p> }
+
+                    @if (card.Tasks.Any())
+                    {
+                        <div class="db-task-list">
+                            @foreach (var line in card.Tasks.Take(5))
+                            {
+                                <div class="db-task is-small @(line.IsDone ? "is-done" : "")">
+                                    <span class="db-check @(line.IsDone ? "done" : "")">@if (line.IsDone) { <Icon Name="tick" /> }</span>
+                                    <div class="db-task-body">
+                                        <div class="db-task-title">@line.Task.Title</div>
+                                        <div class="db-task-meta">@line.Text</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="lo-row-actions">
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => ToggleAchieved(g.Id, !g.IsAchieved)" disabled="@busy">@(g.IsAchieved ? "Reopen" : "Mark achieved")</button>
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => OpenEdit(g)" disabled="@busy">Edit</button>
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteGoal(g.Id, g.Goal)" disabled="@busy">Delete</button>
+                    </div>
+                </section>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    public static readonly string[] Categories = { "Grooming", "Confidence", "Lifestyle", "Standard" };
+
+    private List<GoalCard>? cards;
+    private string? message;
+    private bool busy;
+
+    private bool showForm;
+    private PersonalGoal formGoal = new();
+    private string? formError;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var goals = await db.PersonalGoals.AsNoTracking()
+            .Include(g => g.Tasks).ThenInclude(t => t.Completions)
+            .OrderBy(g => g.IsAchieved).ThenBy(g => g.Category).ThenBy(g => g.Goal)
+            .ToListAsync();
+
+        var today = DateTime.Today;
+        cards = goals.Select(g =>
+        {
+            var oneTime = g.Tasks.Where(t => !t.IsRepeated).ToList();
+            return new GoalCard
+            {
+                Goal = g,
+                Progress = TaskService.GoalProgress(g),
+                IsAuto = g.Tasks.Any(),
+                OneTimeDone = oneTime.Count(t => t.IsCompleted),
+                OneTimeTotal = oneTime.Count,
+                RepeatedCount = g.Tasks.Count(t => t.IsRepeated),
+                Completions = TaskService.GoalCompletions(g),
+                Tasks = g.Tasks
+                    .OrderBy(t => t.IsRepeated ? 0 : 1).ThenBy(t => t.IsCompleted).ThenBy(t => t.Title)
+                    .Select(t => new GoalTaskLine
+                    {
+                        Task = t,
+                        Text = t.IsRepeated
+                            ? $"{TaskService.RepeatText(t)} · done {t.Completions.Count}×"
+                            : t.IsCompleted ? "Done" : t.DueDate.HasValue ? (t.DueDate < today ? "Overdue · " : "Due ") + t.DueDate.Value.ToString("dd MMM") : "No due date",
+                        IsDone = t.IsRepeated ? t.Completions.Any(c => c.Date == today) : t.IsCompleted,
+                    }).ToList(),
+            };
+        }).ToList();
+    }
+
+    private void OpenAdd()
+    {
+        formGoal = new PersonalGoal();
+        formError = null;
+        showForm = true;
+    }
+
+    private void OpenEdit(PersonalGoal g)
+    {
+        formGoal = new PersonalGoal
+        {
+            Id = g.Id, Goal = g.Goal, Category = g.Category, TargetCount = g.TargetCount,
+            Notes = g.Notes, ProgressPercent = g.ProgressPercent,
+        };
+        formError = null;
+        showForm = true;
+    }
+
+    private void CancelForm() => showForm = false;
+
+    private async Task SaveForm()
+    {
+        formGoal.Goal = (formGoal.Goal ?? "").Trim();
+        if (formGoal.Goal.Length == 0) { formError = "Enter a goal."; return; }
+        formGoal.ProgressPercent = Math.Clamp(formGoal.ProgressPercent, 0, 100);
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
+
+            if (formGoal.Id == 0)
+            {
+                formGoal.CreatedAt = DateTime.Now;
+                db.PersonalGoals.Add(formGoal);
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Goal", formGoal.Id, "Created", $"Goal '{formGoal.Goal}' created");
+                message = $"Goal '{formGoal.Goal}' added.";
+            }
+            else
+            {
+                var goal = await db.PersonalGoals.FindAsync(formGoal.Id);
+                if (goal == null) { formError = "This goal no longer exists."; return; }
+                goal.Goal = formGoal.Goal;
+                goal.Category = formGoal.Category;
+                goal.TargetCount = formGoal.TargetCount;
+                goal.Notes = formGoal.Notes;
+                if (!goal.Tasks.Any()) goal.ProgressPercent = formGoal.ProgressPercent;
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Goal", goal.Id, "Updated", $"Goal '{goal.Goal}' updated");
+                message = "Goal updated.";
+            }
+
+            showForm = false;
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task ToggleAchieved(int id, bool achieved)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var goal = await db.PersonalGoals.Include(g => g.Tasks).FirstOrDefaultAsync(g => g.Id == id);
+            if (goal == null) return;
+            bool newlyAchieved = achieved && !goal.IsAchieved;
+            goal.IsAchieved = achieved;
+            await db.SaveChangesAsync();
+            if (newlyAchieved)
+                await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                    .LogActivityAsync("Goal", goal.Id, "Completed", $"Goal '{goal.Goal}' achieved");
+            message = "Goal updated.";
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DeleteGoal(int id, string name)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var goal = await db.PersonalGoals.FindAsync(id);
+            if (goal == null) return;
+            db.PersonalGoals.Remove(goal);
+            await db.SaveChangesAsync();
+            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                .LogActivityAsync("Goal", id, "Deleted", $"Goal '{name}' deleted");
+            message = $"Goal '{name}' deleted. Its tasks were kept.";
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+}

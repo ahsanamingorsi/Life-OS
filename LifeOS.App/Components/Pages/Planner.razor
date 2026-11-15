@@ -1,0 +1,152 @@
+@page "/planner"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (dayTasks == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">My day</div>
+                <h1 class="db-title">@day.ToString("dddd, d MMMM")</h1>
+            </div>
+            <div class="db-actions">
+                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
+                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)">Today</button>
+                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(1))">Next →</button>
+            </div>
+        </div>
+
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+
+        <div class="db-grid-2">
+            <section class="db-card" aria-labelledby="oneTimeTitle">
+                <h2 id="oneTimeTitle" class="db-h2">One-time tasks</h2>
+                <div class="db-task-list">
+                    @if (!oneTime!.Any()) { <p class="db-empty">Nothing one-time for this day.</p> }
+                    @foreach (var dt in oneTime)
+                    {
+                        <div class="db-task @(dt.IsDone ? "is-done" : "") @(dt.IsOverdue ? "is-overdue" : "")">
+                            <button type="button" class="db-check @(dt.IsDone ? "done" : "")" disabled="@busy"
+                                    aria-label="@(dt.IsDone ? "Mark as not done" : "Mark as done"): @dt.Task.Title" @onclick="() => Toggle(dt.Task.Id)">
+                                @if (dt.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@dt.Task.Title</div>
+                                <div class="db-task-meta">
+                                    @(dt.IsOverdue ? "Overdue · " : "")@(dt.Task.DueDate?.ToString("dd MMM") ?? "")
+                                    @if (dt.Task.Goal != null) { @(" · Goal: " + dt.Task.Goal.Goal) }
+                                </div>
+                            </div>
+                            @if (dt.Task.Priority == "A") { <span class="db-badge high">High</span> }
+                            else if (dt.Task.Priority == "C") { <span class="db-badge">Low</span> }
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card" aria-labelledby="repeatedTitle">
+                <h2 id="repeatedTitle" class="db-h2">Repeated tasks</h2>
+                <div class="db-task-list">
+                    @if (!repeated!.Any()) { <p class="db-empty">Nothing repeats on this day.</p> }
+                    @foreach (var dt in repeated)
+                    {
+                        <div class="db-task @(dt.IsDone ? "is-done" : "")">
+                            <button type="button" class="db-check @(dt.IsDone ? "done" : "")" disabled="@(busy || day > DateTime.Today)"
+                                    aria-label="@(dt.IsDone ? "Mark as not done" : "Mark as done"): @dt.Task.Title" @onclick="() => Toggle(dt.Task.Id)">
+                                @if (dt.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@dt.Task.Title</div>
+                                <div class="db-task-meta">@TaskService.RepeatText(dt.Task)@(dt.Streak > 0 ? $" · {dt.Streak} streak" : "")</div>
+                            </div>
+                            <span class="db-badge repeat-@dt.Task.Repeat.ToLowerInvariant()">@dt.Task.Repeat</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <section class="db-card" aria-labelledby="projTitle">
+            <div class="db-card-head">
+                <h2 id="projTitle" class="db-h2">Projects in focus</h2>
+                <a class="db-link" href="projects">All projects</a>
+            </div>
+            @if (!projects!.Any()) { <p class="db-empty">Your active projects will appear here.</p> }
+            @foreach (var p in projects)
+            {
+                var pct = Math.Clamp(p.ProgressPercent, 0, 100);
+                <a class="db-project" href="projects/@p.Id">
+                    <div class="db-project-top">
+                        <span class="db-pri @p.Priority.ToLowerInvariant()" aria-label="Priority @p.Priority">@p.Priority</span>
+                        <span class="db-project-name">@p.Title</span>
+                        <span class="lo-num" style="font-weight:700;">@pct%</span>
+                    </div>
+                    <div class="db-muted db-tiny">@(p.Deadline.HasValue ? "due " + p.Deadline.Value.ToString("dd MMM") : "no deadline")</div>
+                    <div class="db-bar thin" role="presentation"><span style="width:@pct%"></span></div>
+                </a>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private DateTime day = DateTime.Today;
+    private List<DayTask>? dayTasks;
+    private List<DayTask>? oneTime;
+    private List<DayTask>? repeated;
+    private List<Project>? projects;
+    private string? message;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
+
+        dayTasks = await tasks.GetForDayAsync(day, includeOverdue: day == DateTime.Today);
+        oneTime = dayTasks.Where(t => !t.Task.IsRepeated).ToList();
+        repeated = dayTasks.Where(t => t.Task.IsRepeated).ToList();
+        projects = await db.Projects.AsNoTracking()
+            .Where(p => p.Status == "Active")
+            .OrderBy(p => p.Priority).ThenBy(p => p.Deadline ?? DateTime.MaxValue)
+            .Take(3).ToListAsync();
+    }
+
+    private async Task GoTo(DateTime newDay)
+    {
+        day = newDay.Date;
+        await LoadAsync();
+    }
+
+    private async Task Toggle(int id)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
+            var title = dayTasks!.First(d => d.Task.Id == id).Task.Title;
+            var state = await tasks.ToggleAsync(id, day);
+            if (state != null)
+            {
+                string action = state.Value ? "Completed" : "Reopened";
+                await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                    .LogActivityAsync("PersonalTask", id, action, $"Task '{title}' {action.ToLower()}");
+                message = $"Task '{title}' {action.ToLower()}.";
+            }
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+}

@@ -1,0 +1,137 @@
+@page "/settings"
+@inherits OwningComponentBase
+@using LifeOS.Data.Sqlite
+@using Microsoft.Data.Sqlite
+
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">Settings</div>
+            <h1 class="db-title">Your data, backed up and in your control.</h1>
+        </div>
+    </div>
+
+    @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+    @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+
+    <section class="db-card">
+        <h2 class="db-h2">Database</h2>
+        <div class="db-muted db-small">Location</div>
+        <div class="lo-num" style="word-break:break-all;">@dbPath</div>
+        <div class="db-muted db-small" style="margin-top:6px;">Size: @(FileSizeMb)</div>
+        <p class="db-muted db-tiny" style="margin-top:8px;">Everything stays on this PC only — nothing is sent anywhere. Back up this file regularly, especially before reinstalling Windows or moving to a new PC.</p>
+    </section>
+
+    <section class="db-card">
+        <h2 class="db-h2">Export (backup)</h2>
+        <p class="db-muted db-small">Saves a full copy of your data to a backup file in your Documents folder.</p>
+        <div class="lo-form-actions" style="justify-content:flex-start;">
+            <button type="button" class="lo-btn lo-btn-primary" @onclick="Export" disabled="@busy">Export backup now</button>
+        </div>
+        @if (lastExportPath != null) { <div class="db-muted db-small" style="margin-top:6px; word-break:break-all;">Saved to: @lastExportPath</div> }
+    </section>
+
+    <section class="db-card">
+        <h2 class="db-h2">Import (restore)</h2>
+        <p class="db-muted db-small">Replaces all current data with a backup file. This cannot be undone — export a fresh backup first if you want to keep what you have now.</p>
+        <div class="lo-form">
+            <div class="lo-field">
+                <label class="lo-label">Full path to the backup .db file</label>
+                <input class="lo-input" @bind="importPath" placeholder="C:\Users\...\Documents\LifeOS Backups\lifeos-backup-....db" />
+            </div>
+            <div class="lo-form-actions" style="justify-content:flex-start;">
+                <button type="button" class="lo-btn lo-btn-danger" @onclick="() => showConfirm = true" disabled="@(busy || string.IsNullOrWhiteSpace(importPath))">Restore from this file</button>
+            </div>
+        </div>
+        @if (showConfirm)
+        {
+            <div class="lo-flash lo-flash-error" role="alert">
+                This will permanently replace all current data. Are you sure?
+                <div class="lo-form-actions" style="justify-content:flex-start; margin-top:8px;">
+                    <button type="button" class="lo-btn" @onclick="() => showConfirm = false">Cancel</button>
+                    <button type="button" class="lo-btn lo-btn-danger" @onclick="Import" disabled="@busy">Yes, replace my data</button>
+                </div>
+            </div>
+        }
+    </section>
+
+    <section class="db-card">
+        <h2 class="db-h2">About Life OS</h2>
+        <div class="db-muted db-small">Life OS for Windows — version 1.0</div>
+        <p class="db-small" style="margin-top:6px;">Life OS is a personal planner that keeps your tasks, projects, studies, skills, goals and daily prayers in one place, and shows how productive your day and week have been. No account, no login, no cloud — everything stays on this PC.</p>
+    </section>
+
+    <section class="db-card">
+        <h2 class="db-h2">Developer</h2>
+        <div class="db-muted db-small">Ahsan Amin Gorsi</div>
+        <p class="db-small" style="margin-top:6px;">Life OS was designed and built by Ahsan Amin Gorsi as a personal productivity tool, then shared for anyone who wants a private, offline planner on their own PC.</p>
+        <div class="lo-chips" style="margin-top:8px;">
+            <a class="lo-btn lo-btn-sm" href="https://ahsanamingorsi.com" target="_blank">Website</a>
+            <a class="lo-btn lo-btn-sm" href="https://github.com/ahsanamingorsi" target="_blank">GitHub</a>
+            <a class="lo-btn lo-btn-sm" href="https://linkedin.com/in/ahsanamingorsi" target="_blank">LinkedIn</a>
+            <a class="lo-btn lo-btn-sm" href="https://instagram.com/ahsanamingorsi" target="_blank">Instagram</a>
+            <a class="lo-btn lo-btn-sm" href="https://x.com/ahsanamingorsi" target="_blank">Twitter / X</a>
+        </div>
+    </section>
+</div>
+
+@code {
+    private string dbPath = Path.Combine(FileSystem.AppDataDirectory, SqliteDatabase.FileName);
+    private string? message;
+    private string? error;
+    private bool busy;
+    private string? lastExportPath;
+    private string? importPath;
+    private bool showConfirm;
+
+    private string FileSizeMb => File.Exists(dbPath) ? $"{new FileInfo(dbPath).Length / 1024.0 / 1024.0:0.##} MB" : "not created yet";
+
+    private async Task Export()
+    {
+        busy = true;
+        try
+        {
+            SqliteConnection.ClearAllPools();
+            var backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "LifeOS Backups");
+            Directory.CreateDirectory(backupDir);
+            var dest = Path.Combine(backupDir, $"lifeos-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db");
+            await Task.Run(() => File.Copy(dbPath, dest, overwrite: false));
+            lastExportPath = dest;
+            message = "Backup saved.";
+            error = null;
+        }
+        catch (Exception ex)
+        {
+            error = $"Export failed: {ex.Message}";
+        }
+        finally { busy = false; }
+    }
+
+    private async Task Import()
+    {
+        busy = true;
+        showConfirm = false;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(importPath) || !File.Exists(importPath))
+            { error = "That file does not exist."; return; }
+
+            // A valid SQLite file starts with this 16-byte header.
+            byte[] header = new byte[16];
+            using (var fs = File.OpenRead(importPath))
+                await fs.ReadExactlyAsync(header);
+            if (System.Text.Encoding.ASCII.GetString(header, 0, 15) != "SQLite format 3")
+            { error = "That file is not a valid Life OS backup."; return; }
+
+            SqliteConnection.ClearAllPools();
+            await Task.Run(() => File.Copy(importPath!, dbPath, overwrite: true));
+            message = "Data restored. Please close and reopen Life OS for the change to take effect.";
+            error = null;
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally { busy = false; }
+    }
+}

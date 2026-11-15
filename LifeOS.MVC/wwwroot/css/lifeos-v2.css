@@ -388,6 +388,7 @@ body {
 /* library + activity */
 .db-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .db-tiles.db-tiles-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.db-tiles.db-tiles-1 { grid-template-columns: minmax(0, 1fr); }
 .db-tile { border: 1px solid var(--lo-border-soft); border-radius: 12px; padding: 12px; color: var(--lo-text) !important; text-decoration: none; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .db-tile:hover { border-color: var(--lo-primary); }
 .db-tile strong { font-size: 1.375rem; }
@@ -472,8 +473,76 @@ a.lo-chip-link[aria-pressed="true"] { color: var(--lo-on-primary); }
 .lo-col-main, .lo-col-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .lo-focus-card { background: var(--lo-primary-soft); }
 
+/* shared bits */
+.lo-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+a.lo-plain-link { color: var(--lo-text) !important; text-decoration: none; }
+a.lo-plain-link:hover { color: var(--lo-primary) !important; text-decoration: underline; }
+.lo-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lo-card-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.lo-input-tiny { width: 90px; height: 36px; }
+.db-task-add .lo-date-sm { flex: 0 0 auto; width: 160px; min-width: 0; }
+
+/* projects: kanban */
+.lo-kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.lo-kanban-col { background: var(--lo-surface-2); border: 1px solid var(--lo-border); border-radius: var(--lo-radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lo-col-inprogress { border-top: 3px solid var(--lo-primary); }
+.lo-col-done { border-top: 3px solid var(--lo-chart); }
+.lo-kanban-head { display: flex; justify-content: space-between; align-items: center; }
+.lo-task-card { background: var(--lo-surface); border: 1px solid var(--lo-border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.lo-task-card.is-overdue { border-color: var(--lo-accent); }
+.lo-task-card.is-done .lo-task-title { text-decoration: line-through; color: var(--lo-text-2); }
+.lo-task-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.lo-task-title { margin: 0; font-size: .9375rem; font-weight: 700; color: var(--lo-text); overflow-wrap: anywhere; }
+.lo-task-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.lo-task-actions form { margin: 0; }
+.lo-task-more { border-top: 1px solid var(--lo-border-soft); padding-top: 8px; display: flex; flex-direction: column; gap: 12px; }
+.lo-task-more summary { cursor: pointer; width: fit-content; }
+.lo-task-more[open] > form { margin-top: 10px; }
+
+@media (max-width: 1100px) {
+    .lo-kanban { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* spiritual */
+.lo-prayers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.lo-prayer { position: relative; margin: 0; }
+.lo-prayer input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.lo-prayer span {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 64px; padding: 6px 4px; border-radius: 12px; cursor: pointer; text-align: center;
+    border: 1px solid var(--lo-border); background: var(--lo-surface); color: var(--lo-text);
+}
+.lo-prayer span strong { font-size: .875rem; }
+.lo-prayer span small { font-size: .6875rem; color: var(--lo-text-2); }
+.lo-prayer input:checked + span { background: var(--lo-primary-soft); border-color: var(--lo-primary); color: var(--lo-primary); }
+.lo-prayer input:checked + span small { color: var(--lo-primary); }
+.lo-prayer input:focus-visible + span { outline: 2px solid var(--lo-primary); outline-offset: 2px; }
+.lo-calendar { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.lo-cal-day {
+    aspect-ratio: 1; min-height: 28px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: .75rem; font-weight: 600; text-decoration: none; border: 1px solid transparent;
+}
+.lo-cal-day.selected { border-color: var(--lo-text); }
+.lo-cal-none, .lo-cal-legend .lo-cal-none { background: var(--lo-surface-2); color: var(--lo-text-2) !important; border-color: var(--lo-border-soft); }
+.lo-cal-zero { background: var(--lo-warn-bg); color: var(--lo-warn-text) !important; }
+.lo-cal-some { background: var(--lo-track); color: var(--lo-text) !important; }
+.lo-cal-most { background: var(--lo-chart); color: var(--lo-text) !important; }
+.lo-cal-full { background: var(--lo-primary); color: var(--lo-on-primary) !important; }
+.lo-cal-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+.lo-cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lo-cal-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+a.lo-hist-row { color: var(--lo-text) !important; text-decoration: none; }
+a.lo-hist-row:hover { background: var(--lo-surface-2); }
+.lo-dots { display: inline-flex; gap: 4px; }
+.lo-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--lo-track); display: inline-block; }
+.lo-dots i.on { background: var(--lo-primary); }
+
 @media (max-width: 900px) {
     .lo-two-col { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+    .lo-prayers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lo-calendar { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
 
 @media (max-width: 767px) {

@@ -1,0 +1,62 @@
+@implements IDisposable
+@inject LifeOS.App.Services.FocusTimer Timer
+
+<div id="timerWidget" class="@(Timer.IsOpen ? "open" : "")" role="dialog" aria-label="Focus timer" aria-hidden="@(Timer.IsOpen ? "false" : "true")">
+    @if (Timer.IsOpen)
+    {
+        <div class="lo-timer-head">
+            <div class="lo-timer-title"><Icon Name="clock" /> <span>Focus timer</span></div>
+            <button type="button" class="lo-icon-btn" style="width:36px;height:36px;" aria-label="Close focus timer" @onclick="Timer.Close"><Icon Name="close" /></button>
+        </div>
+        <div class="lo-timer-body">
+            <div class="lo-timer-ring">
+                <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+                    <circle cx="70" cy="70" r="58" fill="none" stroke="var(--lo-track)" stroke-width="8" />
+                    <circle cx="70" cy="70" r="58" fill="none" stroke="@(Timer.RemainingSeconds <= 60 && Timer.IsRunning ? "var(--lo-accent)" : "var(--lo-primary)")" stroke-width="8" stroke-linecap="round"
+                            stroke-dasharray="@Circ.ToString("0.##", Inv)" stroke-dashoffset="@((Circ * (1 - Timer.Fraction)).ToString("0.##", Inv))" transform="rotate(-90 70 70)" />
+                </svg>
+                <div class="lo-timer-center">
+                    <div class="t-display lo-num" role="timer">@Timer.Display</div>
+                    <div class="lo-timer-status" aria-live="polite">@(Timer.JustFinished ? "Done! Take a break." : Timer.IsRunning ? "Focusing…" : Timer.RemainingSeconds < Timer.TotalSeconds ? "Paused" : "Ready")</div>
+                </div>
+            </div>
+
+            <label for="tLabel" class="lo-visually-hidden">What are you focusing on?</label>
+            <input id="tLabel" class="lo-input" style="text-align:center;" placeholder="What are you focusing on?" @bind="Timer.Label" />
+
+            <div role="group" aria-label="Timer length" class="lo-timer-presets">
+                @foreach (var m in new[] { 25, 50, 90, 5, 15 })
+                {
+                    <button type="button" class="t-preset @(Timer.TotalSeconds == m * 60 ? "on" : "")" aria-pressed="@(Timer.TotalSeconds == m * 60 ? "true" : "false")" @onclick="() => Timer.SetMinutes(m)">@(m)m</button>
+                }
+            </div>
+            <div class="lo-inline-form" style="justify-content:center;">
+                <label for="tCustom" class="db-small">Custom minutes</label>
+                <input id="tCustom" type="number" min="1" max="300" class="lo-input lo-input-tiny" @bind="customMinutes" />
+                <button type="button" class="lo-btn lo-btn-sm" @onclick="() => Timer.SetMinutes(customMinutes)">Set</button>
+            </div>
+
+            <div class="lo-timer-controls">
+                @if (Timer.IsRunning)
+                {
+                    <button type="button" class="lo-btn lo-btn-primary" style="flex:2;" @onclick="Timer.Pause">Pause</button>
+                }
+                else
+                {
+                    <button type="button" class="lo-btn lo-btn-primary" style="flex:2;" @onclick="Timer.Start">@(Timer.RemainingSeconds < Timer.TotalSeconds && Timer.RemainingSeconds > 0 ? "Resume" : "Start")</button>
+                }
+                <button type="button" class="lo-btn" style="flex:1;" @onclick="Timer.Reset">Reset</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private const double Circ = 2 * Math.PI * 58;
+    private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
+    private int customMinutes = 30;
+
+    protected override void OnInitialized() => Timer.Changed += OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Timer.Changed -= OnChanged;
+}

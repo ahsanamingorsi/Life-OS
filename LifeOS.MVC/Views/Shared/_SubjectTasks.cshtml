@@ -1,46 +1,54 @@
 ﻿@model LifeOS.MVC.Models.StudySubject
-@{ var tasks = Model.Tasks.OrderBy(t => t.IsCompleted).ThenBy(t => t.DueDate ?? DateTime.MaxValue).ThenByDescending(t => t.CreatedAt).ToList(); var done = tasks.Count(t => t.IsCompleted); }
-<section id="subjectTasks" class="los-card subject-tasks mb-4">
-    <div class="subject-section-heading"><div><span class="eyebrow">YOUR NEXT STEPS</span><h2>Subject tasks</h2><p>Break your study into small, clear actions.</p></div><span class="badge badge-neutral">@done / @tasks.Count complete</span></div>
-    <form asp-action="AddTask" asp-controller="Study" method="post" class="subject-task-create">
-        @Html.AntiForgeryToken()
+@{
+    var tasks = Model.Tasks.OrderBy(t => t.IsCompleted).ThenBy(t => t.DueDate ?? DateTime.MaxValue).ThenByDescending(t => t.CreatedAt).ToList();
+    var done = tasks.Count(t => t.IsCompleted);
+}
+<section id="subjectTasks" class="db-card" aria-labelledby="subjectTasksTitle">
+    <div class="db-card-head">
+        <h2 id="subjectTasksTitle" class="db-h2">Subject tasks</h2>
+        <span class="db-pill lo-num">@done / @tasks.Count done</span>
+    </div>
+    <form asp-action="AddTask" asp-controller="Study" method="post" class="db-task-add">
         <input type="hidden" name="StudySubjectId" value="@Model.Id" />
-        <div><label for="subjectTaskTitle" class="form-label">Task name</label><input id="subjectTaskTitle" name="Title" class="form-control" required maxlength="200" placeholder="Read chapter 1 or practice five questions" /></div>
-        <div><label for="subjectTaskDue" class="form-label">Due date</label><input id="subjectTaskDue" name="DueDate" type="date" class="form-control" /></div>
-        <div class="subject-task-notes"><label for="subjectTaskNotes" class="form-label">Notes (optional)</label><input id="subjectTaskNotes" name="Notes" class="form-control" maxlength="1000" placeholder="Resources, instructions, or a reminder" /></div>
-        <button class="btn-los btn-primary" type="submit">+ Add task</button>
+        <label for="subjectTaskTitle" class="lo-visually-hidden">New subject task</label>
+        <input id="subjectTaskTitle" name="Title" required maxlength="200" placeholder="Read chapter 1 or practice five questions" />
+        <label for="subjectTaskDue" class="lo-visually-hidden">Due date</label>
+        <input id="subjectTaskDue" name="DueDate" type="date" class="lo-input lo-date-sm" />
+        <button class="lo-btn lo-btn-primary" type="submit">Add</button>
     </form>
-    @if (!tasks.Any()) { <div class="empty-state"><h4>A clear next step starts here</h4><p>Add a task for this subject to plan your next study session.</p></div> }
-    @foreach (var task in tasks)
-    {
-        var overdue = !task.IsCompleted && task.DueDate?.Date < DateTime.Today;
-        <article class="subject-task @(task.IsCompleted ? "is-completed" : "")">
-            <form asp-action="ToggleTask" asp-controller="Study" method="post">
-                @Html.AntiForgeryToken()
-                <input name="id" value="@task.Id" type="hidden" />
-                <button type="submit" class="completion-button @(task.IsCompleted ? "complete" : "")" aria-label="@(task.IsCompleted ? "Reopen" : "Complete") @task.Title">@(task.IsCompleted ? "✓" : "")</button>
-            </form>
-            <div class="subject-task-body">
-                <h3>@task.Title</h3>
-                @if (!string.IsNullOrWhiteSpace(task.Notes)) { <p>@task.Notes</p> }
-                @if (task.DueDate.HasValue) { <span class="subject-task-date @(overdue ? "overdue" : "")">@(overdue ? "Overdue · " : "Due ")@task.DueDate.Value.ToString("dd MMM yyyy")</span> }
-                @if (task.IsCompleted) { <span class="subject-task-date">Completed @task.CompletedAt?.ToString("dd MMM")</span> }
-                <details class="subject-task-edit"><summary>Edit task</summary>
-                    <form asp-action="UpdateTask" asp-controller="Study" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="Id" value="@task.Id" />
-                        <label class="form-label" for="editTaskTitle@(task.Id)">Task name</label><input id="editTaskTitle@(task.Id)" class="form-control" name="Title" value="@task.Title" required maxlength="200" />
-                        <label class="form-label" for="editTaskDue@(task.Id)">Due date</label><input id="editTaskDue@(task.Id)" class="form-control" name="DueDate" type="date" value="@task.DueDate?.ToString("yyyy-MM-dd")" />
-                        <label class="form-label" for="editTaskNotes@(task.Id)">Notes</label><textarea id="editTaskNotes@(task.Id)" class="form-control" name="Notes" maxlength="1000">@task.Notes</textarea>
-                        <button type="submit" class="btn-los btn-primary">Save task</button>
-                    </form>
-                </details>
+    <div class="db-task-list">
+        @if (!tasks.Any()) { <p class="db-empty">Add a task to plan your next study session.</p> }
+        @foreach (var task in tasks)
+        {
+            var overdue = !task.IsCompleted && task.DueDate?.Date < DateTime.Today;
+            <div class="db-task @(task.IsCompleted ? "is-done" : "") @(overdue ? "is-overdue" : "")">
+                <form asp-action="ToggleTask" asp-controller="Study" method="post">
+                    <input name="id" value="@task.Id" type="hidden" />
+                    <button type="submit" class="db-check @(task.IsCompleted ? "done" : "")" aria-label="@(task.IsCompleted ? "Mark as not done" : "Mark as done"): @task.Title">
+                        @if (task.IsCompleted) { @await Html.PartialAsync("_Icon", "tick") }
+                    </button>
+                </form>
+                <div class="db-task-body">
+                    <div class="db-task-title">@task.Title</div>
+                    <div class="db-task-meta">
+                        @(task.IsCompleted ? "Completed " + task.CompletedAt?.ToString("d MMM") : task.DueDate.HasValue ? (overdue ? "Overdue · " : "Due ") + task.DueDate.Value.ToString("d MMM yyyy") : "No due date")@(string.IsNullOrWhiteSpace(task.Notes) ? "" : " · " + task.Notes)
+                    </div>
+                    <details class="lo-task-more">
+                        <summary class="db-link">Edit or delete</summary>
+                        <form asp-action="UpdateTask" asp-controller="Study" method="post" class="lo-form">
+                            <input type="hidden" name="Id" value="@task.Id" />
+                            <div class="lo-field"><label class="lo-label" for="editTaskTitle-@(task.Id)">Task name</label><input id="editTaskTitle-@(task.Id)" class="lo-input" name="Title" value="@task.Title" required maxlength="200" /></div>
+                            <div class="lo-field"><label class="lo-label" for="editTaskDue-@(task.Id)">Due date</label><input id="editTaskDue-@(task.Id)" class="lo-input lo-input-short" name="DueDate" type="date" value="@task.DueDate?.ToString("yyyy-MM-dd")" /></div>
+                            <div class="lo-field"><label class="lo-label" for="editTaskNotes-@(task.Id)">Notes</label><textarea id="editTaskNotes-@(task.Id)" class="lo-input lo-textarea" name="Notes" maxlength="1000">@task.Notes</textarea></div>
+                            <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary lo-btn-sm">Save task</button></div>
+                        </form>
+                        <form asp-action="DeleteTask" asp-controller="Study" method="post" class="lo-form-actions">
+                            <input type="hidden" name="id" value="@task.Id" />
+                            <button type="submit" class="lo-btn lo-btn-sm lo-btn-danger" data-confirm="Delete this subject task?">Delete task</button>
+                        </form>
+                    </details>
+                </div>
             </div>
-            <form asp-action="DeleteTask" asp-controller="Study" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="id" value="@task.Id" />
-                <button type="submit" class="btn-los btn-ghost btn-icon-sm" aria-label="Delete @task.Title" data-confirm="Delete this subject task?">@await Html.PartialAsync("_Icon", "delete")</button>
-            </form>
-        </article>
-    }
+        }
+    </div>
 </section>

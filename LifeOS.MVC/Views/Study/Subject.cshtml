@@ -1,557 +1,181 @@
 ﻿@model LifeOS.MVC.Models.StudySubjectDetailViewModel
-@{ ViewData["Title"] = Model.Subject.Name; }
+@{
+    var s = Model.Subject;
+    ViewData["Title"] = s.Name;
+    var todayIso = DateTime.Today.ToString("yyyy-MM-dd");
+    int pct = Math.Clamp(s.ProgressPercent, 0, 100);
+    bool autoProgress = LifeOS.MVC.Controllers.StudyController.IsAutoProgress(s, s.Tasks.Count);
+    bool resourceIsLink = Uri.TryCreate(s.ResourceUrl, UriKind.Absolute, out var resUri) && (resUri.Scheme == Uri.UriSchemeHttp || resUri.Scheme == Uri.UriSchemeHttps);
+    string[] categories = { "Programming", "Math", "Language", "Religion", "Science", "Exam Prep", "History", "Business", "General" };
+    double maxDay = Model.Last7Days.Values.DefaultIfEmpty(0).Max();
+}
 
-
-@if (TempData["Success"] != null) { 
-<div class="los-alert los-alert-success">✓ @TempData["Success"]</div> }
-@if (TempData["Info"] != null)    { <div class="los-alert los-alert-info">ℹ @TempData["Info"]</div> }
-
-<div class="study-workspace">
-<!-- Header -->
-<div class="los-page-header">
-    <div style="display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;">
-        <a asp-action="Index" asp-controller="Study"
-           class="btn-los btn-secondary btn-sm" style="margin-top:6px;">← Study</a>
-        <div>
-            <div class="los-page-title">@Model.Subject.Name</div>
-            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-                <span class="badge badge-neutral">@Model.Subject.Category</span>
-                <span class="badge @(Model.Subject.Status=="Active"?"badge-green":Model.Subject.Status=="Completed"?"badge-sky":"badge-amber")">
-                    @Model.Subject.Status
-                </span>
-                @if (Model.Subject.TargetHours > 0)
+<div class="db">
+    <div class="db-head">
+        <div style="min-width:0;">
+            <a class="db-link" href="/Study">← Studies</a>
+            <h1 class="db-title lo-goal-title">@s.Name</h1>
+            <div class="lo-chips">
+                <span class="db-badge">@s.Category</span>
+                <span class="db-badge">@s.Status</span>
+                @if (!string.IsNullOrEmpty(s.CurrentTopic)) { <span class="db-badge">Now: @s.CurrentTopic</span> }
+                @if (!string.IsNullOrWhiteSpace(s.ResourceUrl))
                 {
-                    <span class="badge badge-neutral">
-                        @Model.Subject.HoursLogged.ToString("F1") / @Model.Subject.TargetHours h
-                    </span>
+                    if (resourceIsLink) { <a class="db-link" href="@resUri!.AbsoluteUri" target="_blank" rel="noopener noreferrer">Resource ↗</a> }
+                    else { <span class="db-badge">Resource: @s.ResourceUrl</span> }
                 }
             </div>
         </div>
-    </div>
-    <div class="los-page-actions"><a class="btn-los btn-primary" href="#subjectTasks">Subject tasks</a>
-        <button class="btn-los btn-secondary"
-                data-bs-toggle="collapse" data-bs-target="#editSubjectPanel">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
-                      stroke-width="1.4" stroke-linejoin="round"/>
-            </svg>
-            Edit
-        </button>
-        <button class="btn-los btn-primary"
-                data-bs-toggle="collapse" data-bs-target="#logSessionPanel">
-            ⏱ Log Session
-        </button>
-        <button class="btn-los btn-secondary"
-                data-bs-toggle="collapse" data-bs-target="#addNotePanel">
-            📝 Add Note
-        </button>
-    </div>
-</div>
-
-<!-- Edit Subject Panel -->
-<div class="collapse" id="editSubjectPanel">
-    <div class="los-panel">
-        <div class="los-panel-title">Edit Subject</div>
-        <form id="updateSubjectForm" method="post" asp-action="UpdateSubject" asp-controller="Study">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="Id" value="@Model.Subject.Id" />
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label">Name</label>
-                        <input name="Name" class="form-control" value="@Model.Subject.Name" required />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select name="Category" class="form-control">
-                            @foreach (var c in new[]{"Programming","Math","Language","Religion","Science","Exam Prep","History","Business","General"})
-                            {
-                                <option value="@c" selected="@(Model.Subject.Category == c)">@c</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Status</label>
-                        <select name="Status" class="form-control">
-                            <option value="Active" selected="@(Model.Subject.Status == "Active")">Active</option>
-                            <option value="Paused" selected="@(Model.Subject.Status == "Paused")">Paused</option>
-                            <option value="Completed" selected="@(Model.Subject.Status == "Completed")">Completed</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Target Hours</label>
-                        <input name="TargetHours" type="number" min="0"
-                               class="form-control" value="@Model.Subject.TargetHours" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label" for="editWeeklyTarget">Weekly Target (h)</label>
-                        <input id="editWeeklyTarget" name="WeeklyTargetHours" type="number" step="0.5" min="0" max="168"
-                               class="form-control" value="@Model.Subject.WeeklyTargetHours.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label" for="subjectProgress">Progress %</label>
-                        @if (LifeOS.MVC.Controllers.StudyController.IsAutoProgress(Model.Subject, Model.Subject.Tasks.Count))
-                        {
-                            <input type="hidden" name="ProgressPercent" value="@Model.Subject.ProgressPercent" />
-                            <input id="subjectProgress" class="form-control" value="@Model.Subject.ProgressPercent% (auto)" disabled
-                                   title="Calculated from target hours and subject tasks" />
-                        }
-                        else
-                        {
-                            <input id="subjectProgress" name="ProgressPercent" type="number" min="0" max="100"
-                                   class="form-control" value="@Model.Subject.ProgressPercent" />
-                        }
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label">Current Topic</label>
-                        <input name="CurrentTopic" class="form-control"
-                               value="@Model.Subject.CurrentTopic" />
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label">Resource / Link</label>
-                        <input name="ResourceUrl" class="form-control"
-                               value="@Model.Subject.ResourceUrl" />
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <input name="Description" class="form-control"
-                               value="@Model.Subject.Description" />
-                    </div>
-                </div>
-                <div class="col-12 d-flex justify-content-between">
-<button type="submit" form="deleteSubjectForm" class="btn-los btn-danger btn-sm" data-confirm="Delete this subject and all its data?">Delete subject</button>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn-los btn-secondary"
-                                data-bs-toggle="collapse" data-bs-target="#editSubjectPanel">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn-los btn-primary">Save Changes</button>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<form id="deleteSubjectForm" method="post" asp-action="DeleteSubject" asp-controller="Study">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="id" value="@Model.Subject.Id" />
-</form>
-<!-- Log Session Panel -->
-<div class="collapse" id="logSessionPanel">
-    <div class="los-panel">
-        <div class="los-panel-title">Log Study Session</div>
-        <form method="post" asp-action="LogSession" asp-controller="Study">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="StudySubjectId" value="@Model.Subject.Id" />
-            <div class="row g-3">
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Date</label>
-                        <input name="SessionDate" type="date" class="form-control"
-                               value="@DateTime.Today.ToString("yyyy-MM-dd")" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Duration (hours)</label>
-                        <input name="DurationHours" type="number" step="0.25" min="0.25"
-                               max="24" class="form-control" placeholder="1.5" />
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label class="form-label">Topic Covered</label>
-                        <input name="TopicCovered" class="form-control"
-                               placeholder="What did you study?" maxlength="200" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Focus Rating (1–10)</label>
-                        <input name="FocusRating" type="number" min="1" max="10"
-                               class="form-control" value="7" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <input name="Notes" class="form-control" placeholder="Optional" />
-                    </div>
-                </div>
-                <div class="col-12 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-los btn-secondary"
-                            data-bs-toggle="collapse" data-bs-target="#logSessionPanel">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn-los btn-primary">Log Session</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Add Note Panel -->
-<div class="collapse" id="addNotePanel">
-    <div class="los-panel">
-        <div class="los-panel-title">Add Study Note</div>
-        <form method="post" asp-action="AddNote" asp-controller="Study">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="StudySubjectId" value="@Model.Subject.Id" />
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <div class="form-group">
-                        <label class="form-label">Title *</label>
-                        <input name="Title" class="form-control" required
-                               placeholder="Note title" maxlength="200" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label">Tags</label>
-                        <input name="Tags" class="form-control"
-                               placeholder="e.g. theory, example, key concept" maxlength="200" />
-                    </div>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <label class="toggle-wrap">
-                        <div class="toggle">
-                            <input name="IsPinned" type="checkbox" value="true" />
-                            <div class="toggle-track"></div>
-                        </div>
-                        <span class="toggle-label">Pin note</span>
-                    </label>
-                </div>
-                <div class="col-12">
-                    <div class="form-group">
-                        <label class="form-label">Content</label>
-                        <textarea name="Content" class="form-control"
-                                  style="min-height:120px;"
-                                  placeholder="Your notes here..."></textarea>
-                    </div>
-                </div>
-                <div class="col-12 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-los btn-secondary"
-                            data-bs-toggle="collapse" data-bs-target="#addNotePanel">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn-los btn-primary">Save Note</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ── STATS ─────────────────────────────────────────────────────── -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-teal">h</div>
-            <div class="los-kpi-value" style="color:var(--teal)">
-                @Model.TotalHours.ToString("F1")
-            </div>
-            <div class="los-kpi-label">Total Hours</div>
+        <div class="db-actions">
+            <a class="lo-btn" href="#editSubject">Edit subject</a>
+            <a class="lo-btn lo-btn-primary" href="#logSession">Log session</a>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-green">h</div>
-            <div class="los-kpi-value" style="color:var(--green)">
-                @Model.WeekHours.ToString("F1")
-            </div>
-            <div class="los-kpi-label">This Week</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-indigo">@await Html.PartialAsync("_Icon", "plan")</div>
-            <div class="los-kpi-value">@Model.TotalSessions</div>
-            <div class="los-kpi-label">Sessions</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="los-kpi">
-            <div class="los-kpi-icon icon-bg-amber">★</div>
-            <div class="los-kpi-value" style="color:var(--amber)">@Model.AvgFocusRating</div>
-            <div class="los-kpi-label">Avg Focus</div>
-        </div>
-    </div>
-</div>
 
-<!-- Progress bar (if target set) -->
-@if (Model.Subject.TargetHours > 0)
-{
-    int pct = Math.Min(100, (int)(Model.TotalHours / Model.Subject.TargetHours * 100));
-    <div class="los-card mb-4" style="padding:14px 20px;">
-        <div style="display:flex; align-items:center; gap:14px;">
-            <span style="font-size:0.78rem; color:var(--text-tertiary); min-width:110px;">
-                @Model.TotalHours.ToString("F1") / @Model.Subject.TargetHours h target
-            </span>
-            <div class="los-progress los-progress-lg" style="flex:1;">
-                <div class="los-progress-bar @(pct>=75?"green":pct>=40?"teal":"amber")"
-                     data-width="@pct"></div>
-            </div>
-            <span style="font-size:0.9rem; font-weight:700; color:var(--teal);
-                         min-width:44px; text-align:right;">@pct%</span>
-        </div>
-    </div>
-}
+    @if (TempData["Success"] is string ok) { <div class="lo-flash" role="status">@ok</div> }
+    @if (TempData["Info"] is string info) { <div class="lo-flash" role="status">@info</div> }
+    @if (!string.IsNullOrWhiteSpace(s.Description)) { <p class="db-muted db-small" style="margin:0;">@s.Description</p> }
 
-<!-- 7-Day heatmap -->
-<div class="los-card mb-4" style="padding:14px 20px;">
-    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <span style="font-size:0.75rem; font-weight:600; color:var(--text-tertiary);
-                     text-transform:uppercase; letter-spacing:.08em; min-width:80px;">
-            Last 7 Days
-        </span>
-        <div style="display:grid; grid-template-columns: repeat(7,1fr); gap:5px; flex:1; max-width:320px;">
-            @foreach (var kv in Model.Last7Days.OrderBy(x => x.Key))
+    <div class="db-grid-levels">
+        <div class="db-level"><span class="db-muted db-tiny">Progress @(autoProgress ? "(auto)" : "")</span><span class="db-level-pct lo-num">@pct%</span><div class="db-bar" role="presentation"><span class="@(pct < 40 ? "low" : "")" style="width:@pct%"></span></div></div>
+        <div class="db-level"><span class="db-muted db-tiny">Total hours</span><span class="db-level-pct lo-num">@Model.TotalHours.ToString("0.#")h</span><span class="db-muted db-tiny">@(s.TargetHours > 0 ? $"of {s.TargetHours}h target" : "no target")</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">This week (since Monday)</span><span class="db-level-pct lo-num">@Model.WeekHours.ToString("0.#")h</span><span class="db-muted db-tiny">@(s.WeeklyTargetHours > 0 ? $"of {s.WeeklyTargetHours:0.#}h weekly target" : "no weekly target")</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Sessions</span><span class="db-level-pct lo-num">@Model.TotalSessions</span><span class="db-muted db-tiny">average focus @Model.AvgFocusRating/10</span></div>
+    </div>
+
+    <section class="db-card" aria-labelledby="weekChart">
+        <div class="db-card-head"><h2 id="weekChart" class="db-h2">Last 7 days</h2><span class="db-muted db-small lo-num">@Model.Last7Days.Values.Sum().ToString("0.#")h</span></div>
+        <div class="db-chart" style="height:150px;" role="img" aria-label="Study hours, last 7 days: @string.Join(", ", Model.Last7Days.OrderBy(k => k.Key).Select(k => $"{k.Key:ddd} {k.Value:0.#} hours"))">
+            @foreach (var kv in Model.Last7Days.OrderBy(k => k.Key))
             {
-                double maxH = Model.Last7Days.Values.DefaultIfEmpty(0).Max();
-                int level = maxH > 0 ? (int)Math.Round(kv.Value / maxH * 4) : 0;
-                level = Math.Min(4, Math.Max(0, level));
-                <div class="week-cell done-@level"
-                     title="@kv.Key.ToString("MMM d"): @kv.Value.ToString("F1")h">
-                    @kv.Key.ToString("dd")
+                int h = maxDay > 0 ? (int)Math.Round(kv.Value / maxDay * 100) : 0;
+                <div class="db-chart-col">
+                    <span class="db-chart-val lo-num">@(kv.Value > 0 ? kv.Value.ToString("0.#") : "–")</span>
+                    <div class="db-chart-bar @(kv.Key == DateTime.Today ? "today" : "") @(kv.Value > 0 ? "" : "empty")" style="height:@(h + 4)px"></div>
+                    <span class="db-chart-day">@(kv.Key == DateTime.Today ? "Today" : kv.Key.ToString("ddd"))</span>
                 </div>
             }
         </div>
-        <div style="font-size:0.72rem; color:var(--text-tertiary);">
-            @Model.WeekHours.ToString("F1")h this week
-        </div>
-    </div>
-</div>
+    </section>
 
-@await Html.PartialAsync("_SubjectTasks", Model.Subject)
-<!-- ── MAIN CONTENT: SESSIONS + NOTES ──────────────────────────── -->
-<div class="row g-4 subject-content">
+    @await Html.PartialAsync("_SubjectTasks", s)
 
-    <!-- Sessions -->
-    <div class="col-lg-5">
-        <div class="los-card">
-            <h3 class="los-card-title-lg">Study sessions</h3>
-            @if (!Model.Sessions.Any())
+    <div class="db-grid-2">
+        <section class="db-card" id="logSession" aria-labelledby="logTitle">
+            <h2 id="logTitle" class="db-h2">Log a study session</h2>
+            <form method="post" asp-action="LogSession" class="lo-form">
+                <input type="hidden" name="StudySubjectId" value="@s.Id" />
+                <div class="lo-form-grid">
+                    <div class="lo-field"><label for="ssDate" class="lo-label">Date</label><input id="ssDate" name="SessionDate" type="date" class="lo-input" value="@todayIso" max="@todayIso" required /></div>
+                    <div class="lo-field"><label for="ssHours" class="lo-label">Hours <span aria-hidden="true">*</span></label><input id="ssHours" name="DurationHours" type="number" step="0.25" min="0.25" max="24" class="lo-input" required placeholder="1.5" /></div>
+                    <div class="lo-field"><label for="ssFocus" class="lo-label">Focus (1–10)</label><input id="ssFocus" name="FocusRating" type="number" min="1" max="10" value="7" class="lo-input" /></div>
+                </div>
+                <div class="lo-field"><label for="ssTopic" class="lo-label">Topic covered</label><input id="ssTopic" name="TopicCovered" class="lo-input" maxlength="200" placeholder="What did you study?" /></div>
+                <div class="lo-field"><label for="ssNotes" class="lo-label">Notes <span class="db-muted">(optional)</span></label><input id="ssNotes" name="Notes" class="lo-input" maxlength="500" /></div>
+                <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Log session</button></div>
+            </form>
+        </section>
+
+        <section class="db-card" aria-labelledby="sessionsTitle">
+            <h2 id="sessionsTitle" class="db-h2">Recent sessions</h2>
+            @if (!Model.Sessions.Any()) { <p class="db-empty">No sessions yet.</p> }
+            @foreach (var x in Model.Sessions.Take(12))
             {
-                <div style="text-align:center; padding:24px 0; font-size:0.85rem;
-                            color:var(--text-tertiary);">
-                    No sessions yet. Log your first study session above.
+                <div class="db-activity">
+                    <span><strong>@x.SessionDate.ToString("ddd d MMM")</strong> · @x.DurationHours.ToString("0.##")h · focus @x.FocusRating/10@(string.IsNullOrEmpty(x.TopicCovered) ? "" : " · " + x.TopicCovered)</span>
+                    <form method="post" asp-action="DeleteSession">
+                        <input type="hidden" name="sessionId" value="@x.Id" />
+                        <input type="hidden" name="subjectId" value="@s.Id" />
+                        <button type="submit" class="lo-btn lo-btn-sm lo-btn-danger" aria-label="Delete session of @x.SessionDate.ToString("d MMMM")" data-confirm="Delete this session?">Delete</button>
+                    </form>
                 </div>
             }
-            else
-            {
-                <div style="display:flex; flex-direction:column; gap:0;">
-                    @foreach (var s in Model.Sessions.Take(15))
-                    {
-                        <div class="activity-item">
-                            <div class="activity-dot" style="background:var(--teal);"></div>
-                            <div class="activity-text">
-                                <div style="font-weight:500; font-size:0.82rem;">
-                                    @s.SessionDate.ToString("MMM d, yyyy")
-                                    <span style="font-weight:700; color:var(--teal); margin-left:6px;">
-                                        @s.DurationHours h
-                                    </span>
-                                </div>
-                                @if (!string.IsNullOrEmpty(s.TopicCovered))
-                                {
-                                    <div style="font-size:0.75rem; color:var(--text-tertiary);">
-                                        @s.TopicCovered
-                                    </div>
-                                }
-                                @if (!string.IsNullOrEmpty(s.Notes))
-                                {
-                                    <div style="font-size:0.72rem; color:var(--text-disabled);">
-                                        @s.Notes
-                                    </div>
-                                }
-                            </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
-                                <span class="badge badge-neutral">Focus @s.FocusRating/10</span>
-                                <form method="post" asp-action="DeleteSession" asp-controller="Study">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="sessionId" value="@s.Id" />
-                                    <input type="hidden" name="subjectId" value="@Model.Subject.Id" />
-                                    <button type="submit" class="btn-los btn-ghost btn-xs"
-                                            style="color:var(--rose); padding:2px 5px;"
-                                            data-confirm="Delete this session?">✕</button>
-                                </form>
-                            </div>
-                        </div>
-                    }
-                    @if (Model.Sessions.Count > 15)
-                    {
-                        <div style="font-size:0.75rem; color:var(--text-disabled);
-                                    text-align:center; padding:8px 0;">
-                            Showing latest 15 of @Model.Sessions.Count sessions
-                        </div>
-                    }
-                </div>
-            }
-        </div>
+            @if (Model.Sessions.Count > 12) { <p class="db-muted db-tiny" style="margin:0;">Showing the latest 12 of @Model.Sessions.Count sessions.</p> }
+        </section>
     </div>
 
-    <!-- Notes -->
-    <div class="col-lg-7">
-        <div style="display:flex; flex-direction:column; gap:12px;">
-            @if (!Model.Notes.Any())
-            {
-                <div class="los-card">
-                    <div style="text-align:center; padding:24px 0; font-size:0.85rem;
-                                color:var(--text-tertiary);">
-                        No notes yet. Add your first note to capture key concepts.
-                    </div>
-                </div>
-            }
+    <section class="db-section" aria-labelledby="notesTitle">
+        <div class="db-section-head"><h2 id="notesTitle" class="db-h2-lg">Notes</h2><span class="db-muted db-small lo-num">@Model.Notes.Count</span></div>
+        <div class="db-grid-2">
             @foreach (var n in Model.Notes)
             {
-                <div class="los-card"
-                     style="@(n.IsPinned?"border-color:rgba(217,119,6,0.3); background:var(--amber-soft);":"")">
-                    <!-- Note header -->
-                    <div style="display:flex; justify-content:space-between;
-                                align-items:flex-start; margin-bottom:8px;">
-                        <div>
-                            <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary);">
-                                @if (n.IsPinned) { <span style="color:var(--amber); margin-right:4px;">📌</span> }
-                                @n.Title
-                            </div>
-                            @if (!string.IsNullOrEmpty(n.Tags))
-                            {
-                                <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
-                                    @foreach (var tag in n.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                                    {
-                                        <span class="badge badge-indigo">@tag.Trim()</span>
-                                    }
-                                </div>
-                            }
+                <article class="db-card lo-goal @(n.IsPinned ? "is-achieved" : "")">
+                    <div class="db-card-head">
+                        <div style="min-width:0;">
+                            <div class="db-muted db-tiny">@(n.IsPinned ? "Pinned · " : "")@n.CreatedAt.ToString("d MMM yyyy")@(n.UpdatedAt > n.CreatedAt.AddMinutes(1) ? " · edited " + n.UpdatedAt.ToString("d MMM") : "")</div>
+                            <h3 class="db-h2 lo-goal-title">@n.Title</h3>
                         </div>
-                        <div style="display:flex; gap:4px; flex-shrink:0; margin-left:8px;">
-                            <!-- Pin -->
-                            <form method="post" asp-action="TogglePin" asp-controller="Study">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="noteId" value="@n.Id" />
-                                <input type="hidden" name="subjectId" value="@Model.Subject.Id" />
-                                <button type="submit" class="btn-los btn-ghost btn-icon-sm"
-                                        style="color:@(n.IsPinned?"var(--amber)":"var(--text-disabled)");"
-                                        title="@(n.IsPinned?"Unpin":"Pin")">📌</button>
-                            </form>
-                            <!-- Edit -->
-                            <button class="btn-los btn-ghost btn-icon-sm"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editNote@(n.Id)" title="Edit">
-                                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                                    <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor"
-                                          stroke-width="1.4" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                            <!-- Delete -->
-                            <form method="post" asp-action="DeleteNote" asp-controller="Study">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="noteId" value="@n.Id" />
-                                <input type="hidden" name="subjectId" value="@Model.Subject.Id" />
-                                <button type="submit" class="btn-los btn-ghost btn-icon-sm"
-                                        style="color:var(--rose);"
-                                        data-confirm="Delete '@n.Title'?">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                                        <path d="M3 4h10M5 4l1 9h4l1-9" stroke="currentColor"
-                                              stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                </button>
-                            </form>
-                        </div>
+                        <form method="post" asp-action="TogglePin">
+                            <input type="hidden" name="noteId" value="@n.Id" />
+                            <input type="hidden" name="subjectId" value="@s.Id" />
+                            <button type="submit" class="lo-btn lo-btn-sm" aria-pressed="@(n.IsPinned ? "true" : "false")">@(n.IsPinned ? "Unpin" : "Pin")</button>
+                        </form>
                     </div>
-
-                    <!-- Note content -->
-                    @if (!string.IsNullOrEmpty(n.Content))
-                    {
-                        <div style="font-size:0.845rem; color:var(--text-secondary);
-                                    line-height:1.7; white-space:pre-wrap;">@n.Content</div>
-                    }
-
-                    <div style="font-size:0.68rem; color:var(--text-disabled); margin-top:8px;">
-                        @n.CreatedAt.ToString("MMM d, yyyy")
-                        @if (n.UpdatedAt > n.CreatedAt.AddMinutes(1))
-                        {
-                            <span> · edited @n.UpdatedAt.ToString("MMM d")</span>
-                        }
-                    </div>
-                </div>
-
-                <!-- Edit Note Modal -->
-                <div class="modal fade" id="editNote@(n.Id)" tabindex="-1">
-                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Edit Note</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <form method="post" asp-action="EditNote" asp-controller="Study">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="Id" value="@n.Id" />
-                                <input type="hidden" name="StudySubjectId" value="@Model.Subject.Id" />
-                                <div class="modal-body">
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label class="form-label">Title</label>
-                                                <input name="Title" class="form-control"
-                                                       value="@n.Title" required />
-                                            </div>
-                                        </div>
-                                        <div class="col-md-8">
-                                            <div class="form-group">
-                                                <label class="form-label">Tags</label>
-                                                <input name="Tags" class="form-control"
-                                                       value="@n.Tags" />
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4 d-flex align-items-end">
-                                            <label class="toggle-wrap">
-                                                <div class="toggle">
-                                                    <input name="IsPinned" type="checkbox"
-                                                           value="true" @(n.IsPinned?"checked":"") />
-                                                    <div class="toggle-track"></div>
-                                                </div>
-                                                <span class="toggle-label">Pinned</span>
-                                            </label>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label class="form-label">Content</label>
-                                                <textarea name="Content" class="form-control"
-                                                          style="min-height:200px;">@n.Content</textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn-los btn-secondary"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn-los btn-primary">Save</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                    @if (!string.IsNullOrEmpty(n.Tags)) { <div class="lo-chips">@foreach (var tag in n.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)) { <span class="db-badge">@tag.Trim()</span> }</div> }
+                    @if (!string.IsNullOrEmpty(n.Content)) { <p class="db-small" style="margin:0; white-space:pre-wrap;">@n.Content</p> }
+                    <details class="lo-goal-edit">
+                        <summary class="db-link">Edit or delete note</summary>
+                        <form method="post" asp-action="EditNote" class="lo-form">
+                            <input type="hidden" name="Id" value="@n.Id" />
+                            <input type="hidden" name="StudySubjectId" value="@s.Id" />
+                            <div class="lo-field"><label class="lo-label" for="nT-@(n.Id)">Title</label><input id="nT-@(n.Id)" name="Title" class="lo-input" value="@n.Title" required maxlength="200" /></div>
+                            <div class="lo-field"><label class="lo-label" for="nG-@(n.Id)">Tags</label><input id="nG-@(n.Id)" name="Tags" class="lo-input" value="@n.Tags" maxlength="200" /></div>
+                            <div class="lo-field"><label class="lo-label" for="nC-@(n.Id)">Content</label><textarea id="nC-@(n.Id)" name="Content" class="lo-input lo-textarea" maxlength="4000">@n.Content</textarea></div>
+                            <label class="lo-check-label"><input type="checkbox" name="IsPinned" value="true" checked="@n.IsPinned" /> Pinned</label>
+                            <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary lo-btn-sm">Save note</button></div>
+                        </form>
+                        <form method="post" asp-action="DeleteNote" class="lo-form-actions">
+                            <input type="hidden" name="noteId" value="@n.Id" />
+                            <input type="hidden" name="subjectId" value="@s.Id" />
+                            <button type="submit" class="lo-btn lo-btn-sm lo-btn-danger" data-confirm="Delete the note '@n.Title'?">Delete note</button>
+                        </form>
+                    </details>
+                </article>
             }
+            <section class="db-card" aria-labelledby="addNoteTitle">
+                <h3 id="addNoteTitle" class="db-h2">Add a note</h3>
+                <form method="post" asp-action="AddNote" class="lo-form">
+                    <input type="hidden" name="StudySubjectId" value="@s.Id" />
+                    <div class="lo-field"><label for="anT" class="lo-label">Title <span aria-hidden="true">*</span></label><input id="anT" name="Title" class="lo-input" required maxlength="200" /></div>
+                    <div class="lo-field"><label for="anG" class="lo-label">Tags <span class="db-muted">(comma separated)</span></label><input id="anG" name="Tags" class="lo-input" maxlength="200" /></div>
+                    <div class="lo-field"><label for="anC" class="lo-label">Content</label><textarea id="anC" name="Content" class="lo-input lo-textarea" maxlength="4000"></textarea></div>
+                    <label class="lo-check-label"><input type="checkbox" name="IsPinned" value="true" /> Pin this note</label>
+                    <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">Save note</button></div>
+                </form>
+            </section>
         </div>
-    </div>
-</div>
+    </section>
 
-
-
+    <section class="db-card" id="editSubject" aria-labelledby="editSubjectTitle">
+        <h2 id="editSubjectTitle" class="db-h2">Edit subject</h2>
+        <form method="post" asp-action="UpdateSubject" class="lo-form">
+            <input type="hidden" name="Id" value="@s.Id" />
+            <div class="lo-field"><label for="esName" class="lo-label">Name <span aria-hidden="true">*</span></label><input id="esName" name="Name" class="lo-input" value="@s.Name" required maxlength="150" /></div>
+            <div class="lo-form-grid">
+                <div class="lo-field"><label for="esCat" class="lo-label">Category</label><select id="esCat" name="Category" class="lo-select">@foreach (var c in categories.Union(new[] { s.Category })) { <option selected="@(s.Category == c)">@c</option> }</select></div>
+                <div class="lo-field"><label for="esStatus" class="lo-label">Status</label><select id="esStatus" name="Status" class="lo-select"><option value="Active" selected="@(s.Status == "Active")">Active</option><option value="Paused" selected="@(s.Status == "Paused")">Paused</option><option value="Completed" selected="@(s.Status == "Completed")">Completed</option></select></div>
+                <div class="lo-field"><label for="esTarget" class="lo-label">Target hours</label><input id="esTarget" name="TargetHours" type="number" min="0" max="100000" class="lo-input" value="@s.TargetHours" /></div>
+                <div class="lo-field"><label for="esWeekly" class="lo-label">Weekly target (h)</label><input id="esWeekly" name="WeeklyTargetHours" type="number" step="0.5" min="0" max="168" class="lo-input" value="@s.WeeklyTargetHours.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></div>
+                <div class="lo-field">
+                    <label for="esProgress" class="lo-label">Progress %</label>
+                    @if (autoProgress)
+                    {
+                        <input type="hidden" name="ProgressPercent" value="@s.ProgressPercent" />
+                        <input id="esProgress" class="lo-input" value="@s.ProgressPercent% (auto)" disabled title="Calculated from target hours and subject tasks" />
+                    }
+                    else { <input id="esProgress" name="ProgressPercent" type="number" min="0" max="100" class="lo-input" value="@s.ProgressPercent" /> }
+                </div>
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field"><label for="esTopic" class="lo-label">Current topic</label><input id="esTopic" name="CurrentTopic" class="lo-input" maxlength="200" value="@s.CurrentTopic" /></div>
+                <div class="lo-field"><label for="esRes" class="lo-label">Resource / link</label><input id="esRes" name="ResourceUrl" class="lo-input" maxlength="200" value="@s.ResourceUrl" /></div>
+            </div>
+            <div class="lo-field"><label for="esDesc" class="lo-label">Description</label><input id="esDesc" name="Description" class="lo-input" maxlength="300" value="@s.Description" /></div>
+            <div class="lo-form-actions">
+                <button type="submit" form="deleteSubjectForm" class="lo-btn lo-btn-danger" data-confirm="Delete '@s.Name' with all its sessions, tasks and notes?">Delete subject</button>
+                <button type="submit" class="lo-btn lo-btn-primary">Save subject</button>
+            </div>
+        </form>
+        <form id="deleteSubjectForm" method="post" asp-action="DeleteSubject"><input type="hidden" name="id" value="@s.Id" /></form>
+    </section>
 </div>

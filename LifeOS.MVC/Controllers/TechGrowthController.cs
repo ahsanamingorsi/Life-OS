@@ -20,7 +20,7 @@ namespace LifeOS.MVC.Controllers
         // ── INDEX ────────────────────────────────────────────────────
         public async Task<IActionResult> Index()
         {
-            var weekStart = DateTime.Today.AddDays(-6);
+            var weekStart = ProductivityService.WeekStart(DateTime.Today); // this week = since Monday
 
             var skills = await _db.TechSkills
                 .Include(s => s.SkillLogs)
@@ -39,13 +39,13 @@ namespace LifeOS.MVC.Controllers
                     .Sum(l => l.Hours);
                 weeklyMap[skill.Id] = wh;
                 skill.WeeklyHours = wh; // set NotMapped property for view
+                skill.HoursLogged = skill.SkillLogs.Sum(l => l.Hours); // total always from the logs (display only)
             }
 
             var recentLogs = await _db.TechSkillLogs
                 .Include(l => l.TechSkill)
-                .Where(l => l.LogDate >= weekStart)
-                .OrderByDescending(l => l.LoggedAt)
-                .Take(10)
+                .OrderByDescending(l => l.LogDate).ThenByDescending(l => l.LoggedAt)
+                .Take(15)
                 .ToListAsync();
 
             var vm = new TechGrowthViewModel
@@ -53,6 +53,7 @@ namespace LifeOS.MVC.Controllers
                 Skills = skills,
                 RecentLogs = recentLogs,
                 WeeklyHoursMap = weeklyMap,
+                SessionsThisWeek = skills.Sum(s => s.SkillLogs.Count(l => l.LogDate >= weekStart)),
             };
 
             return View(vm);
@@ -122,9 +123,12 @@ namespace LifeOS.MVC.Controllers
         // ── LOG HOURS ────────────────────────────────────────────────
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LogHours(int skillId, double hours,
-            int progress, string? topic, string? notes, DateTime? logDate)
+        public async Task<IActionResult> LogHours(int skillId, [FromForm(Name = "hours")] double? hoursGiven,
+            [FromForm(Name = "progress")] int? progressGiven, string? topic, string? notes, DateTime? logDate)
         {
+            // Empty boxes mean "not given": hours 0, progress unchanged (-1).
+            double hours = hoursGiven ?? 0;
+            int progress = progressGiven ?? -1;
             if (!double.IsFinite(hours) || hours < 0 || hours > 24 || progress < -1 || progress > 100 || (hours == 0 && progress < 0))
             {
                 TempData["Error"] = "Enter hours or a progress update.";
@@ -149,10 +153,10 @@ namespace LifeOS.MVC.Controllers
                     LogDate = logDate?.Date ?? DateTime.Today,
                     Hours = hours,
                     TopicCovered = topic,
-                    Notes = notes,
+                    Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
                     LoggedAt = DateTime.Now
                 });
-                skill.HoursLogged += hours;
+                skill.HoursLogged = await _db.TechSkillLogs.Where(l => l.TechSkillId == skillId).SumAsync(l => l.Hours) + hours;
                 if (!string.IsNullOrEmpty(topic))
                     skill.CurrentTopic = topic;
             }
@@ -190,9 +194,10 @@ namespace LifeOS.MVC.Controllers
 
             if (log != null)
             {
-                log.TechSkill.HoursLogged =
-                    Math.Max(0, log.TechSkill.HoursLogged - log.Hours);
                 _db.TechSkillLogs.Remove(log);
+                await _db.SaveChangesAsync();
+                // Total hours always equal the sum of the remaining logs.
+                log.TechSkill.HoursLogged = await _db.TechSkillLogs.Where(l => l.TechSkillId == log.TechSkillId).SumAsync(l => l.Hours);
                 await _db.SaveChangesAsync();
             }
 

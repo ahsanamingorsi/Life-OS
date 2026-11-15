@@ -29,6 +29,8 @@ namespace LifeOS.MVC.Controllers
             var subject = await _db.StudySubjects.FindAsync(subjectId);
             if (subject == null) return;
             var tasks = await _db.StudyTasks.Where(t => t.StudySubjectId == subjectId).Select(t => t.IsCompleted).ToListAsync();
+            // Total hours always come from the sessions themselves.
+            subject.HoursLogged = await _db.StudySessions.Where(s => s.StudySubjectId == subjectId).SumAsync(s => s.DurationHours);
 
             var parts = new List<double>();
             if (subject.TargetHours > 0) parts.Add(Math.Min(1.0, subject.HoursLogged / subject.TargetHours));
@@ -41,7 +43,7 @@ namespace LifeOS.MVC.Controllers
         public async Task<IActionResult> Index()
         {
             var today = DateTime.Today;
-            var weekStart = today.AddDays(-6);
+            var weekStart = ProductivityService.WeekStart(today); // this week = since Monday
 
             var subjects = await _db.StudySubjects
                 .Include(s => s.StudySessions)
@@ -234,6 +236,8 @@ namespace LifeOS.MVC.Controllers
         public async Task<IActionResult> LogSession(StudySession session)
         {
             if (session.DurationHours <= 0 || session.DurationHours > 24 || !double.IsFinite(session.DurationHours)) { TempData["Error"] = "Enter study hours between 0 and 24."; return RedirectToAction("Subject", new { id = session.StudySubjectId }); }
+            session.SessionDate = session.SessionDate == default ? DateTime.Today : session.SessionDate.Date;
+            if (session.SessionDate > DateTime.Today) { TempData["Error"] = "You cannot log a session for a future date."; return RedirectToAction("Subject", new { id = session.StudySubjectId }); }
             if (!await _db.StudySubjects.AnyAsync(s => s.Id == session.StudySubjectId)) return NotFound();
             session.LoggedAt = DateTime.Now;
             _db.StudySessions.Add(session);
@@ -286,6 +290,10 @@ namespace LifeOS.MVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddNote(StudyNote note)
         {
+            if (!await _db.StudySubjects.AnyAsync(s => s.Id == note.StudySubjectId)) return NotFound();
+            note.Title = (note.Title ?? "").Trim();
+            if (note.Title.Length == 0) { TempData["Error"] = "Enter a note title."; return RedirectToAction("Subject", new { id = note.StudySubjectId }); }
+            note.Id = 0;
             note.CreatedAt = DateTime.Now;
             note.UpdatedAt = DateTime.Now;
             _db.StudyNotes.Add(note);

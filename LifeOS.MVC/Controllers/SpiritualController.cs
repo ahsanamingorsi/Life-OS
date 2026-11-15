@@ -46,8 +46,9 @@ namespace LifeOS.MVC.Controllers
             return streak;
         }
 
+        /// <summary>Saves one day: each prayer as its own tick, plus the notes.</summary>
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(SpiritualEntry entry)
+        public async Task<IActionResult> Save([Bind("Date,Fajr,Dhuhr,Asr,Maghrib,Isha,GratitudeNote,ReflectionNote")] SpiritualEntry entry)
         {
             entry.Date = entry.Date.Date;
             if (entry.Date == default || entry.Date > DateTime.Today)
@@ -55,25 +56,20 @@ namespace LifeOS.MVC.Controllers
                 TempData["Error"] = "Choose today or a past day.";
                 return RedirectToAction("Index");
             }
-            if (entry.PrayersTotal < 1 || entry.PrayersTotal > 5 || entry.PrayersDone < 0 || entry.PrayersDone > entry.PrayersTotal)
-            {
-                TempData["Error"] = "Prayers completed must be between zero and your daily total (1–5).";
-                return RedirectToAction("Index", new { date = entry.Date.ToString("yyyy-MM-dd") });
-            }
 
             var existing = await _db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == entry.Date);
-            if (existing == null)
-            {
-                entry.Id = 0;
-                _db.SpiritualEntries.Add(entry);
-            }
-            else
-            {
-                existing.PrayersDone = entry.PrayersDone;
-                existing.PrayersTotal = entry.PrayersTotal;
-                existing.GratitudeNote = entry.GratitudeNote;
-                existing.ReflectionNote = entry.ReflectionNote;
-            }
+            var target = existing ?? new SpiritualEntry { Date = entry.Date };
+            target.Fajr = entry.Fajr;
+            target.Dhuhr = entry.Dhuhr;
+            target.Asr = entry.Asr;
+            target.Maghrib = entry.Maghrib;
+            target.Isha = entry.Isha;
+            target.PrayersTotal = 5;
+            target.PrayersDone = target.Prayers.Count(done => done);
+            target.GratitudeNote = string.IsNullOrWhiteSpace(entry.GratitudeNote) ? null : entry.GratitudeNote.Trim();
+            target.ReflectionNote = string.IsNullOrWhiteSpace(entry.ReflectionNote) ? null : entry.ReflectionNote.Trim();
+            if (existing == null) _db.SpiritualEntries.Add(target);
+
             await _db.SaveChangesAsync();
             TempData["Success"] = $"Saved {entry.Date:dddd, d MMM}.";
             return RedirectToAction("Index", new { date = entry.Date.ToString("yyyy-MM-dd") });

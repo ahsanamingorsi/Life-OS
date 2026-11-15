@@ -6,7 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews(options => { options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true; options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()); options.Filters.Add(new LifeOS.MVC.Filters.ValidateFormFilter()); });
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+        // The DbContext lives in LifeOS.Core; the SQL Server migrations stay in this project.
+        sql => sql.MigrationsAssembly("LifeOS.MVC")));
 
 //Services
 builder.Services.AddScoped<LifeOS.MVC.Services.ProductivityService>();

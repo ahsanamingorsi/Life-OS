@@ -42,8 +42,18 @@ namespace LifeOS.MVC.Controllers
             ViewBag.TaskCounts = taskCounts.ToDictionary(
                 x => x.ProjectId,
                 x => new ProjectTaskCount(x.Total, x.Done));
+            ViewBag.Categories = await CategorySuggestionsAsync();
 
             return View(projects);
+        }
+
+        // Suggestions for the free-text category box: the old fixed list plus every category in use.
+        private static readonly string[] DefaultCategories = { "EduBridgePath", "PSC", "Farming", "Future Ideas", "Personal", "Tech", "Study" };
+
+        private async Task<List<string>> CategorySuggestionsAsync()
+        {
+            var used = await _db.Projects.Where(p => p.Category != "").Select(p => p.Category).Distinct().ToListAsync();
+            return DefaultCategories.Concat(used).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
         }
 
         // ── PROJECT DETAIL + TASKS ───────────────────────────────────
@@ -65,6 +75,7 @@ namespace LifeOS.MVC.Controllers
                 Project = project,
                 Tasks = tasks
             };
+            ViewBag.Categories = await CategorySuggestionsAsync();
 
             return View(vm);
         }
@@ -74,6 +85,12 @@ namespace LifeOS.MVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add([Bind("Title,Category,Status,Priority,ProgressPercent,NextTask,Notes,Deadline")] Project project)
         {
+            project.Title = (project.Title ?? "").Trim();
+            project.Category = (project.Category ?? "").Trim();
+            if (project.Title.Length == 0) { TempData["Error"] = "Enter a project title."; return RedirectToAction("Index"); }
+            if (project.Priority is not ("A" or "B" or "C") || project.Status is not ("Active" or "Paused"))
+            { TempData["Error"] = "Choose a valid priority and status."; return RedirectToAction("Index"); }
+            project.ProgressPercent = Math.Clamp(project.ProgressPercent, 0, 100);
             project.CreatedAt = DateTime.Now;
             _db.Projects.Add(project);
             await _db.SaveChangesAsync();
@@ -143,6 +160,9 @@ namespace LifeOS.MVC.Controllers
         public async Task<IActionResult> AddTask([Bind("ProjectId,Title,Description,Priority,DueDate,EstimatedMinutes,Notes,SortOrder")] ProjectTask task)
         {
             if (!await _db.Projects.AnyAsync(p => p.Id == task.ProjectId)) return NotFound();
+            var error = CheckTask(task);
+            if (error != null) { TempData["Error"] = error; return RedirectToAction("Detail", new { id = task.ProjectId }); }
+            task.Title = task.Title.Trim();
             task.CreatedAt = DateTime.Now;
             task.Status = "Todo";
             _db.ProjectTasks.Add(task);
@@ -192,8 +212,10 @@ namespace LifeOS.MVC.Controllers
         {
             var task = await _db.ProjectTasks.FindAsync(updated.Id);
             if (task == null) return NotFound();
+            var error = CheckTask(updated);
+            if (error != null) { TempData["Error"] = error; return RedirectToAction("Detail", new { id = task.ProjectId }); }
 
-            task.Title = updated.Title;
+            task.Title = updated.Title.Trim();
             task.Description = updated.Description;
             task.Priority = updated.Priority;
             task.DueDate = updated.DueDate;
@@ -202,6 +224,8 @@ namespace LifeOS.MVC.Controllers
             task.Notes = updated.Notes;
 
             await _db.SaveChangesAsync();
+            // Title, priority and due date decide the project's "next task", so refresh it.
+            await AutoUpdateProjectProgress(task.ProjectId);
             await _productivity.LogActivityAsync("ProjectTask", task.Id, "Updated",
                 $"Task '{task.Title}' updated");
             TempData["Success"] = $"'{task.Title}' updated.";
@@ -240,6 +264,15 @@ namespace LifeOS.MVC.Controllers
             await _db.SaveChangesAsync();
             TempData["Success"] = $"{minutes} min logged on '{task.Title}'.";
             return RedirectToAction("Detail", new { id = task.ProjectId });
+        }
+
+        /// <summary>Title, priority and minutes checks for a project task. Returns an error message or null.</summary>
+        private static string? CheckTask(ProjectTask t)
+        {
+            if (string.IsNullOrWhiteSpace(t.Title)) return "Enter a task title.";
+            if (t.Priority is not ("A" or "B" or "C")) return "Choose priority A, B or C.";
+            if (t.EstimatedMinutes is < 0 or > 100000 || t.ActualMinutes is < 0 or > 100000) return "Minutes must be between 0 and 100000.";
+            return null;
         }
 
         // ── AUTO-SYNC PROJECT PROGRESS ───────────────────────────────

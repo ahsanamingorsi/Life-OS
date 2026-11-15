@@ -1,0 +1,125 @@
+@page "/search"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.Models
+@using Microsoft.EntityFrameworkCore
+
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">Search</div>
+            <h1 class="db-title">Find anything in Life OS.</h1>
+        </div>
+    </div>
+
+    <div class="db-card-head" style="margin-bottom:12px;">
+        <input class="lo-input" placeholder="Search tasks, projects, goals, links…" value="@query" @oninput="OnQueryInput" @onkeyup="OnKeyUp" style="max-width:420px;" />
+        <button type="button" class="lo-btn lo-btn-primary" @onclick="RunSearch">Search</button>
+    </div>
+
+    @if (ran)
+    {
+        @if (Empty)
+        {
+            <section class="db-card"><p class="db-empty">No results for "@query".</p></section>
+        }
+
+        @if (links.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Links</h2>
+                <div class="db-task-list">
+                    @foreach (var l in links) { <div class="db-task"><div class="db-task-body"><div class="db-task-title"><a href="@l.Url" target="_blank">@l.Name</a></div></div></div> }
+                </div>
+            </section>
+        }
+        @if (tasks.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Tasks</h2>
+                <div class="db-task-list">
+                    @foreach (var t in tasks) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="tasks">@t.Title</a></div></div> }
+                </div>
+            </section>
+        }
+        @if (projects.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Projects</h2>
+                <div class="db-task-list">
+                    @foreach (var p in projects) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="projects/@p.Id">@p.Title</a></div></div> }
+                </div>
+            </section>
+        }
+        @if (goals.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Goals</h2>
+                <div class="db-task-list">
+                    @foreach (var g in goals) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="goals">@g.Goal</a></div></div> }
+                </div>
+            </section>
+        }
+        @if (studies.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Studies</h2>
+                <div class="db-task-list">
+                    @foreach (var s in studies) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="studies/@s.Id">@s.Name</a></div></div> }
+                </div>
+            </section>
+        }
+        @if (skills.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Skills</h2>
+                <div class="db-task-list">
+                    @foreach (var s in skills) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="skills">@s.Name</a></div></div> }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private string query = "";
+    private bool ran;
+    private List<WebLink> links = new();
+    private List<Project> projects = new();
+    private List<PersonalTask> tasks = new();
+    private List<TechSkill> skills = new();
+    private List<StudySubject> studies = new();
+    private List<PersonalGoal> goals = new();
+
+    private bool Empty => !links.Any() && !projects.Any() && !tasks.Any() && !skills.Any() && !studies.Any() && !goals.Any();
+
+    private void OnQueryInput(Microsoft.AspNetCore.Components.ChangeEventArgs e) => query = e.Value as string ?? "";
+
+    private async Task OnKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await RunSearch();
+    }
+
+    private async Task RunSearch()
+    {
+        var term = query.Trim();
+        ran = true;
+        if (term.Length == 0)
+        {
+            links.Clear(); projects.Clear(); tasks.Clear(); skills.Clear(); studies.Clear(); goals.Clear();
+            return;
+        }
+
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        links = await db.WebLinks.AsNoTracking().Where(l => l.Name.Contains(term) || l.Url.Contains(term)
+            || (l.Description != null && l.Description.Contains(term)) || (l.Tags != null && l.Tags.Contains(term))).Take(8).ToListAsync();
+        projects = await db.Projects.AsNoTracking().Where(p => p.Title.Contains(term) || (p.Notes != null && p.Notes.Contains(term))).Take(5).ToListAsync();
+        tasks = await db.PersonalTasks.AsNoTracking().Where(t => t.Title.Contains(term) || (t.Description != null && t.Description.Contains(term))).Take(5).ToListAsync();
+        skills = await db.TechSkills.AsNoTracking().Where(s => s.Name.Contains(term) || (s.Notes != null && s.Notes.Contains(term))).Take(5).ToListAsync();
+        studies = await db.StudySubjects.AsNoTracking().Where(s => s.Name.Contains(term) || (s.Description != null && s.Description.Contains(term))).Take(5).ToListAsync();
+        goals = await db.PersonalGoals.AsNoTracking().Where(g => g.Goal.Contains(term) || (g.Notes != null && g.Notes.Contains(term))).Take(5).ToListAsync();
+    }
+}

@@ -1,0 +1,458 @@
+@page "/tasks"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (rows == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Tasks</div>
+                <h1 class="db-title">Every next step, in one place.</h1>
+            </div>
+            <div class="db-actions">
+                <a class="lo-btn" href="planner">My day</a>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick="OpenAdd"><Icon Name="plus" /> New task</button>
+            </div>
+        </div>
+
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+
+        <div class="db-grid-levels">
+            <div class="db-level"><span class="db-muted db-tiny">Today</span><span class="db-level-pct lo-num">@rows.Count(r => r.OccursToday && (r.Task.IsRepeated ? r.DoneToday : r.Task.IsCompleted)) / @rows.Count(r => r.OccursToday)</span><span class="db-muted db-tiny">done today</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Open</span><span class="db-level-pct lo-num">@rows.Count(r => !IsFinished(r))</span><span class="db-muted db-tiny">waiting on you</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Repeated</span><span class="db-level-pct lo-num">@rows.Count(r => r.Task.IsRepeated && !IsFinished(r))</span><span class="db-muted db-tiny">daily, weekly, monthly</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Overdue</span><span class="db-level-pct lo-num @(rows.Count(r => r.IsOverdue) > 0 ? "db-neg" : "")">@rows.Count(r => r.IsOverdue)</span><span class="db-muted db-tiny">one-time tasks</span></div>
+        </div>
+
+        @if (showForm)
+        {
+            <section class="db-card lo-narrow">
+                <h2 class="db-h2">@(formTask.Id == 0 ? "New task" : "Edit task")</h2>
+                @if (formError != null) { <div class="lo-flash lo-flash-error" role="alert">@formError</div> }
+                <div class="lo-form">
+                    <div class="lo-field">
+                        <label for="title" class="lo-label">Task name <span aria-hidden="true">*</span></label>
+                        <input id="title" class="lo-input" @bind="formTask.Title" maxlength="200" placeholder="What is your next step?" />
+                    </div>
+                    <div class="lo-form-grid">
+                        <div class="lo-field">
+                            <label for="repeat" class="lo-label">Repeat</label>
+                            <select id="repeat" class="lo-select" @bind="formTask.Repeat">
+                                <option value="None">Does not repeat</option>
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="lo-field">
+                            <label for="due" class="lo-label">@(formTask.Repeat == "None" ? "Due date" : "Starts on")</label>
+                            <input id="due" type="date" class="lo-input" value="@(formDueDate?.ToString("yyyy-MM-dd") ?? "")" @onchange="e => formDueDate = ParseDate(e.Value)" />
+                        </div>
+                        <div class="lo-field">
+                            <label for="priority" class="lo-label">Priority</label>
+                            <select id="priority" class="lo-select" @bind="formTask.Priority">
+                                <option value="A">High</option>
+                                <option value="B">Normal</option>
+                                <option value="C">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (formTask.Repeat == "Weekly")
+                    {
+                        <fieldset class="lo-field">
+                            <legend class="lo-label">Repeat on</legend>
+                            <div class="lo-days">
+                                @foreach (var w in TaskService.WeekDays)
+                                {
+                                    var bit = w.Bit;
+                                    <label class="lo-day">
+                                        <input type="checkbox" checked="@formWeekDays.Contains(bit)" @onchange="e => ToggleWeekDay(bit, (bool)e.Value!)" />
+                                        <span title="@w.Long">@w.Short</span>
+                                    </label>
+                                }
+                            </div>
+                        </fieldset>
+                    }
+                    @if (formTask.Repeat == "Monthly")
+                    {
+                        <div class="lo-field">
+                            <label for="dom" class="lo-label">Day of the month</label>
+                            <input id="dom" type="number" min="1" max="31" class="lo-input lo-input-short" @bind="formTask.RepeatDayOfMonth" />
+                            <div class="db-muted db-tiny">Months without this day use their last day.</div>
+                        </div>
+                    }
+                    @if (formTask.Repeat != "None")
+                    {
+                        <div class="lo-field">
+                            <label for="end" class="lo-label">Ends on <span class="db-muted">(optional)</span></label>
+                            <input id="end" type="date" class="lo-input lo-input-short" value="@(formEndDate?.ToString("yyyy-MM-dd") ?? "")" @onchange="e => formEndDate = ParseDate(e.Value)" />
+                            <div class="db-muted db-tiny">Leave empty to repeat with no end.</div>
+                        </div>
+                    }
+
+                    <div class="lo-field">
+                        <label for="goal" class="lo-label">Goal <span class="db-muted">(optional)</span></label>
+                        <select id="goal" class="lo-select" value="@(formTask.GoalId?.ToString() ?? "")" @onchange="e => formTask.GoalId = string.IsNullOrEmpty((string?)e.Value) ? null : int.Parse((string)e.Value!)">
+                            <option value="">No goal</option>
+                            @foreach (var g in goals!)
+                            {
+                                <option value="@g.Id">@g.Goal@(g.IsAchieved ? " (achieved)" : "")</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="lo-field">
+                        <label for="desc" class="lo-label">Notes <span class="db-muted">(optional)</span></label>
+                        <textarea id="desc" class="lo-input lo-textarea" maxlength="500" @bind="formTask.Description"></textarea>
+                    </div>
+
+                    <div class="lo-form-actions">
+                        <button type="button" class="lo-btn" @onclick="CancelForm" disabled="@busy">Cancel</button>
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick="SaveForm" disabled="@busy">@(formTask.Id == 0 ? "Add task" : "Save changes")</button>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <section class="db-card" aria-labelledby="listTitle">
+            <div class="db-card-head" style="flex-wrap:wrap;">
+                <h2 id="listTitle" class="db-h2">Your tasks</h2>
+                <select class="lo-select" value="@(goalFilter?.ToString() ?? "")" @onchange="e => goalFilter = string.IsNullOrEmpty((string?)e.Value) ? null : int.Parse((string)e.Value!)">
+                    <option value="">All goals</option>
+                    @foreach (var g in goals!)
+                    {
+                        <option value="@g.Id">@g.Goal</option>
+                    }
+                </select>
+            </div>
+
+            <nav class="db-filters" aria-label="Filter tasks">
+                @foreach (var f in filterDefs)
+                {
+                    <button type="button" class="db-chip" aria-pressed="@(filter == f.Key ? "true" : "false")" @onclick="() => filter = f.Key">@f.Label@(f.Count(this) >= 0 ? $" · {f.Count(this)}" : "")</button>
+                }
+            </nav>
+
+            <div class="db-task-list">
+                @if (!ShownRows.Any())
+                {
+                    <p class="db-empty">No tasks in this view. <button type="button" class="db-link" style="background:none;border:none;padding:0;cursor:pointer;" @onclick="OpenAdd">Add one</button></p>
+                }
+                @foreach (var row in ShownRows)
+                {
+                    var t = row.Task;
+                    bool done = t.IsRepeated ? row.DoneToday : t.IsCompleted;
+                    bool canToggle = !t.IsRepeated || row.OccursToday;
+                    <div class="db-task @(done ? "is-done" : "") @(row.IsOverdue ? "is-overdue" : "")">
+                        @if (canToggle)
+                        {
+                            <button type="button" class="db-check @(done ? "done" : "")" disabled="@busy"
+                                    aria-label="@(done ? "Mark as not done" : "Mark as done"): @t.Title" @onclick="() => ToggleTask(t.Id)">
+                                @if (done) { <Icon Name="tick" /> }
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="db-check lo-check-off" title="Not scheduled today" aria-hidden="true"></span>
+                        }
+                        <div class="db-task-body">
+                            <div class="db-task-title">@t.Title</div>
+                            <div class="db-task-meta">@string.Join(" · ", RowMeta(row))</div>
+                            @if (!string.IsNullOrWhiteSpace(t.Description)) { <div class="db-task-meta lo-task-note">@t.Description</div> }
+                        </div>
+                        @if (t.IsRepeated) { <span class="db-badge repeat-@t.Repeat.ToLowerInvariant()">@t.Repeat</span> }
+                        else if (t.Priority == "A") { <span class="db-badge high">High</span> }
+                        else if (t.Priority == "C") { <span class="db-badge">Low</span> }
+                        <div class="lo-row-actions">
+                            <button type="button" class="lo-btn lo-btn-sm" @onclick="() => OpenEdit(t)">Edit</button>
+                            <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteTask(t.Id, t.Title)">Delete</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private class TaskRow
+    {
+        public PersonalTask Task { get; set; } = null!;
+        public string RepeatText { get; set; } = "";
+        public bool OccursToday { get; set; }
+        public bool DoneToday { get; set; }
+        public bool IsOverdue { get; set; }
+        public int Streak { get; set; }
+        public DateTime? NextDate { get; set; }
+    }
+
+    private record FilterDef(string Key, string Label, Func<Tasks, int> Count);
+
+    private readonly FilterDef[] filterDefs =
+    {
+        new("open", "Open", c => c.rows!.Count(r => !c.IsFinished(r))),
+        new("today", "Today", c => c.rows!.Count(r => r.OccursToday)),
+        new("repeated", "Repeated", c => c.rows!.Count(r => r.Task.IsRepeated)),
+        new("overdue", "Overdue", c => c.rows!.Count(r => r.IsOverdue)),
+        new("done", "Done", c => c.rows!.Count(r => !r.Task.IsRepeated && r.Task.IsCompleted)),
+        new("all", "All", c => -1),
+    };
+
+    private List<TaskRow>? rows;
+    private List<PersonalGoal>? goals;
+    private string filter = "open";
+    private int? goalFilter;
+    private string? message;
+    private bool busy;
+
+    private bool showForm;
+    private PersonalTask formTask = new();
+    private DateTime? formDueDate;
+    private DateTime? formEndDate;
+    private HashSet<int> formWeekDays = new();
+    private string? formError;
+
+    private bool IsFinished(TaskRow r) => r.Task.IsRepeated ? r.NextDate == null : r.Task.IsCompleted;
+
+    private IEnumerable<TaskRow> ShownRows
+    {
+        get
+        {
+            IEnumerable<TaskRow> shown = filter switch
+            {
+                "today" => rows!.Where(r => r.OccursToday || r.IsOverdue),
+                "repeated" => rows!.Where(r => r.Task.IsRepeated),
+                "overdue" => rows!.Where(r => r.IsOverdue),
+                "done" => rows!.Where(r => !r.Task.IsRepeated && r.Task.IsCompleted),
+                "all" => rows!,
+                _ => rows!.Where(r => !IsFinished(r)),
+            };
+            if (goalFilter.HasValue) shown = shown.Where(r => r.Task.GoalId == goalFilter);
+            return shown
+                .OrderBy(r => IsFinished(r))
+                .ThenByDescending(r => r.IsOverdue)
+                .ThenByDescending(r => r.OccursToday && !r.DoneToday && !r.Task.IsCompleted)
+                .ThenBy(r => r.Task.Priority)
+                .ThenBy(r => r.Task.IsRepeated ? r.NextDate : r.Task.DueDate ?? DateTime.MaxValue)
+                .ThenByDescending(r => r.Task.CompletedAt);
+        }
+    }
+
+    private List<string> RowMeta(TaskRow row)
+    {
+        var t = row.Task;
+        var today = DateTime.Today;
+        var meta = new List<string>();
+        if (t.IsRepeated)
+        {
+            meta.Add(row.RepeatText);
+            if (row.Streak > 0) meta.Add($"{row.Streak} streak");
+            meta.Add(row.NextDate == null ? "Ended" : row.OccursToday && !row.DoneToday ? "Due today" : $"Next: {row.NextDate:ddd dd MMM}");
+        }
+        else if (t.IsCompleted) { meta.Add("Completed " + t.CompletedAt?.ToString("dd MMM")); }
+        else if (t.DueDate == null) { meta.Add("No due date"); }
+        else { meta.Add((row.IsOverdue ? "Overdue · " : t.DueDate.Value.Date == today ? "Due today · " : "Due ") + t.DueDate.Value.ToString("dd MMM")); }
+        if (t.Goal != null) { meta.Add("Goal: " + t.Goal.Goal); }
+        return meta;
+    }
+
+    private static DateTime? ParseDate(object? value) =>
+        DateTime.TryParse(value as string, out var d) ? d : null;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var today = DateTime.Today;
+
+        var all = await db.PersonalTasks.AsNoTracking().Include(t => t.Goal).Include(t => t.Completions).ToListAsync();
+        goals = await db.PersonalGoals.AsNoTracking().OrderBy(g => g.Goal).ToListAsync();
+
+        rows = all.Select(t =>
+        {
+            var done = t.Completions.Select(c => c.Date.Date).ToHashSet();
+            var row = new TaskRow
+            {
+                Task = t,
+                RepeatText = TaskService.RepeatText(t),
+                OccursToday = TaskService.OccursOn(t, today),
+                DoneToday = t.IsRepeated && done.Contains(today),
+                IsOverdue = !t.IsRepeated && !t.IsCompleted && t.DueDate < today,
+                Streak = TaskService.Streak(t, done, today),
+            };
+            if (t.IsRepeated)
+            {
+                for (var d = today; d <= today.AddDays(400); d = d.AddDays(1))
+                    if (TaskService.OccursOn(t, d) && !(d == today && row.DoneToday)) { row.NextDate = d; break; }
+            }
+            return row;
+        }).ToList();
+    }
+
+    private void OpenAdd()
+    {
+        formTask = new PersonalTask { DueDate = DateTime.Today, GoalId = goalFilter };
+        formDueDate = DateTime.Today;
+        formEndDate = null;
+        formWeekDays = new HashSet<int> { TaskService.DayBit(DateTime.Today.DayOfWeek) };
+        formError = null;
+        showForm = true;
+    }
+
+    private void OpenEdit(PersonalTask t)
+    {
+        formTask = new PersonalTask
+        {
+            Id = t.Id, Title = t.Title, Description = t.Description, Priority = t.Priority,
+            Repeat = t.Repeat, RepeatDays = t.RepeatDays, RepeatDayOfMonth = t.RepeatDayOfMonth, GoalId = t.GoalId,
+        };
+        formDueDate = t.DueDate;
+        formEndDate = t.RepeatEndDate;
+        var start = (t.DueDate ?? DateTime.Today).Date;
+        int days = t.RepeatDays != 0 ? t.RepeatDays : TaskService.DayBit(start.DayOfWeek);
+        formWeekDays = TaskService.WeekDays.Where(w => (days & w.Bit) != 0).Select(w => w.Bit).ToHashSet();
+        formError = null;
+        showForm = true;
+    }
+
+    private void CancelForm() => showForm = false;
+
+    private void ToggleWeekDay(int bit, bool on)
+    {
+        if (on) formWeekDays.Add(bit); else formWeekDays.Remove(bit);
+    }
+
+    private async Task SaveForm()
+    {
+        formTask.Title = (formTask.Title ?? "").Trim();
+        if (formTask.Title.Length == 0) { formError = "Enter a task name."; return; }
+
+        switch (formTask.Repeat)
+        {
+            case "None":
+                formTask.RepeatDays = 0;
+                formTask.RepeatDayOfMonth = null;
+                formTask.RepeatEndDate = null;
+                formTask.DueDate = formDueDate;
+                break;
+            case "Daily":
+            case "Weekly":
+            case "Monthly":
+                formTask.DueDate = (formDueDate ?? DateTime.Today).Date;
+                formTask.RepeatEndDate = formEndDate;
+                if (formTask.RepeatEndDate.HasValue && formTask.RepeatEndDate.Value.Date < formTask.DueDate)
+                { formError = "The end date must be on or after the start date."; return; }
+                formTask.RepeatDays = 0;
+                if (formTask.Repeat == "Weekly")
+                {
+                    formTask.RepeatDays = formWeekDays.Aggregate(0, (sum, b) => sum | b);
+                    if (formTask.RepeatDays == 0) { formError = "Choose at least one day of the week."; return; }
+                }
+                if (formTask.Repeat == "Monthly")
+                {
+                    formTask.RepeatDayOfMonth ??= formTask.DueDate.Value.Day;
+                    if (formTask.RepeatDayOfMonth is < 1 or > 31) { formError = "Choose a day of the month between 1 and 31."; return; }
+                }
+                else formTask.RepeatDayOfMonth = null;
+                break;
+        }
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
+
+            if (formTask.GoalId.HasValue && !await db.PersonalGoals.AnyAsync(g => g.Id == formTask.GoalId))
+            { formError = "The chosen goal no longer exists."; return; }
+
+            if (formTask.Id == 0)
+            {
+                formTask.CreatedAt = DateTime.Now;
+                db.PersonalTasks.Add(formTask);
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("PersonalTask", formTask.Id, "Created", $"Task '{formTask.Title}' created");
+                message = $"Task '{formTask.Title}' added.";
+            }
+            else
+            {
+                var task = await db.PersonalTasks.FindAsync(formTask.Id);
+                if (task == null) { formError = "This task no longer exists."; return; }
+                bool wasRepeated = task.IsRepeated;
+                task.Title = formTask.Title;
+                task.Description = formTask.Description;
+                task.DueDate = formTask.DueDate;
+                task.Priority = formTask.Priority;
+                task.Repeat = formTask.Repeat;
+                task.RepeatDays = formTask.RepeatDays;
+                task.RepeatDayOfMonth = formTask.RepeatDayOfMonth;
+                task.RepeatEndDate = formTask.RepeatEndDate;
+                task.GoalId = formTask.GoalId;
+
+                if (wasRepeated && !task.IsRepeated)
+                    db.TaskCompletions.RemoveRange(db.TaskCompletions.Where(c => c.PersonalTaskId == task.Id));
+                if (!wasRepeated && task.IsRepeated) { task.IsCompleted = false; task.CompletedAt = null; }
+
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("PersonalTask", task.Id, "Updated", $"Task '{task.Title}' updated");
+                message = $"Task '{task.Title}' updated.";
+            }
+
+            showForm = false;
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task ToggleTask(int id)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
+            var title = rows!.First(r => r.Task.Id == id).Task.Title;
+            var state = await tasks.ToggleAsync(id, DateTime.Today);
+            if (state != null)
+            {
+                string action = state.Value ? "Completed" : "Reopened";
+                await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                    .LogActivityAsync("PersonalTask", id, action, $"Task '{title}' {action.ToLower()}");
+                message = $"Task '{title}' {action.ToLower()}.";
+            }
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DeleteTask(int id, string title)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var task = await db.PersonalTasks.FindAsync(id);
+            if (task == null) return;
+            db.PersonalTasks.Remove(task);
+            await db.SaveChangesAsync();
+            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
+                .LogActivityAsync("PersonalTask", id, "Deleted", $"Task '{title}' deleted");
+            message = $"Task '{title}' removed.";
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+}

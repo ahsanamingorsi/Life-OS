@@ -1,149 +1,104 @@
 @model LifeOS.MVC.Models.SpiritualEntry
+@using LifeOS.MVC.Models
 @{
     ViewData["Title"] = "Spiritual";
     int streak = (int)(ViewBag.Streak ?? 0);
     int perfectDays = (int)(ViewBag.PerfectDays ?? 0);
     var day = (DateTime)ViewBag.Day;
     var today = (DateTime)ViewBag.Today;
-    var history = ViewBag.History as List<LifeOS.MVC.Models.SpiritualEntry> ?? new();
+    var history = ViewBag.History as List<SpiritualEntry> ?? new();
+    var flags = Model.Prayers;
+    int done = flags.Count(f => f);
+    var byDate = history.ToDictionary(h => h.Date.Date);
 }
-@if (TempData["Success"] != null) { <div class="alert alert-success" role="status">@TempData["Success"]</div> }
 
-<div class="los-page-header">
-    <div>
-        <div class="los-page-title">Spiritual routine</div>
-        <div class="los-page-subtitle">Prayers, gratitude, and spiritual consistency.</div>
-    </div>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-5">
-        <div class="los-card">
-            <div class="los-card-title-lg" style="margin-bottom:18px;">@(day == today ? "Log Today" : "Log " + day.ToString("dddd, d MMM"))</div>
-            <form method="get" asp-action="Index" asp-controller="Spiritual" class="mb-3">
-                <label class="form-label" for="spiritDay">Day</label>
-                <input id="spiritDay" name="date" type="date" class="form-control" value="@day.ToString("yyyy-MM-dd")" max="@today.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
-                <noscript><button class="btn-los btn-secondary btn-sm mt-2" type="submit">Open day</button></noscript>
-            </form>
-            <form method="post" asp-action="Save" asp-controller="Spiritual">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="Date" value="@day.ToString("yyyy-MM-dd")" />
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label class="form-label">Prayers Completed</label>
-                            <input name="PrayersDone" type="number" min="0" max="5" class="form-control" value="@Model.PrayersDone" />
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label class="form-label">Total Prayers</label>
-                            <input name="PrayersTotal" type="number" min="1" max="5" class="form-control" value="@(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal)" />
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="form-group">
-                            <label class="form-label">Gratitude — What are you grateful for?</label>
-                            <textarea name="GratitudeNote" class="form-control" placeholder="Write 3 things you're grateful for today...">@Model.GratitudeNote</textarea>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="form-group">
-                            <label class="form-label">Spiritual Reflection</label>
-                            <textarea name="ReflectionNote" class="form-control" placeholder="How was your day spiritually?">@Model.ReflectionNote</textarea>
-                        </div>
-                    </div>
-                    <div class="col-12" style="margin-top:4px;">
-                        <button type="submit" class="btn-los btn-primary w-100">@(day == today ? "Save Today" : "Save " + day.ToString("d MMM"))</button>
-                    </div>
-                </div>
-            </form>
+<div class="db">
+    <div class="db-head">
+        <div>
+            <div class="db-date">Spiritual</div>
+            <h1 class="db-title">@(day == today ? "Today's prayers" : day.ToString("dddd, d MMMM"))</h1>
         </div>
+        <form method="get" asp-action="Index" class="lo-inline-form">
+            <label for="spiritDay" class="db-muted db-small">Day</label>
+            <input id="spiritDay" name="date" type="date" class="lo-input" value="@day.ToString("yyyy-MM-dd")" max="@today.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+            <noscript><button class="lo-btn" type="submit">Open</button></noscript>
+        </form>
     </div>
 
-    <div class="col-lg-7">
-        <div class="row g-4">
-            <!-- Streak -->
-            <div class="col-12">
-                <div class="los-card" style="background:linear-gradient(135deg,var(--amber-soft),var(--surface-1)); border-color:rgba(217,119,6,0.2);">
-                    <div class="spiritual-summary">
-                        <div class="streak-display">
-                            <div class="streak-flame">🕌</div>
-                            <div>
-                                <div class="streak-number">@streak</div>
-                                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber);">Day streak</div>
-                            </div>
-                        </div>
-                        <div style="flex:1;">
-                            <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;">Days in a row with all planned prayers completed. @perfectDays perfect days in total. Keep showing up, one day at a time.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    @if (TempData["Success"] is string ok) { <div class="lo-flash" role="status">@ok</div> }
 
-            <!-- Prayer Circles -->
-            <div class="col-12">
-                <div class="los-card">
-                    <div class="los-card-title" style="margin-bottom:14px;">Today's Prayers</div>
-                    @{
-                        string[] pNames = { "Fajr", "Dhuhr", "Asr", "Maghrib", "Isha" };
-                    }
-                    <div class="prayer-grid">
-                        @for (int i = 1; i <= 5; i++)
+    <div class="db-grid-levels">
+        <div class="db-level"><span class="db-muted db-tiny">@(day == today ? "Today" : day.ToString("d MMM"))</span><span class="db-level-pct lo-num">@done / 5</span><span class="db-muted db-tiny">prayers</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Streak</span><span class="db-level-pct lo-num">@streak</span><span class="db-muted db-tiny">days in a row, all prayers</span></div>
+        <div class="db-level"><span class="db-muted db-tiny">Perfect days</span><span class="db-level-pct lo-num">@perfectDays</span><span class="db-muted db-tiny">in total</span></div>
+    </div>
+
+    <div class="lo-two-col">
+        <section class="db-card" aria-labelledby="logTitle">
+            <h2 id="logTitle" class="db-h2">@(day == today ? "Log today" : "Log " + day.ToString("d MMM"))</h2>
+            <form method="post" asp-action="Save" class="lo-form">
+                <input type="hidden" name="Date" value="@day.ToString("yyyy-MM-dd")" />
+                <fieldset class="lo-field">
+                    <legend class="lo-label">Prayers</legend>
+                    <div class="lo-prayers">
+                        @for (int i = 0; i < 5; i++)
                         {
-                            bool done = i <= Model.PrayersDone;
-                            <div style="flex:1; height:34px; border-radius:var(--r-sm);
-                                border:1px solid @(done ? "rgba(245,158,11,.3)" : "var(--border)");
-                                background:@(done ? "var(--amber-soft)" : "var(--bg-2)");
-                                display:flex; align-items:center; justify-content:center;
-                                font-size:.62rem; font-weight:700; letter-spacing:.04em;
-                                color:@(done ? "var(--amber)" : "var(--text-4)");" class="prayer-circle @(i <= Model.PrayersDone ? "done" : "")">
-                                @pNames[i - 1]
-                            </div>
+                            var name = SpiritualEntry.PrayerNames[i];
+                            <label class="lo-prayer">
+                                <input type="checkbox" name="@name" value="true" checked="@flags[i]" />
+                                <span><strong>@name</strong><small>@(flags[i] ? "Done" : "Not yet")</small></span>
+                            </label>
                         }
                     </div>
-                    <div style="font-size:0.8rem; color:var(--text-tertiary); margin-top:12px;">
-                        @Model.PrayersDone of @(Model.PrayersTotal == 0 ? 5 : Model.PrayersTotal) prayers completed @(day == today ? "today" : "on " + day.ToString("d MMM"))
-                    </div>
-                    @if (Model.PrayersDone > 0 && !string.IsNullOrEmpty(Model.GratitudeNote))
-                    {
-                        <div style="margin-top:14px; padding:12px 14px; background:var(--amber-soft); border-radius:var(--radius-sm); border-left:3px solid var(--amber);">
-                            <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--amber); margin-bottom:4px;">Today's Gratitude</div>
-                            <div style="font-size:0.845rem; color:var(--text-secondary); font-style:italic;">@Model.GratitudeNote</div>
-                        </div>
-                    }
+                    <input type="hidden" name="Fajr" value="false" />
+                    <input type="hidden" name="Dhuhr" value="false" />
+                    <input type="hidden" name="Asr" value="false" />
+                    <input type="hidden" name="Maghrib" value="false" />
+                    <input type="hidden" name="Isha" value="false" />
+                </fieldset>
+                <div class="lo-field">
+                    <label for="gratitude" class="lo-label">Gratitude <span class="db-muted">(optional)</span></label>
+                    <textarea id="gratitude" name="GratitudeNote" class="lo-input lo-textarea" maxlength="500" placeholder="Three things you are grateful for">@Model.GratitudeNote</textarea>
                 </div>
-            </div>
+                <div class="lo-field">
+                    <label for="reflection" class="lo-label">Reflection <span class="db-muted">(optional)</span></label>
+                    <textarea id="reflection" name="ReflectionNote" class="lo-input lo-textarea" maxlength="500" placeholder="How was the day spiritually?">@Model.ReflectionNote</textarea>
+                </div>
+                <div class="lo-form-actions"><button type="submit" class="lo-btn lo-btn-primary">@(day == today ? "Save today" : "Save " + day.ToString("d MMM"))</button></div>
+            </form>
+        </section>
 
-            <!-- Last 30 days -->
-            <div class="col-12">
-                <div class="los-card">
-                    <div class="los-card-title" style="margin-bottom:14px;">Last 30 days</div>
-                    @if (!history.Any())
-                    {
-                        <div style="font-size:0.85rem; color:var(--text-tertiary);">No entries in the last 30 days.</div>
-                    }
-                    else
-                    {
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead><tr><th scope="col">Day</th><th scope="col">Prayers</th><th scope="col">Gratitude</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
-                                <tbody>
-                                    @foreach (var h in history)
-                                    {
-                                        <tr>
-                                            <td>@h.Date.ToString("ddd, d MMM")</td>
-                                            <td style="font-weight:600; color:@(h.PrayersTotal > 0 && h.PrayersDone >= h.PrayersTotal ? "var(--green)" : "inherit");">@h.PrayersDone / @h.PrayersTotal</td>
-                                            <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@h.GratitudeNote</td>
-                                            <td><a href="/Spiritual?date=@h.Date.ToString("yyyy-MM-dd")" class="btn-los btn-secondary btn-sm" aria-label="Open @h.Date.ToString("d MMMM")">Open</a></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
+        <section class="db-card" aria-labelledby="histTitle">
+            <h2 id="histTitle" class="db-h2">Last 30 days</h2>
+            <div class="lo-calendar" role="list">
+                @for (int i = 29; i >= 0; i--)
+                {
+                    var d = today.AddDays(-i);
+                    byDate.TryGetValue(d, out var h);
+                    int n = h?.PrayersDone ?? 0;
+                    string level = h == null ? "none" : n >= 5 ? "full" : n >= 3 ? "most" : n > 0 ? "some" : "zero";
+                    <a role="listitem" class="lo-cal-day lo-cal-@level @(d == day ? "selected" : "")" href="/Spiritual?date=@d.ToString("yyyy-MM-dd")"
+                       aria-label="@d.ToString("dddd d MMMM"): @(h == null ? "no entry" : $"{n} of 5 prayers")">
+                        <span>@d.Day</span>
+                    </a>
+                }
             </div>
-        </div>
+            <div class="lo-cal-legend db-muted db-tiny">
+                <span><i class="lo-cal-full"></i> All 5</span><span><i class="lo-cal-most"></i> 3–4</span><span><i class="lo-cal-some"></i> 1–2</span><span><i class="lo-cal-none"></i> No entry</span>
+            </div>
+            <div class="db-task-list">
+                @if (!history.Any()) { <p class="db-empty">No entries in the last 30 days.</p> }
+                @foreach (var h in history.Take(10))
+                {
+                    var p = h.Prayers;
+                    <a class="db-activity lo-hist-row" href="/Spiritual?date=@h.Date.ToString("yyyy-MM-dd")">
+                        <span><strong>@h.Date.ToString("ddd, d MMM")</strong>@(string.IsNullOrWhiteSpace(h.GratitudeNote) ? "" : " · " + h.GratitudeNote)</span>
+                        <span class="lo-dots" aria-label="@h.PrayersDone of 5 prayers">
+                            @for (int i = 0; i < 5; i++) { <i class="@(p[i] ? "on" : "")" title="@SpiritualEntry.PrayerNames[i]"></i> }
+                        </span>
+                    </a>
+                }
+            </div>
+        </section>
     </div>
 </div>

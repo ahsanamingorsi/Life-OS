@@ -1,0 +1,141 @@
+@page "/analytics"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (scores == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Analytics</div>
+                <h1 class="db-title">How you've been doing.</h1>
+            </div>
+        </div>
+
+        <div class="db-grid-levels">
+            <div class="db-level"><span class="db-muted db-tiny">Avg score (7d)</span><span class="db-level-pct lo-num">@Math.Round(avgScore)%</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Tasks done</span><span class="db-level-pct lo-num">@completedTasks / @totalTasks</span><span class="db-muted db-tiny">one-time tasks</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Skill hours (7d)</span><span class="db-level-pct lo-num">@skillHours.ToString("0.#")h</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Study hours (7d)</span><span class="db-level-pct lo-num">@studyHours.ToString("0.#")h</span></div>
+        </div>
+
+        <section class="db-card">
+            <h2 class="db-h2">Last 7 days</h2>
+            <div class="db-chart" role="img">
+                @foreach (var (date, score) in scores)
+                {
+                    bool isToday = date == DateTime.Today;
+                    <div class="db-chart-col">
+                        <span class="db-chart-val lo-num">@Math.Round(score)</span>
+                        <div class="db-chart-bar @(isToday ? "today" : "")" style="height:@(score * 1.4 + 4)px"></div>
+                        <span class="db-chart-day">@(isToday ? "Today" : date.ToString("ddd"))</span>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <div class="db-grid-2">
+            <section class="db-card">
+                <h2 class="db-h2">Repeated task streaks</h2>
+                <div class="db-task-list">
+                    @if (!taskStreaks!.Any()) { <p class="db-empty">No repeated tasks yet.</p> }
+                    @foreach (var t in taskStreaks)
+                    {
+                        <div class="db-task">
+                            <div class="db-task-body">
+                                <div class="db-task-title">@t.Title</div>
+                                <div class="db-task-meta">@t.Repeat · @t.CurrentStreak day streak · @t.Last30Days in last 30d · @t.Total total</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card">
+                <h2 class="db-h2">Recent reviews</h2>
+                <div class="db-task-list">
+                    @if (!reviews!.Any()) { <p class="db-empty">No reviews yet.</p> }
+                    @foreach (var r in reviews)
+                    {
+                        <div class="db-task">
+                            <div class="db-task-body">
+                                <div class="db-task-title">@r.Period: @r.StartDate.ToString("d MMM")–@r.EndDate.ToString("d MMM")</div>
+                                <div class="db-task-meta">Score @r.OverallScore/10</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <section class="db-card">
+            <h2 class="db-h2">Recent activity</h2>
+            <div class="db-task-list">
+                @if (!activity!.Any()) { <p class="db-empty">No activity logged yet.</p> }
+                @foreach (var a in activity)
+                {
+                    <div class="db-activity">
+                        <span>@a.Detail</span>
+                        <span class="db-muted lo-num">@a.DateTime.ToString("dd MMM, HH:mm")</span>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private List<(DateTime date, double score)>? scores;
+    private int completedTasks, openTasks, totalTasks;
+    private double skillHours, studyHours, avgScore;
+    private List<ReviewEntry>? reviews;
+    private List<RepeatedTaskStreak>? taskStreaks;
+    private List<ActivityLog>? activity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
+        var today = DateTime.Today;
+        var last30 = today.AddDays(-29);
+        var last7 = today.AddDays(-6);
+
+        scores = new();
+        for (int i = 6; i >= 0; i--)
+        {
+            var d = today.AddDays(-i);
+            var s = await productivity.GetDailyScoreAsync(d);
+            scores.Add((d, s.ProductivityScore));
+        }
+        avgScore = scores.Any() ? scores.Average(s => s.score) : 0;
+
+        completedTasks = await db.PersonalTasks.CountAsync(t => t.Repeat == "None" && t.IsCompleted);
+        openTasks = await db.PersonalTasks.CountAsync(t => t.Repeat == "None" && !t.IsCompleted);
+        totalTasks = completedTasks + openTasks;
+
+        skillHours = await db.TechSkillLogs.Where(l => l.LogDate >= last7).SumAsync(l => l.Hours);
+        studyHours = await db.StudySessions.Where(s => s.SessionDate >= last7).SumAsync(s => s.DurationHours);
+        reviews = await db.ReviewEntries.OrderByDescending(r => r.CreatedAt).Take(5).ToListAsync();
+
+        var repeatedTasks = await db.PersonalTasks.AsNoTracking().Include(t => t.Completions).Where(t => t.Repeat != "None").ToListAsync();
+        taskStreaks = repeatedTasks.Select(t => new RepeatedTaskStreak
+        {
+            TaskId = t.Id,
+            Title = t.Title,
+            Repeat = t.Repeat,
+            CurrentStreak = TaskService.Streak(t, t.Completions.Select(c => c.Date.Date).ToHashSet(), today),
+            Last30Days = t.Completions.Count(c => c.Date >= last30),
+            Total = t.Completions.Count,
+        }).OrderByDescending(s => s.CurrentStreak).ThenByDescending(s => s.Total).Take(8).ToList();
+
+        activity = await db.ActivityLogs.OrderByDescending(a => a.DateTime).Take(20).ToListAsync();
+    }
+}
