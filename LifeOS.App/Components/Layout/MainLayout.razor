@@ -3,6 +3,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject LifeOS.App.Services.FocusTimer Timer
+@inject LifeOS.App.Services.AppUi Ui
 
 <a class="lo-skip" href="#main-content">Skip to main content</a>
 
@@ -15,7 +16,7 @@
     <div id="timerBackdrop" class="active" @onclick="Timer.Close"></div>
 }
 
-<div class="los-shell">
+<div class="los-shell @(collapsed ? "nav-collapsed" : "")">
     <nav class="los-nav @(navOpen ? "mobile-open" : "")" aria-label="Main">
         <div class="los-nav-brand">
             <img class="los-nav-logo" src="images/logo.png" alt="" aria-hidden="true" />
@@ -32,7 +33,7 @@
                     <div class="lo-nav-group-label" id="nav-@group.Label">@group.Label</div>
                     @foreach (var item in group.Items)
                     {
-                        <NavLink class="los-nav-link" href="@item.Href" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)" @onclick="CloseNav">
+                        <NavLink class="los-nav-link" href="@item.Href" title="@item.Text" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)" @onclick="CloseNav">
                             <span class="los-nav-icon"><Icon Name="@item.Icon" /></span><span class="los-nav-label">@item.Text</span>
                         </NavLink>
                     }
@@ -40,7 +41,12 @@
             }
         </div>
 
-        <div class="los-nav-footer">@DateTime.Now.ToString("dddd, d MMMM")</div>
+        <div class="los-nav-footer">
+            <span class="los-nav-date">@DateTime.Now.ToString("ddd, d MMM")</span>
+            <button type="button" class="lo-icon-btn los-collapse" aria-label="@(collapsed ? "Expand sidebar" : "Collapse sidebar")" aria-pressed="@(collapsed ? "true" : "false")" title="@(collapsed ? "Expand sidebar" : "Collapse sidebar")" @onclick="ToggleCollapse">
+                <Icon Name="chevron-left" />
+            </button>
+        </div>
     </nav>
 
     <div class="los-main">
@@ -56,9 +62,29 @@
                     <div class="los-search-wrap">
                         <Icon Name="search" />
                         <label for="globalSearch" class="lo-visually-hidden">Search Life OS</label>
-                        <input id="globalSearch" type="search" class="los-search" placeholder="Search everything" autocomplete="off" @bind="searchText" />
+                        <input id="globalSearch" type="search" class="los-search" placeholder="Search everything  ( / )" autocomplete="off" @bind="searchText" />
                     </div>
                 </form>
+
+                <div class="qa-wrap">
+                    <button type="button" class="lo-btn lo-btn-primary qa-btn" aria-haspopup="menu" aria-expanded="@(quickOpen ? "true" : "false")" @onclick="() => quickOpen = !quickOpen">
+                        <Icon Name="plus" /><span class="qa-label">Quick add</span>
+                    </button>
+                    @if (quickOpen)
+                    {
+                        <div class="qa-backdrop" @onclick="() => quickOpen = false"></div>
+                        <div class="qa-menu" role="menu" aria-label="Quick add">
+                            @foreach (var q in QuickItems)
+                            {
+                                <button type="button" class="qa-item" role="menuitem" @onclick="() => OpenForm(q.Kind)">
+                                    <span class="qa-ico"><Icon Name="@q.Icon" /></span>
+                                    <span><strong>@q.Title</strong><small>@q.Hint</small></span>
+                                    @if (q.Kind == "task") { <kbd class="kbd">N</kbd> }
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
 
                 <button type="button" class="los-timer-btn @(Timer.IsRunning ? "running" : Timer.RemainingSeconds < Timer.TotalSeconds ? "active" : "")"
                         @onclick="Timer.Toggle" title="Focus timer" aria-label="Open focus timer">
@@ -66,7 +92,7 @@
                     <span class="lo-timer-label lo-num">@(Timer.IsRunning || Timer.RemainingSeconds < Timer.TotalSeconds ? Timer.Display : "Focus")</span>
                 </button>
 
-                <button type="button" class="lo-icon-btn" aria-label="@(dark ? "Switch to light mode" : "Switch to dark mode")" aria-pressed="@(dark ? "true" : "false")" title="@(dark ? "Light mode" : "Dark mode")" @onclick="ToggleTheme">
+                <button type="button" class="lo-icon-btn" aria-label="@(dark ? "Switch to light mode" : "Switch to dark mode")" aria-pressed="@(dark ? "true" : "false")" title="@(dark ? "Light glass" : "Dark glass")" @onclick="ToggleTheme">
                     <Icon Name="@(dark ? "sun" : "moon")" />
                 </button>
             </div>
@@ -79,10 +105,13 @@
 </div>
 
 <FocusTimerPanel />
+<FormHost />
+<ToastHost />
 
 @code {
     private record NavItem(string Href, string Text, string Icon);
     private record NavGroup(string Label, NavItem[] Items);
+    private record QuickItem(string Kind, string Icon, string Title, string Hint);
 
     private static readonly NavGroup[] Groups =
     {
@@ -92,8 +121,20 @@
         new("Insights", new NavItem[] { new("analytics", "Analytics", "analytics"), new("settings", "Settings", "settings") }),
     };
 
+    private static readonly QuickItem[] QuickItems =
+    {
+        new("task", "tasks", "Task", "One-time or repeated"),
+        new("goal", "goals", "Goal", "Something to work toward"),
+        new("project", "projects", "Project", "A bigger piece of work"),
+        new("study-session", "studies", "Study session", "Log hours on a subject"),
+        new("skill-log", "skills", "Skill practice", "Log hours or progress"),
+        new("study-note", "note", "Study note", "Capture an idea"),
+    };
+
     private bool navOpen;
-    private bool dark;
+    private bool dark = true;
+    private bool collapsed;
+    private bool quickOpen;
     private string searchText = "";
 
     private string PageTitle
@@ -116,7 +157,10 @@
         if (!firstRender) return;
         try
         {
+            shortcutRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("lifeosUi.registerShortcuts", shortcutRef);
             dark = await JS.InvokeAsync<string>("lifeosTheme.get") == "dark";
+            collapsed = await JS.InvokeAsync<string?>("lifeosUi.getFlag", "nav") == "collapsed";
             StateHasChanged();
         }
         catch (JSException) { }
@@ -128,6 +172,26 @@
         await JS.InvokeVoidAsync("lifeosTheme.set", dark ? "dark" : "light");
     }
 
+    private async Task ToggleCollapse()
+    {
+        collapsed = !collapsed;
+        await JS.InvokeVoidAsync("lifeosUi.setFlag", "nav", collapsed ? "collapsed" : null);
+    }
+
+    private DotNetObjectReference<MainLayout>? shortcutRef;
+
+    [JSInvokable]
+    public void OnShortcut(string key)
+    {
+        if (key == "n") Ui.Open("task");
+    }
+
+    private void OpenForm(string kind)
+    {
+        quickOpen = false;
+        Ui.Open(kind);
+    }
+
     private void CloseNav() => navOpen = false;
 
     private void Search()
@@ -137,10 +201,15 @@
     }
 
     private void OnTimerChanged() => InvokeAsync(StateHasChanged);
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        quickOpen = false;
+        InvokeAsync(StateHasChanged);
+    }
 
     public void Dispose()
     {
+        shortcutRef?.Dispose();
         Timer.Changed -= OnTimerChanged;
         Nav.LocationChanged -= OnLocationChanged;
     }

@@ -4,6 +4,7 @@
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (subjects == null)
 {
@@ -18,11 +19,10 @@ else
                 <h1 class="db-title">Keep learning, one session at a time.</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="() => showAdd = !showAdd"><Icon Name="plus" /> New subject</button>
+                <button type="button" class="lo-btn" @onclick='() => Ui.Open("study-session")'><Icon Name="clock" /> Log session</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("study-subject")'><Icon Name="plus" /> New subject</button>
             </div>
         </div>
-
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
 
         <div class="db-grid-levels">
             <div class="db-level"><span class="db-muted db-tiny">Subjects</span><span class="db-level-pct lo-num">@subjects.Count</span><span class="db-muted db-tiny">tracked</span></div>
@@ -30,42 +30,29 @@ else
             <div class="db-level"><span class="db-muted db-tiny">Today</span><span class="db-level-pct lo-num">@todaySessions!.Sum(s => s.DurationHours).ToString("0.#")h</span><span class="db-muted db-tiny">studied</span></div>
         </div>
 
-        @if (showAdd)
-        {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">New subject</h2>
-                <div class="lo-form">
-                    <div class="lo-field"><label class="lo-label">Name <span aria-hidden="true">*</span></label><input class="lo-input" @bind="newSubject.Name" maxlength="150" placeholder="e.g. Calculus, Arabic" /></div>
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Category</label><input class="lo-input" @bind="newSubject.Category" maxlength="50" /></div>
-                        <div class="lo-field"><label class="lo-label">Target hours <span class="db-muted">(optional)</span></label><input type="number" min="0" max="100000" class="lo-input" @bind="newSubject.TargetHours" /></div>
-                        <div class="lo-field"><label class="lo-label">Weekly target hours</label><input type="number" min="0" max="168" step="0.5" class="lo-input" @bind="newSubject.WeeklyTargetHours" /></div>
-                    </div>
-                    <div class="lo-field"><label class="lo-label">Description <span class="db-muted">(optional)</span></label><textarea class="lo-input lo-textarea" maxlength="300" @bind="newSubject.Description"></textarea></div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showAdd = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="AddSubject" disabled="@busy">Add subject</button>
-                    </div>
-                </div>
-            </section>
-        }
-
         @if (!subjects.Any())
         {
-            <section class="db-card"><p class="db-empty">No subjects yet. Add one to start logging study time.</p></section>
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="studies" /></span>
+                    <strong>No subjects yet</strong>
+                    <span class="db-muted db-small">Add a subject, then log study sessions and tasks against it.</span>
+                    <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("study-subject")'><Icon Name="plus" /> Add your first subject</button>
+                </div>
+            </section>
         }
         <div class="db-grid-2">
             @foreach (var s in subjects)
             {
-                <a class="db-card lo-plain-link" href="studies/@s.Id">
+                <a class="db-card lo-plain-link" href="studies/@s.Id" @key="s.Id">
                     <div class="db-card-head">
                         <div style="min-width:0;">
                             <div class="db-muted db-tiny">@s.Category · @s.Status</div>
                             <h3 class="db-h2">@s.Name</h3>
                         </div>
-                        <span class="lo-num" style="font-weight:700;">@s.ProgressPercent%</span>
+                        <span class="lo-num" style="font-weight:800;font-size:1.25rem;">@s.ProgressPercent%</span>
                     </div>
-                    <div class="db-bar thin" role="presentation"><span style="width:@Math.Clamp(s.ProgressPercent, 0, 100)%"></span></div>
+                    <div class="db-bar" role="progressbar" aria-label="Progress of @s.Name" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@s.ProgressPercent"><span style="width:@Math.Clamp(s.ProgressPercent, 0, 100)%"></span></div>
                     <div class="db-muted db-tiny lo-num">@s.HoursLogged.ToString("0.#")h logged@(s.TargetHours > 0 ? $" of {s.TargetHours}h target" : "")</div>
                     @if (!string.IsNullOrWhiteSpace(s.CurrentTopic)) { <div class="db-muted db-small">Currently: @s.CurrentTopic</div> }
                 </a>
@@ -78,12 +65,20 @@ else
     private List<StudySubject>? subjects;
     private List<StudySession>? thisWeekSessions;
     private List<StudySession>? todaySessions;
-    private string? message;
-    private bool busy;
-    private bool showAdd;
-    private StudySubject newSubject = new();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
@@ -92,31 +87,8 @@ else
         var today = DateTime.Today;
         var weekStart = ProductivityService.WeekStart(today);
 
-        subjects = await db.StudySubjects.AsNoTracking().Include(s => s.StudySessions).Include(s => s.StudyNotes)
-            .OrderBy(s => s.Status).ThenBy(s => s.Name).ToListAsync();
+        subjects = await db.StudySubjects.AsNoTracking().OrderBy(s => s.Status).ThenBy(s => s.Name).ToListAsync();
         thisWeekSessions = await db.StudySessions.AsNoTracking().Where(s => s.SessionDate >= weekStart).ToListAsync();
         todaySessions = thisWeekSessions.Where(s => s.SessionDate.Date == today).ToList();
-    }
-
-    private async Task AddSubject()
-    {
-        newSubject.Name = (newSubject.Name ?? "").Trim();
-        if (newSubject.Name.Length == 0) { message = "Enter a subject name."; return; }
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            newSubject.CreatedAt = DateTime.Now;
-            db.StudySubjects.Add(newSubject);
-            await db.SaveChangesAsync();
-            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("Study", newSubject.Id, "Created", $"Subject '{newSubject.Name}' created");
-            message = $"'{newSubject.Name}' added.";
-            showAdd = false;
-            newSubject = new();
-            await LoadAsync();
-        }
-        finally { busy = false; }
     }
 }

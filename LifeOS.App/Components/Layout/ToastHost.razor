@@ -1,0 +1,40 @@
+@implements IDisposable
+@inject LifeOS.App.Services.AppUi Ui
+
+<div class="toast-host" aria-live="polite" role="status">
+    @foreach (var t in toasts)
+    {
+        <div class="toast" @key="t.Id"><span class="toast-ico"><Icon Name="tick" /></span><span>@t.Message</span></div>
+    }
+</div>
+
+@code {
+    private record ToastItem(int Id, string Message);
+    private readonly List<ToastItem> toasts = new();
+    private int next;
+
+    protected override void OnInitialized() => Ui.ToastRequested += OnToast;
+
+    private void OnToast(string message)
+    {
+        var item = new ToastItem(++next, message);
+        InvokeAsync(() =>
+        {
+            toasts.Add(item);
+            StateHasChanged();
+            _ = RemoveLater(item);
+        });
+    }
+
+    private async Task RemoveLater(ToastItem item)
+    {
+        await Task.Delay(3600);
+        await InvokeAsync(() =>
+        {
+            toasts.Remove(item);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Ui.ToastRequested -= OnToast;
+}

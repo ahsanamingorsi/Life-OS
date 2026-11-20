@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark" data-effects="full">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Life OS</title>
     <base href="/" />
     <script>
-        // Theme: saved choice, else the Windows light/dark setting.
+        // Theme: saved choice, otherwise dark glass. Effects: saved "reduced" or full.
         (function () {
+            var root = document.documentElement;
             try {
                 var saved = localStorage.getItem("lifeos-theme");
-                document.documentElement.dataset.theme = saved === "dark" || saved === "light" ? saved : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-            } catch (e) { document.documentElement.dataset.theme = "light"; }
+                root.dataset.theme = saved === "light" ? "light" : "dark";
+                root.dataset.effects = localStorage.getItem("lifeos-effects") === "reduced" ? "reduced" : "full";
+            } catch (e) { root.dataset.theme = "dark"; }
         })();
         window.lifeosTheme = {
             get: function () { return document.documentElement.dataset.theme; },
@@ -20,12 +22,87 @@
                 try { localStorage.setItem("lifeos-theme", theme); } catch (e) { }
             }
         };
+        window.lifeosUi = {
+            getFlag: function (key) { try { return localStorage.getItem("lifeos-" + key); } catch (e) { return null; } },
+            setFlag: function (key, value) {
+                try { if (value === null || value === undefined) localStorage.removeItem("lifeos-" + key); else localStorage.setItem("lifeos-" + key, value); } catch (e) { }
+            },
+            // Keyboard shortcuts: "/" focuses search, "n" opens a new task. Ignored while typing or inside a popup.
+            registerShortcuts: function (ref) {
+                if (window.__lifeosShortcuts) return;
+                window.__lifeosShortcuts = true;
+                document.addEventListener("keydown", function (e) {
+                    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+                    if (document.querySelector(".glass-modal")) return;
+                    var t = e.target, tag = t && t.tagName;
+                    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
+                    if (e.key === "/") {
+                        var s = document.getElementById("globalSearch");
+                        if (s) { e.preventDefault(); s.focus(); s.select(); }
+                    } else if (e.key === "n" || e.key === "N") {
+                        e.preventDefault();
+                        ref.invokeMethodAsync("OnShortcut", "n");
+                    }
+                });
+            },
+            getEffects: function () { return document.documentElement.dataset.effects === "reduced"; },
+            setEffects: function (reduced) {
+                document.documentElement.dataset.effects = reduced ? "reduced" : "full";
+                window.lifeosUi.setFlag("effects", reduced ? "reduced" : "full");
+            }
+        };
+
+        // Popup forms: focus the first field, keep Tab inside, Esc closes, Enter saves, focus returns afterwards.
+        (function () {
+            var open = false, lastFocus = null;
+            function modal() { var all = document.querySelectorAll(".glass-modal"); return all.length ? all[all.length - 1] : null; }
+            function focusables(m) {
+                return Array.prototype.filter.call(
+                    m.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+                    function (el) { return el.offsetParent !== null; });
+            }
+            new MutationObserver(function () {
+                var m = modal();
+                if (m && !open) {
+                    open = true; lastFocus = document.activeElement;
+                    setTimeout(function () {
+                        var cur = modal(); if (!cur) return;
+                        var first = cur.querySelector(".glass-modal-body input:not([type=hidden]):not([type=checkbox]),.glass-modal-body select,.glass-modal-body textarea") || focusables(cur)[0];
+                        if (first) first.focus();
+                    }, 40);
+                } else if (!m && open) {
+                    open = false;
+                    if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus(); } catch (e) { } }
+                    lastFocus = null;
+                }
+            }).observe(document.documentElement, { childList: true, subtree: true });
+
+            document.addEventListener("keydown", function (e) {
+                var m = modal(); if (!m) return;
+                if (e.key === "Escape") {
+                    var close = m.querySelector("[data-modal-close]");
+                    if (close) { e.preventDefault(); close.click(); }
+                } else if (e.key === "Tab") {
+                    var f = focusables(m); if (!f.length) return;
+                    var first = f[0], last = f[f.length - 1];
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                    else if (!m.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+                } else if (e.key === "Enter" && e.target && e.target.tagName === "INPUT" && e.target.type !== "checkbox" && e.target.type !== "button") {
+                    var primary = m.querySelector(".glass-modal-foot .lo-btn-primary:not([disabled])");
+                    if (primary) {
+                        e.preventDefault();
+                        // Leave the field first so its value is committed before saving.
+                        e.target.blur();
+                        setTimeout(function () { if (document.contains(primary)) primary.click(); }, 60);
+                    }
+                }
+            });
+        })();
     </script>
-    <!-- Plus Jakarta Sans when online; Segoe UI is used offline. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/app-base.css" />
     <link rel="stylesheet" href="css/lifeos-v2.css" />
+    <link rel="stylesheet" href="css/glass.css" />
     <link rel="stylesheet" href="LifeOS.App.styles.css" />
     <link rel="icon" href="data:,">
 </head>

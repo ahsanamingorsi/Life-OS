@@ -3,6 +3,7 @@
 @using LifeOS.MVC.Data
 @using LifeOS.MVC.Models
 @using LifeOS.Models
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.EntityFrameworkCore
 
 <div class="db">
@@ -13,77 +14,83 @@
         </div>
     </div>
 
-    <div class="db-card-head" style="margin-bottom:12px;">
-        <input class="lo-input" placeholder="Search tasks, projects, goals, links…" value="@query" @oninput="OnQueryInput" @onkeyup="OnKeyUp" style="max-width:420px;" />
+    <div class="links-bar">
+        <div class="los-search-wrap" style="flex:1;max-width:560px;">
+            <Icon Name="search" />
+            <label for="pageSearch" class="lo-visually-hidden">Search</label>
+            <input id="pageSearch" type="search" class="los-search" style="width:100%!important;" placeholder="Search tasks, projects, goals, studies, skills, links…" autocomplete="off" value="@query" @oninput="OnQueryInput" @onkeyup="OnKeyUp" />
+        </div>
         <button type="button" class="lo-btn lo-btn-primary" @onclick="RunSearch">Search</button>
     </div>
 
-    @if (ran)
+    @if (!ran)
     {
-        @if (Empty)
-        {
-            <section class="db-card"><p class="db-empty">No results for "@query".</p></section>
-        }
-
-        @if (links.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Links</h2>
-                <div class="db-task-list">
-                    @foreach (var l in links) { <div class="db-task"><div class="db-task-body"><div class="db-task-title"><a href="@l.Url" target="_blank">@l.Name</a></div></div></div> }
-                </div>
-            </section>
-        }
-        @if (tasks.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Tasks</h2>
-                <div class="db-task-list">
+        <section class="db-card">
+            <div class="empty-state">
+                <span class="empty-ico"><Icon Name="search" /></span>
+                <strong>Type something to search</strong>
+                <span class="db-muted db-small">Tasks, projects, goals, studies, skills and links are all searched at once.</span>
+            </div>
+        </section>
+    }
+    else if (Empty)
+    {
+        <section class="db-card">
+            <div class="empty-state">
+                <span class="empty-ico"><Icon Name="search" /></span>
+                <strong>No results for "@query"</strong>
+                <span class="db-muted db-small">Check the spelling or try a shorter word.</span>
+            </div>
+        </section>
+    }
+    else
+    {
+        <div class="db-grid-2">
+            @if (tasks.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Tasks</h2><div class="db-task-list">
                     @foreach (var t in tasks) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="tasks">@t.Title</a></div></div> }
-                </div>
-            </section>
-        }
-        @if (projects.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Projects</h2>
-                <div class="db-task-list">
+                </div></section>
+            }
+            @if (projects.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Projects</h2><div class="db-task-list">
                     @foreach (var p in projects) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="projects/@p.Id">@p.Title</a></div></div> }
-                </div>
-            </section>
-        }
-        @if (goals.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Goals</h2>
-                <div class="db-task-list">
+                </div></section>
+            }
+            @if (goals.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Goals</h2><div class="db-task-list">
                     @foreach (var g in goals) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="goals">@g.Goal</a></div></div> }
-                </div>
-            </section>
-        }
-        @if (studies.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Studies</h2>
-                <div class="db-task-list">
+                </div></section>
+            }
+            @if (studies.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Studies</h2><div class="db-task-list">
                     @foreach (var s in studies) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="studies/@s.Id">@s.Name</a></div></div> }
-                </div>
-            </section>
-        }
-        @if (skills.Any())
-        {
-            <section class="db-card">
-                <h2 class="db-h2">Skills</h2>
-                <div class="db-task-list">
+                </div></section>
+            }
+            @if (skills.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Skills</h2><div class="db-task-list">
                     @foreach (var s in skills) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="skills">@s.Name</a></div></div> }
-                </div>
-            </section>
-        }
+                </div></section>
+            }
+            @if (links.Any())
+            {
+                <section class="db-card"><h2 class="db-h2">Links</h2><div class="db-task-list">
+                    @foreach (var l in links) { <div class="db-task"><div class="db-task-body"><a class="db-task-title lo-plain-link" href="@l.Url" target="_blank" rel="noopener">@l.Name</a><div class="db-task-meta">@l.Domain</div></div></div> }
+                </div></section>
+            }
+        </div>
     }
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
     private string query = "";
+    private string? lastQ;
     private bool ran;
     private List<WebLink> links = new();
     private List<Project> projects = new();
@@ -94,9 +101,19 @@
 
     private bool Empty => !links.Any() && !projects.Any() && !tasks.Any() && !skills.Any() && !studies.Any() && !goals.Any();
 
-    private void OnQueryInput(Microsoft.AspNetCore.Components.ChangeEventArgs e) => query = e.Value as string ?? "";
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Q != lastQ)
+        {
+            lastQ = Q;
+            query = Q ?? "";
+            if (!string.IsNullOrWhiteSpace(query)) await RunSearch();
+        }
+    }
 
-    private async Task OnKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    private void OnQueryInput(ChangeEventArgs e) => query = e.Value as string ?? "";
+
+    private async Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") await RunSearch();
     }
@@ -104,8 +121,8 @@
     private async Task RunSearch()
     {
         var term = query.Trim();
-        ran = true;
-        if (term.Length == 0)
+        ran = term.Length > 0;
+        if (!ran)
         {
             links.Clear(); projects.Clear(); tasks.Clear(); skills.Clear(); studies.Clear(); goals.Clear();
             return;

@@ -14,13 +14,19 @@ No account. No login. No cloud. Everything stays on your own PC.
 
 ---
 
-## Screenshot
+## Screenshots
 
-![Life OS dashboard](docs/screenshot.png)
+![Life OS dashboard in dark glass](docs/screenshot.png)
+
+| Light glass | Popup forms |
+| --- | --- |
+| ![Light theme](docs/screenshot-light.png) | ![New task popup](docs/screenshot-popup.png) |
 
 ## Features
 
-- **Dashboard** — today's productivity score, today's tasks, prayers, a 7-day chart, projects in focus and what needs your attention.
+- **A calm, premium look** — dark and light "liquid glass" themes, a floating sidebar you can collapse, and every form opens in a focused popup.
+- **Quick add** — one button (or press `N`) to add a task, goal, project, study session, skill practice or note from anywhere. Press `/` to search.
+- **Dashboard** — a "Today's focus" card that tells you what to do next, your productivity score, streaks, today's tasks, prayers, a 7-day chart, projects in focus, and a first-time checklist.
 - **My day** — pick any day and see its tasks and repeated tasks.
 - **Tasks** — one-time tasks and repeated tasks (daily, weekly on chosen days, monthly), with an optional end date, streaks and history.
 - **Goals** — link tasks to a goal; progress is calculated from those tasks (or set by hand when no task is linked).
@@ -29,8 +35,8 @@ No account. No login. No cloud. Everything stays on your own PC.
 - **Skills** — skills you are learning, hours per week, progress and a current skill.
 - **Spiritual** — each of the five daily prayers, gratitude and reflection notes, a 30-day calendar and a streak.
 - **Review, Links, Analytics and Search.**
-- **Backup** — export all your data to a file and import it on another PC.
-- Light and dark mode, and a focus timer.
+- **Backup** — export all your data to a file and restore it on another PC. Restoring first saves a safety copy of your current data.
+- A focus timer, and a "Glass effects" switch in Settings if you want a lighter look on an older PC.
 
 ### How the productivity score works
 

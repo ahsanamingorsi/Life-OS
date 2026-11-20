@@ -1,0 +1,121 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+<GlassModal Open="Open" Title="@(GoalId == 0 ? "New goal" : "Edit goal")" Subtitle="What do you want to achieve?" OnClose="Close">
+    <ChildContent>
+        @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+        <div class="lo-form">
+            <div class="lo-field">
+                <label for="gf-name" class="lo-label">Goal <span aria-hidden="true">*</span></label>
+                <input id="gf-name" class="lo-input" @bind="goal.Goal" @bind:event="oninput" maxlength="200" placeholder="e.g. Read 12 books this year" />
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="gf-cat" class="lo-label">Category</label>
+                    <select id="gf-cat" class="lo-select" @bind="goal.Category">
+                        <option value="">None</option>
+                        @foreach (var c in Categories) { <option value="@c">@c</option> }
+                    </select>
+                </div>
+                <div class="lo-field">
+                    <label for="gf-target" class="lo-label">Target count <span class="db-muted">(optional)</span></label>
+                    <input id="gf-target" type="number" min="1" max="100000" class="lo-input" value="@goal.TargetCount" @onchange="SetTarget" />
+                </div>
+            </div>
+            <div class="db-muted db-tiny" style="margin-top:-8px;">Target count = how many times the goal's repeated tasks should be completed in total.</div>
+            @if (!hasTasks)
+            {
+                <div class="lo-field">
+                    <label for="gf-progress" class="lo-label">Manual progress (%)</label>
+                    <input id="gf-progress" type="number" min="0" max="100" class="lo-input lo-input-short" @bind="goal.ProgressPercent" />
+                    <div class="db-muted db-tiny">Used only while no task is linked to this goal.</div>
+                </div>
+            }
+            <div class="lo-field">
+                <label for="gf-notes" class="lo-label">Notes <span class="db-muted">(optional)</span></label>
+                <textarea id="gf-notes" class="lo-input lo-textarea" maxlength="300" @bind="goal.Notes"></textarea>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="lo-btn" @onclick="Close" disabled="@busy">Cancel</button>
+        <button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">@(GoalId == 0 ? "Add goal" : "Save changes")</button>
+    </Footer>
+</GlassModal>
+
+@code {
+    public static readonly string[] Categories = { "Grooming", "Confidence", "Lifestyle", "Standard" };
+
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public int GoalId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private bool wasOpen, busy, hasTasks;
+    private string? error;
+    private PersonalGoal goal = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Open && !wasOpen) await LoadAsync();
+        wasOpen = Open;
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null; hasTasks = false;
+        goal = new PersonalGoal();
+        if (GoalId == 0) return;
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var g = await db.PersonalGoals.AsNoTracking().Include(x => x.Tasks).FirstOrDefaultAsync(x => x.Id == GoalId);
+        if (g == null) return;
+        hasTasks = g.Tasks.Any();
+        goal = new PersonalGoal { Id = g.Id, Goal = g.Goal, Category = g.Category, TargetCount = g.TargetCount, Notes = g.Notes, ProgressPercent = g.ProgressPercent };
+    }
+
+    private void SetTarget(ChangeEventArgs e) => goal.TargetCount = int.TryParse(e.Value as string, out var n) && n > 0 ? n : null;
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task Save()
+    {
+        goal.Goal = (goal.Goal ?? "").Trim();
+        if (goal.Goal.Length == 0) { error = "Enter a goal."; return; }
+        goal.ProgressPercent = Math.Clamp(goal.ProgressPercent, 0, 100);
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
+            string message;
+            if (goal.Id == 0)
+            {
+                goal.CreatedAt = DateTime.Now;
+                db.PersonalGoals.Add(goal);
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Goal", goal.Id, "Created", $"Goal '{goal.Goal}' created");
+                message = $"Goal '{goal.Goal}' added";
+            }
+            else
+            {
+                var row = await db.PersonalGoals.Include(g => g.Tasks).FirstOrDefaultAsync(g => g.Id == goal.Id);
+                if (row == null) { error = "This goal no longer exists."; return; }
+                row.Goal = goal.Goal; row.Category = goal.Category; row.TargetCount = goal.TargetCount; row.Notes = goal.Notes;
+                if (!row.Tasks.Any()) row.ProgressPercent = goal.ProgressPercent;
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Goal", row.Id, "Updated", $"Goal '{row.Goal}' updated");
+                message = "Goal updated";
+            }
+            Ui.Toast(message);
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        finally { busy = false; }
+    }
+}

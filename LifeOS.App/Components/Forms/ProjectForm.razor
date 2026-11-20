@@ -1,0 +1,147 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+<GlassModal Open="Open" Title="@(ProjectId == 0 ? "New project" : "Edit project")" Subtitle="Give the idea a clear next step." OnClose="Close">
+    <ChildContent>
+        @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+        <div class="lo-form">
+            <div class="lo-field">
+                <label for="pf-title" class="lo-label">Title <span aria-hidden="true">*</span></label>
+                <input id="pf-title" class="lo-input" @bind="project.Title" @bind:event="oninput" maxlength="150" placeholder="What are you building?" />
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="pf-cat" class="lo-label">Category</label>
+                    <input id="pf-cat" class="lo-input" @bind="project.Category" maxlength="50" placeholder="Type any category" />
+                </div>
+                <div class="lo-field">
+                    <label for="pf-pri" class="lo-label">Priority</label>
+                    <select id="pf-pri" class="lo-select" @bind="project.Priority">
+                        <option value="A">A — Critical</option>
+                        <option value="B">B — Important</option>
+                        <option value="C">C — Nice to have</option>
+                    </select>
+                </div>
+                <div class="lo-field">
+                    <label for="pf-status" class="lo-label">Status</label>
+                    <select id="pf-status" class="lo-select" @bind="project.Status">
+                        <option value="Active">Active</option>
+                        <option value="Paused">Paused</option>
+                        @if (ProjectId != 0) { <option value="Done">Done</option> }
+                    </select>
+                </div>
+                <div class="lo-field">
+                    <label for="pf-deadline" class="lo-label">Deadline <span class="db-muted">(optional)</span></label>
+                    <input id="pf-deadline" type="date" class="lo-input" value="@(project.Deadline?.ToString("yyyy-MM-dd") ?? "")" @onchange="SetDeadline" />
+                </div>
+            </div>
+            @if (ProjectId != 0)
+            {
+                <div class="lo-form-grid">
+                    <div class="lo-field">
+                        <label for="pf-progress" class="lo-label">Progress %</label>
+                        @if (hasTasks) { <input id="pf-progress" class="lo-input" value="@($"{project.ProgressPercent}% (from tasks)")" disabled /> }
+                        else { <input id="pf-progress" type="number" min="0" max="100" class="lo-input" @bind="project.ProgressPercent" /> }
+                    </div>
+                    <div class="lo-field">
+                        <label for="pf-next" class="lo-label">Next task</label>
+                        <input id="pf-next" class="lo-input" @bind="project.NextTask" maxlength="300" />
+                    </div>
+                </div>
+            }
+            <div class="lo-field">
+                <label for="pf-notes" class="lo-label">Goal / notes <span class="db-muted">(optional)</span></label>
+                <textarea id="pf-notes" class="lo-input lo-textarea" maxlength="500" @bind="project.Notes" placeholder="What does success look like?"></textarea>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="lo-btn" @onclick="Close" disabled="@busy">Cancel</button>
+        <button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">@(ProjectId == 0 ? "Create project" : "Save project")</button>
+    </Footer>
+</GlassModal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public int ProjectId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private bool wasOpen, busy, hasTasks;
+    private string? error;
+    private Project project = new() { Priority = "B", Status = "Active" };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Open && !wasOpen) await LoadAsync();
+        wasOpen = Open;
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null; hasTasks = false;
+        project = new Project { Priority = "B", Status = "Active", Category = "" };
+        if (ProjectId == 0) return;
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var p = await db.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProjectId);
+        if (p == null) return;
+        hasTasks = await db.ProjectTasks.AnyAsync(t => t.ProjectId == ProjectId);
+        project = new Project
+        {
+            Id = p.Id, Title = p.Title, Category = p.Category, Priority = p.Priority, Status = p.Status,
+            Deadline = p.Deadline, ProgressPercent = p.ProgressPercent, Notes = p.Notes, NextTask = p.NextTask,
+        };
+    }
+
+    private void SetDeadline(ChangeEventArgs e) => project.Deadline = DateTime.TryParse(e.Value as string, out var d) ? d : null;
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task Save()
+    {
+        project.Title = (project.Title ?? "").Trim();
+        project.Category = (project.Category ?? "").Trim();
+        if (project.Title.Length == 0) { error = "Enter a project title."; return; }
+        if (project.Title.Length > 150) { error = "The title can be up to 150 characters."; return; }
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
+            string message;
+            if (project.Id == 0)
+            {
+                project.ProgressPercent = 0;
+                project.CreatedAt = DateTime.Now;
+                db.Projects.Add(project);
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Project", project.Id, "Created", $"Project '{project.Title}' created");
+                message = $"Project '{project.Title}' created";
+            }
+            else
+            {
+                var row = await db.Projects.FindAsync(project.Id);
+                if (row == null) { error = "This project no longer exists."; return; }
+                row.Title = project.Title; row.Category = project.Category; row.Priority = project.Priority;
+                row.Deadline = project.Deadline?.Date;
+                row.Notes = string.IsNullOrWhiteSpace(project.Notes) ? null : project.Notes.Trim();
+                row.Status = project.Status;
+                if (!await db.ProjectTasks.AnyAsync(t => t.ProjectId == row.Id)) row.ProgressPercent = Math.Clamp(project.ProgressPercent, 0, 100);
+                if (project.NextTask != null) row.NextTask = project.NextTask;
+                await db.SaveChangesAsync();
+                await productivity.LogActivityAsync("Project", row.Id, "Updated", $"Project '{row.Title}' updated to {row.Status}");
+                message = "Project updated";
+            }
+            Ui.Toast(message);
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        finally { busy = false; }
+    }
+}

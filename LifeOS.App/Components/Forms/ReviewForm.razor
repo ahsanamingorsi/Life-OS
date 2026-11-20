@@ -1,0 +1,120 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+<GlassModal Open="Open" Title="@(ReviewId == 0 ? "New review" : "Edit review")" Subtitle="Look back, then plan ahead." Size="lg" OnClose="Close">
+    <ChildContent>
+        @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+        <div class="lo-form">
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="rf-period" class="lo-label">Period</label>
+                    <select id="rf-period" class="lo-select" @bind="review.Period" @bind:after="PeriodChanged"><option value="Weekly">Weekly</option><option value="Monthly">Monthly</option></select>
+                </div>
+                <div class="lo-field">
+                    <label for="rf-start" class="lo-label">Start date</label>
+                    <input id="rf-start" type="date" class="lo-input" value="@review.StartDate.ToString("yyyy-MM-dd")" @onchange="SetStart" />
+                </div>
+                <div class="lo-field">
+                    <label for="rf-end" class="lo-label">End date</label>
+                    <input id="rf-end" type="date" class="lo-input" value="@review.EndDate.ToString("yyyy-MM-dd")" @onchange="SetEnd" />
+                </div>
+                <div class="lo-field">
+                    <label for="rf-score" class="lo-label">Overall score (1–10)</label>
+                    <input id="rf-score" type="number" min="1" max="10" class="lo-input" @bind="review.OverallScore" />
+                </div>
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field"><label for="rf-wins" class="lo-label">Wins</label><textarea id="rf-wins" class="lo-input lo-textarea" maxlength="1000" @bind="review.Wins"></textarea></div>
+                <div class="lo-field"><label for="rf-missed" class="lo-label">Missed goals</label><textarea id="rf-missed" class="lo-input lo-textarea" maxlength="1000" @bind="review.MissedGoals"></textarea></div>
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field"><label for="rf-notes" class="lo-label">Notes</label><textarea id="rf-notes" class="lo-input lo-textarea" maxlength="1000" @bind="review.Notes"></textarea></div>
+                <div class="lo-field"><label for="rf-improve" class="lo-label">Improvement ideas</label><textarea id="rf-improve" class="lo-input lo-textarea" maxlength="1000" @bind="review.ImprovementSuggestions"></textarea></div>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="lo-btn" @onclick="Close" disabled="@busy">Cancel</button>
+        <button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">@(ReviewId == 0 ? "Save review" : "Save changes")</button>
+    </Footer>
+</GlassModal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public int ReviewId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private bool wasOpen, busy;
+    private string? error;
+    private ReviewEntry review = Blank();
+
+    private static ReviewEntry Blank() => new() { Period = "Weekly", StartDate = DateTime.Today.AddDays(-6), EndDate = DateTime.Today, OverallScore = 5 };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Open && !wasOpen) await LoadAsync();
+        wasOpen = Open;
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        review = Blank();
+        if (ReviewId == 0) return;
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var r = await db.ReviewEntries.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ReviewId);
+        if (r == null) return;
+        review = new ReviewEntry
+        {
+            Id = r.Id, Period = r.Period, StartDate = r.StartDate, EndDate = r.EndDate, Wins = r.Wins, MissedGoals = r.MissedGoals,
+            Notes = r.Notes, ImprovementSuggestions = r.ImprovementSuggestions, OverallScore = r.OverallScore, CreatedAt = r.CreatedAt,
+        };
+    }
+
+    private void PeriodChanged()
+    {
+        if (ReviewId != 0) return;
+        review.EndDate = DateTime.Today;
+        review.StartDate = review.Period == "Monthly" ? DateTime.Today.AddDays(-29) : DateTime.Today.AddDays(-6);
+    }
+
+    private void SetStart(ChangeEventArgs e) { if (DateTime.TryParse(e.Value as string, out var d)) review.StartDate = d.Date; }
+    private void SetEnd(ChangeEventArgs e) { if (DateTime.TryParse(e.Value as string, out var d)) review.EndDate = d.Date; }
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task Save()
+    {
+        if (review.Period is not ("Weekly" or "Monthly") || review.EndDate < review.StartDate || review.OverallScore is < 1 or > 10)
+        { error = "Choose Weekly or Monthly, an end date on or after the start date, and a score from 1 to 10."; return; }
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (review.Id == 0)
+            {
+                review.CreatedAt = DateTime.Now;
+                db.ReviewEntries.Add(review);
+            }
+            else
+            {
+                var row = await db.ReviewEntries.FindAsync(review.Id);
+                if (row == null) { error = "This review no longer exists."; return; }
+                row.Period = review.Period; row.StartDate = review.StartDate.Date; row.EndDate = review.EndDate.Date;
+                row.Wins = review.Wins; row.MissedGoals = review.MissedGoals; row.Notes = review.Notes;
+                row.ImprovementSuggestions = review.ImprovementSuggestions; row.OverallScore = review.OverallScore;
+            }
+            await db.SaveChangesAsync();
+            Ui.Toast(ReviewId == 0 ? "Review saved" : "Review updated");
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        finally { busy = false; }
+    }
+}

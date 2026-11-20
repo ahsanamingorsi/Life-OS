@@ -1,0 +1,41 @@
+@implements IDisposable
+@inject LifeOS.App.Services.AppUi Ui
+
+<TaskForm Open="@(kind == "task")" TaskId="id" DefaultGoalId="context" OnClose="Close" OnSaved="Close" />
+<GoalForm Open="@(kind == "goal")" GoalId="id" OnClose="Close" OnSaved="Close" />
+<ProjectForm Open="@(kind == "project")" ProjectId="id" OnClose="Close" OnSaved="Close" />
+<StudySessionForm Open="@(kind == "study-session")" SubjectId="id" OnClose="Close" OnSaved="Close" />
+<SkillLogForm Open="@(kind == "skill-log")" SkillId="id" OnClose="Close" OnSaved="Close" />
+<StudyNoteForm Open="@(kind == "study-note")" SubjectId="id" OnClose="Close" OnSaved="Close" />
+<StudySubjectForm Open="@(kind == "study-subject")" SubjectId="id" OnClose="Close" OnSaved="Close" />
+<StudyTaskForm Open="@(kind == "study-task" || kind == "study-task-edit")" SubjectId="@(kind == "study-task" ? id : 0)" TaskId="@(kind == "study-task-edit" ? id : 0)" OnClose="Close" OnSaved="Close" />
+<SkillForm Open="@(kind == "skill")" SkillId="id" OnClose="Close" OnSaved="Close" />
+<ReviewForm Open="@(kind == "review")" ReviewId="id" OnClose="Close" OnSaved="Close" />
+<LinkForm Open="@(kind == "link")" LinkId="id" OnClose="Close" OnSaved="Close" />
+<SpiritualNoteForm Open="@(kind == "spiritual-note")" DayKey="id" OnClose="Close" OnSaved="Close" />
+<ProjectTaskForm Open="@(kind == "project-task" || kind == "project-task-edit")" ProjectId="@(kind == "project-task" ? id : 0)" TaskId="@(kind == "project-task-edit" ? id : 0)" OnClose="Close" OnSaved="Close" />
+
+@code {
+    private string? kind;
+    private int id;
+    private int? context;
+
+    protected override void OnInitialized() => Ui.FormRequested += OnRequested;
+
+    private void OnRequested(string requestedKind, int requestedId, int? requestedContext)
+    {
+        kind = requestedKind;
+        id = requestedId;
+        context = requestedContext;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Close()
+    {
+        kind = null;
+        id = 0;
+        context = null;
+    }
+
+    public void Dispose() => Ui.FormRequested -= OnRequested;
+}

@@ -1,0 +1,21 @@
+@* Small glass popup that asks before something is deleted. *@
+<GlassModal Open="Open" Title="@Title" Size="sm" OnClose="OnCancel">
+    <ChildContent>
+        <p style="margin:0;">@Message</p>
+        @if (!string.IsNullOrEmpty(Detail)) { <p class="db-muted db-small" style="margin:0;">@Detail</p> }
+    </ChildContent>
+    <Footer>
+        <button type="button" class="lo-btn" @onclick="OnCancel">Cancel</button>
+        <button type="button" class="lo-btn lo-btn-danger-solid" @onclick="OnConfirm">@ConfirmText</button>
+    </Footer>
+</GlassModal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Title { get; set; } = "Are you sure?";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string? Detail { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "Delete";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

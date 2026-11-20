@@ -1,0 +1,38 @@
+@* Frosted-glass popup used by every form. Esc / outside click / the X button close it (see index.html for keyboard handling). *@
+@if (Open)
+{
+    <div class="glass-overlay" @onclick="Close">
+        <div class="glass-modal @Size" role="dialog" aria-modal="true" aria-labelledby="@titleId" @onclick="NoOp" @onclick:stopPropagation="true">
+            <header class="glass-modal-head">
+                <div>
+                    <h2 id="@titleId">@Title</h2>
+                    @if (!string.IsNullOrEmpty(Subtitle)) { <p>@Subtitle</p> }
+                </div>
+                <button type="button" class="lo-icon-btn" data-modal-close aria-label="Close" @onclick="Close"><Icon Name="close" /></button>
+            </header>
+            <div class="glass-modal-body">
+                @ChildContent
+            </div>
+            @if (Footer != null)
+            {
+                <footer class="glass-modal-foot">@Footer</footer>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private readonly string titleId = "m" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    /// <summary>"sm", "" (default) or "lg".</summary>
+    [Parameter] public string Size { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private Task Close() => OnClose.InvokeAsync();
+    private void NoOp() { }
+}

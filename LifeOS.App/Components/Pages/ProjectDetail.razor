@@ -4,8 +4,13 @@
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
-@if (project == null)
+@if (notFound)
+{
+    <div class="db"><section class="db-card"><div class="empty-state"><strong>This project no longer exists</strong><a class="lo-btn lo-btn-primary" href="projects">Back to projects</a></div></section></div>
+}
+else if (project == null)
 {
     <p class="db-empty">Loading…</p>
 }
@@ -26,12 +31,10 @@ else
                 </div>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn" @onclick="() => showEditProject = !showEditProject">Edit project</button>
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="() => showAddTask = !showAddTask"><Icon Name="plus" /> Add task</button>
+                <button type="button" class="lo-btn" @onclick='() => Ui.Open("project", Id)'>Edit project</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("project-task", Id)'><Icon Name="plus" /> Add task</button>
             </div>
         </div>
-
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
 
         <div class="db-grid-levels">
             <div class="db-level"><span class="db-muted db-tiny">Progress</span><span class="db-level-pct lo-num">@Math.Clamp(p.ProgressPercent, 0, 100)%</span><div class="db-bar" role="presentation"><span style="width:@Math.Clamp(p.ProgressPercent, 0, 100)%"></span></div></div>
@@ -42,55 +45,14 @@ else
 
         @if (!string.IsNullOrWhiteSpace(p.Notes)) { <section class="db-card"><p class="db-small" style="margin:0; white-space:pre-line;">@p.Notes</p></section> }
 
-        @if (showAddTask)
+        @if (!tasks.Any())
         {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">Add a task</h2>
-                <div class="lo-form">
-                    <div class="lo-field"><label class="lo-label">Title <span aria-hidden="true">*</span></label><input class="lo-input" @bind="newTask.Title" maxlength="200" placeholder="What needs to be done?" /></div>
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Priority</label>
-                            <select class="lo-select" @bind="newTask.Priority"><option value="A">A — Critical</option><option value="B">B — Important</option><option value="C">C — Low</option></select>
-                        </div>
-                        <div class="lo-field"><label class="lo-label">Due date</label><input type="date" class="lo-input" @onchange="e => newTask.DueDate = ParseDate(e.Value)" /></div>
-                        <div class="lo-field"><label class="lo-label">Planned min</label><input type="number" min="0" max="100000" class="lo-input" @bind="newTask.EstimatedMinutes" /></div>
-                    </div>
-                    <div class="lo-field"><label class="lo-label">Description <span class="db-muted">(optional)</span></label><textarea class="lo-input lo-textarea" maxlength="500" @bind="newTask.Description"></textarea></div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showAddTask = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="AddTask" disabled="@busy">Add task</button>
-                    </div>
-                </div>
-            </section>
-        }
-
-        @if (showEditProject)
-        {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">Edit project</h2>
-                <div class="lo-form">
-                    <div class="lo-field"><label class="lo-label">Title <span aria-hidden="true">*</span></label><input class="lo-input" @bind="editProject.Title" maxlength="150" /></div>
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Category</label><input class="lo-input" @bind="editProject.Category" maxlength="50" /></div>
-                        <div class="lo-field"><label class="lo-label">Priority</label>
-                            <select class="lo-select" @bind="editProject.Priority"><option value="A">A — Critical</option><option value="B">B — Important</option><option value="C">C — Low</option></select>
-                        </div>
-                        <div class="lo-field"><label class="lo-label">Status</label>
-                            <select class="lo-select" @bind="editProject.Status"><option value="Active">Active</option><option value="Paused">Paused</option><option value="Done">Done</option></select>
-                        </div>
-                        <div class="lo-field"><label class="lo-label">Deadline</label><input type="date" class="lo-input" value="@(editProject.Deadline?.ToString("yyyy-MM-dd") ?? "")" @onchange="e => editProject.Deadline = ParseDate(e.Value)" /></div>
-                        <div class="lo-field">
-                            <label class="lo-label">Progress %</label>
-                            @if (tasks.Any()) { <input class="lo-input" value="@($"{p.ProgressPercent}% (from tasks)")" disabled /> }
-                            else { <input type="number" min="0" max="100" class="lo-input" @bind="editProject.ProgressPercent" /> }
-                        </div>
-                    </div>
-                    <div class="lo-field"><label class="lo-label">Next task</label><input class="lo-input" @bind="editProject.NextTask" maxlength="300" /></div>
-                    <div class="lo-field"><label class="lo-label">Goal / notes</label><textarea class="lo-input lo-textarea" maxlength="500" @bind="editProject.Notes"></textarea></div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showEditProject = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="SaveProject" disabled="@busy">Save project</button>
-                    </div>
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="tasks" /></span>
+                    <strong>No tasks yet</strong>
+                    <span class="db-muted db-small">Break this project into small tasks. Progress and the next step update automatically.</span>
+                    <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("project-task", Id)'><Icon Name="plus" /> Add the first task</button>
                 </div>
             </section>
         }
@@ -104,12 +66,12 @@ else
                     @foreach (var t in col.Tasks)
                     {
                         bool overdue = !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value.Date < DateTime.Today;
-                        <article class="lo-task-card @(t.IsCompleted ? "is-done" : "") @(overdue ? "is-overdue" : "")">
+                        <article class="lo-task-card @(t.IsCompleted ? "is-done" : "") @(overdue ? "is-overdue" : "")" @key="t.Id">
                             <div class="lo-task-top">
                                 <h3 class="lo-task-title">@t.Title</h3>
                                 <span class="db-pri @t.Priority.ToLowerInvariant()">@t.Priority</span>
                             </div>
-                            @if (!string.IsNullOrWhiteSpace(t.Description)) { <p class="db-muted db-tiny">@t.Description</p> }
+                            @if (!string.IsNullOrWhiteSpace(t.Description)) { <p class="db-muted db-tiny" style="margin:0;">@t.Description</p> }
                             <div class="lo-chips db-tiny">
                                 @if (t.DueDate.HasValue) { <span class="@(overdue ? "db-neg" : "db-muted")">@(overdue ? "Overdue · " : "Due ")@t.DueDate.Value.ToString("d MMM")</span> }
                                 @if (t.EstimatedMinutes > 0) { <span class="db-muted">~@Minutes(t.EstimatedMinutes.Value) planned</span> }
@@ -120,7 +82,8 @@ else
                                 @if (t.Status == "InProgress") { <button type="button" class="lo-btn lo-btn-sm" @onclick='() => MoveTask(t.Id, "Todo")'>Back to To do</button> }
                                 @if (t.Status != "Done") { <button type="button" class="lo-btn lo-btn-sm lo-btn-primary" @onclick='() => MoveTask(t.Id, "Done")'>Done</button> }
                                 else { <button type="button" class="lo-btn lo-btn-sm" @onclick='() => MoveTask(t.Id, "Todo")'>Reopen</button> }
-                                <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteTask(t.Id, t.Title)">Delete</button>
+                                <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @t.Title" @onclick='() => Ui.Open("project-task-edit", t.Id)'>Edit</button>
+                                <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" aria-label="Delete @t.Title" @onclick="() => pendingDelete = t">Delete</button>
                             </div>
                         </article>
                     }
@@ -130,6 +93,9 @@ else
     </div>
 }
 
+<ConfirmModal Open="@(pendingDelete != null)" Title="Delete this task?" Message="@($"'{pendingDelete?.Title}' will be removed from the project.")"
+              OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
+
 @code {
     [Parameter] public int Id { get; set; }
 
@@ -137,12 +103,8 @@ else
 
     private Project? project;
     private List<ProjectTask>? tasks;
-    private string? message;
-    private bool busy;
-    private bool showAddTask;
-    private bool showEditProject;
-    private ProjectTask newTask = new() { Priority = "B" };
-    private Project editProject = new();
+    private bool notFound, busy;
+    private ProjectTask? pendingDelete;
 
     private int OverdueTaskCount => tasks!.Count(t => !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value.Date < DateTime.Today);
     private IEnumerable<Column> Columns => new[]
@@ -153,67 +115,31 @@ else
     };
 
     private static string Minutes(int m) => m >= 60 ? $"{m / 60}h {m % 60}m" : $"{m}m";
-    private static DateTime? ParseDate(object? value) => DateTime.TryParse(value as string, out var d) ? d : null;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
         using var scope = ScopedServices.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         project = await db.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Id);
+        notFound = project == null;
         if (project == null) return;
         tasks = await db.ProjectTasks.AsNoTracking().Where(t => t.ProjectId == Id)
             .OrderBy(t => t.Status).ThenBy(t => t.SortOrder).ThenBy(t => t.Priority).ThenBy(t => t.DueDate)
             .ToListAsync();
-        editProject = new Project
-        {
-            Id = project.Id, Title = project.Title, Category = project.Category, Priority = project.Priority,
-            Status = project.Status, Deadline = project.Deadline, ProgressPercent = project.ProgressPercent, Notes = project.Notes, NextTask = project.NextTask,
-        };
-    }
-
-    private async Task AutoUpdateProgress(AppDbContext db, int projectId)
-    {
-        var proj = await db.Projects.FindAsync(projectId);
-        if (proj == null) return;
-        var all = await db.ProjectTasks.Where(t => t.ProjectId == projectId).ToListAsync();
-        if (all.Any())
-        {
-            int done = all.Count(t => t.IsCompleted);
-            proj.ProgressPercent = (int)((double)done / all.Count * 100);
-            if (proj.ProgressPercent == 100) proj.Status = "Done";
-            else if (proj.Status == "Done") proj.Status = "Active";
-            var next = all.Where(t => !t.IsCompleted).OrderBy(t => t.Priority).ThenBy(t => t.DueDate).FirstOrDefault();
-            proj.NextTask = next?.Title;
-        }
-        else { proj.ProgressPercent = 0; proj.NextTask = null; if (proj.Status == "Done") proj.Status = "Active"; }
-        await db.SaveChangesAsync();
-    }
-
-    private async Task AddTask()
-    {
-        newTask.Title = (newTask.Title ?? "").Trim();
-        if (newTask.Title.Length == 0) { message = "Enter a task title."; return; }
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            newTask.ProjectId = Id;
-            newTask.CreatedAt = DateTime.Now;
-            newTask.Status = "Todo";
-            db.ProjectTasks.Add(newTask);
-            await db.SaveChangesAsync();
-            await AutoUpdateProgress(db, Id);
-            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("ProjectTask", newTask.Id, "Created", $"Task '{newTask.Title}' added to project");
-            message = $"Task '{newTask.Title}' added.";
-            showAddTask = false;
-            newTask = new() { Priority = "B" };
-            await LoadAsync();
-        }
-        finally { busy = false; }
     }
 
     private async Task MoveTask(int taskId, string status)
@@ -229,62 +155,35 @@ else
             task.IsCompleted = status == "Done";
             task.CompletedAt = status == "Done" ? DateTime.Now : null;
             await db.SaveChangesAsync();
-            await AutoUpdateProgress(db, Id);
+            await LifeOS.App.Services.ProjectProgress.RecalculateAsync(db, Id);
             await scope.ServiceProvider.GetRequiredService<ProductivityService>()
                 .LogActivityAsync("ProjectTask", taskId, status == "Done" ? "Completed" : "Updated", $"Task '{task.Title}' moved to {status}");
-            message = $"'{task.Title}' → {status}.";
+            Ui.Toast(status == "Done" ? $"Done: {task.Title}" : $"'{task.Title}' → {status}");
             await LoadAsync();
         }
         finally { busy = false; }
     }
 
-    private async Task DeleteTask(int taskId, string title)
+    private void CancelDelete() => pendingDelete = null;
+
+    private async Task ConfirmDelete()
     {
+        var t = pendingDelete;
+        pendingDelete = null;
+        if (t == null) return;
         busy = true;
         try
         {
             using var scope = ScopedServices.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var task = await db.ProjectTasks.FindAsync(taskId);
+            var task = await db.ProjectTasks.FindAsync(t.Id);
             if (task == null) return;
             db.ProjectTasks.Remove(task);
             await db.SaveChangesAsync();
-            await AutoUpdateProgress(db, Id);
+            await LifeOS.App.Services.ProjectProgress.RecalculateAsync(db, Id);
             await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("ProjectTask", taskId, "Deleted", $"Task '{title}' deleted");
-            message = $"Task '{title}' removed.";
-            await LoadAsync();
-        }
-        finally { busy = false; }
-    }
-
-    private async Task SaveProject()
-    {
-        editProject.Title = (editProject.Title ?? "").Trim();
-        if (editProject.Title.Length == 0 || editProject.Title.Length > 150) { message = "Enter a project title (up to 150 characters)."; return; }
-        if (editProject.Priority is not ("A" or "B" or "C")) { message = "Choose priority A, B or C."; return; }
-
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var proj = await db.Projects.FindAsync(Id);
-            if (proj == null) return;
-            proj.Title = editProject.Title;
-            proj.Category = (editProject.Category ?? "").Trim();
-            proj.Priority = editProject.Priority;
-            proj.Deadline = editProject.Deadline?.Date;
-            proj.Notes = string.IsNullOrWhiteSpace(editProject.Notes) ? null : editProject.Notes.Trim();
-            proj.Status = editProject.Status;
-            bool hasTasks = await db.ProjectTasks.AnyAsync(t => t.ProjectId == Id);
-            if (!hasTasks) proj.ProgressPercent = Math.Clamp(editProject.ProgressPercent, 0, 100);
-            if (editProject.NextTask != null) proj.NextTask = editProject.NextTask;
-            await db.SaveChangesAsync();
-            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("Project", Id, "Updated", $"Project '{proj.Title}' updated to {proj.Status}");
-            message = "Project updated.";
-            showEditProject = false;
+                .LogActivityAsync("ProjectTask", t.Id, "Deleted", $"Task '{t.Title}' deleted");
+            Ui.Toast($"Task '{t.Title}' removed");
             await LoadAsync();
         }
         finally { busy = false; }

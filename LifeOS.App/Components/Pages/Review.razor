@@ -3,6 +3,7 @@
 @using LifeOS.MVC.Data
 @using LifeOS.MVC.Models
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (reviews == null)
 {
@@ -17,110 +18,88 @@ else
                 <h1 class="db-title">Look back, then plan ahead.</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="() => showAdd = !showAdd"><Icon Name="plus" /> New review</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("review")'><Icon Name="plus" /> New review</button>
             </div>
         </div>
 
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
-
-        @if (showAdd)
+        @if (!reviews.Any())
         {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">New review</h2>
-                @if (formError != null) { <div class="lo-flash lo-flash-error" role="alert">@formError</div> }
-                <div class="lo-form">
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Period</label>
-                            <select class="lo-select" @bind="form.Period"><option value="Weekly">Weekly</option><option value="Monthly">Monthly</option></select>
-                        </div>
-                        <div class="lo-field"><label class="lo-label">Start date</label><input type="date" class="lo-input" @onchange="e => form.StartDate = ParseDate(e.Value) ?? DateTime.Today" /></div>
-                        <div class="lo-field"><label class="lo-label">End date</label><input type="date" class="lo-input" @onchange="e => form.EndDate = ParseDate(e.Value) ?? DateTime.Today" /></div>
-                        <div class="lo-field"><label class="lo-label">Overall score (1-10)</label><input type="number" min="1" max="10" class="lo-input lo-input-short" @bind="form.OverallScore" /></div>
-                    </div>
-                    <div class="lo-field"><label class="lo-label">Wins</label><textarea class="lo-input lo-textarea" maxlength="1000" @bind="form.Wins"></textarea></div>
-                    <div class="lo-field"><label class="lo-label">Missed goals</label><textarea class="lo-input lo-textarea" maxlength="1000" @bind="form.MissedGoals"></textarea></div>
-                    <div class="lo-field"><label class="lo-label">Notes</label><textarea class="lo-input lo-textarea" maxlength="1000" @bind="form.Notes"></textarea></div>
-                    <div class="lo-field"><label class="lo-label">Improvement ideas</label><textarea class="lo-input lo-textarea" maxlength="1000" @bind="form.ImprovementSuggestions"></textarea></div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showAdd = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">Save review</button>
-                    </div>
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="review" /></span>
+                    <strong>No reviews yet</strong>
+                    <span class="db-muted db-small">A short weekly review keeps you honest: wins, misses and what to improve.</span>
+                    <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("review")'><Icon Name="plus" /> Start your first review</button>
                 </div>
             </section>
         }
-
-        @if (!reviews.Any())
-        {
-            <section class="db-card"><p class="db-empty">No reviews yet. Start a weekly or monthly review.</p></section>
-        }
-        <div class="db-task-list">
+        <div class="db-grid-2">
             @foreach (var r in reviews)
             {
-                <section class="db-card">
+                <section class="db-card" @key="r.Id">
                     <div class="db-card-head">
-                        <h3 class="db-h2">@r.Period review: @r.StartDate.ToString("d MMM") – @r.EndDate.ToString("d MMM yyyy")</h3>
-                        <span class="lo-num" style="font-weight:700;">@r.OverallScore/10</span>
+                        <div style="min-width:0;">
+                            <div class="db-muted db-tiny">@r.Period review</div>
+                            <h3 class="db-h2">@r.StartDate.ToString("d MMM") – @r.EndDate.ToString("d MMM yyyy")</h3>
+                        </div>
+                        <span class="lo-num" style="font-weight:800;font-size:1.25rem;">@r.OverallScore/10</span>
                     </div>
-                    @if (!string.IsNullOrWhiteSpace(r.Wins)) { <div class="db-muted db-small"><strong>Wins:</strong> @r.Wins</div> }
-                    @if (!string.IsNullOrWhiteSpace(r.MissedGoals)) { <div class="db-muted db-small"><strong>Missed:</strong> @r.MissedGoals</div> }
-                    @if (!string.IsNullOrWhiteSpace(r.Notes)) { <div class="db-muted db-small"><strong>Notes:</strong> @r.Notes</div> }
-                    @if (!string.IsNullOrWhiteSpace(r.ImprovementSuggestions)) { <div class="db-muted db-small"><strong>Improve:</strong> @r.ImprovementSuggestions</div> }
-                    <div class="lo-row-actions"><button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => Delete(r.Id)">Delete</button></div>
+                    <div class="db-bar" role="presentation"><span style="width:@(r.OverallScore * 10)%"></span></div>
+                    @if (!string.IsNullOrWhiteSpace(r.Wins)) { <div class="db-small"><strong>Wins:</strong> <span class="db-muted">@r.Wins</span></div> }
+                    @if (!string.IsNullOrWhiteSpace(r.MissedGoals)) { <div class="db-small"><strong>Missed:</strong> <span class="db-muted">@r.MissedGoals</span></div> }
+                    @if (!string.IsNullOrWhiteSpace(r.Notes)) { <div class="db-small"><strong>Notes:</strong> <span class="db-muted">@r.Notes</span></div> }
+                    @if (!string.IsNullOrWhiteSpace(r.ImprovementSuggestions)) { <div class="db-small"><strong>Improve:</strong> <span class="db-muted">@r.ImprovementSuggestions</span></div> }
+                    <div class="lo-row-actions">
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick='() => Ui.Open("review", r.Id)'>Edit</button>
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => pendingDelete = r">Delete</button>
+                    </div>
                 </section>
             }
         </div>
     </div>
 }
 
+<ConfirmModal Open="@(pendingDelete != null)" Title="Delete this review?" Message="@($"The review for {pendingDelete?.StartDate:d MMM} – {pendingDelete?.EndDate:d MMM yyyy} will be deleted.")" OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
+
 @code {
     private List<ReviewEntry>? reviews;
-    private string? message;
-    private string? formError;
-    private bool busy;
-    private bool showAdd;
-    private ReviewEntry form = new() { Period = "Weekly", StartDate = DateTime.Today.AddDays(-6), EndDate = DateTime.Today, OverallScore = 5 };
+    private ReviewEntry? pendingDelete;
 
-    private static DateTime? ParseDate(object? value) => DateTime.TryParse(value as string, out var d) ? d : null;
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
         using var scope = ScopedServices.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        reviews = await db.ReviewEntries.AsNoTracking().OrderByDescending(r => r.CreatedAt).Take(10).ToListAsync();
+        reviews = await db.ReviewEntries.AsNoTracking().OrderByDescending(r => r.CreatedAt).Take(20).ToListAsync();
     }
 
-    private async Task Save()
-    {
-        if (form.Period is not ("Weekly" or "Monthly") || form.EndDate < form.StartDate || form.OverallScore is < 1 or > 10)
-        { formError = "Choose Weekly or Monthly, an end date on or after the start date, and a score from 1 to 10."; return; }
+    private void CancelDelete() => pendingDelete = null;
 
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            form.CreatedAt = DateTime.Now;
-            db.ReviewEntries.Add(form);
-            await db.SaveChangesAsync();
-            message = "Review saved.";
-            showAdd = false;
-            form = new() { Period = "Weekly", StartDate = DateTime.Today.AddDays(-6), EndDate = DateTime.Today, OverallScore = 5 };
-            await LoadAsync();
-        }
-        finally { busy = false; }
-    }
-
-    private async Task Delete(int id)
+    private async Task ConfirmDelete()
     {
+        var r = pendingDelete;
+        pendingDelete = null;
+        if (r == null) return;
         using var scope = ScopedServices.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var r = await db.ReviewEntries.FindAsync(id);
-        if (r == null) return;
-        db.ReviewEntries.Remove(r);
+        var row = await db.ReviewEntries.FindAsync(r.Id);
+        if (row == null) return;
+        db.ReviewEntries.Remove(row);
         await db.SaveChangesAsync();
-        message = "Review deleted.";
+        Ui.Toast("Review deleted");
         await LoadAsync();
     }
 }

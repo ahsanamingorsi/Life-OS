@@ -4,6 +4,7 @@
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (dayTasks == null)
 {
@@ -14,26 +15,32 @@ else
     <div class="db">
         <div class="db-head">
             <div>
-                <div class="db-date">My day</div>
+                <div class="db-date">My day@(day == DateTime.Today ? " · today" : "")</div>
                 <h1 class="db-title">@day.ToString("dddd, d MMMM")</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
-                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)">Today</button>
-                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(1))">Next →</button>
+                <button type="button" class="lo-btn" aria-label="Previous day" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
+                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)" disabled="@(day == DateTime.Today)">Today</button>
+                <button type="button" class="lo-btn" aria-label="Next day" @onclick="() => GoTo(day.AddDays(1))">Next →</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("task")'><Icon Name="plus" /> New task</button>
             </div>
         </div>
-
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
 
         <div class="db-grid-2">
             <section class="db-card" aria-labelledby="oneTimeTitle">
                 <h2 id="oneTimeTitle" class="db-h2">One-time tasks</h2>
                 <div class="db-task-list">
-                    @if (!oneTime!.Any()) { <p class="db-empty">Nothing one-time for this day.</p> }
+                    @if (!oneTime!.Any())
+                    {
+                        <div class="empty-state">
+                            <span class="empty-ico"><Icon Name="calendar" /></span>
+                            <strong>A free day</strong>
+                            <span class="db-muted db-small">Nothing one-time for this day.</span>
+                        </div>
+                    }
                     @foreach (var dt in oneTime)
                     {
-                        <div class="db-task @(dt.IsDone ? "is-done" : "") @(dt.IsOverdue ? "is-overdue" : "")">
+                        <div class="db-task @(dt.IsDone ? "is-done" : "") @(dt.IsOverdue ? "is-overdue" : "")" @key="dt.Task.Id">
                             <button type="button" class="db-check @(dt.IsDone ? "done" : "")" disabled="@busy"
                                     aria-label="@(dt.IsDone ? "Mark as not done" : "Mark as done"): @dt.Task.Title" @onclick="() => Toggle(dt.Task.Id)">
                                 @if (dt.IsDone) { <Icon Name="tick" /> }
@@ -47,6 +54,7 @@ else
                             </div>
                             @if (dt.Task.Priority == "A") { <span class="db-badge high">High</span> }
                             else if (dt.Task.Priority == "C") { <span class="db-badge">Low</span> }
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @dt.Task.Title" @onclick='() => Ui.Open("task", dt.Task.Id)'>Edit</button>
                         </div>
                     }
                 </div>
@@ -55,10 +63,17 @@ else
             <section class="db-card" aria-labelledby="repeatedTitle">
                 <h2 id="repeatedTitle" class="db-h2">Repeated tasks</h2>
                 <div class="db-task-list">
-                    @if (!repeated!.Any()) { <p class="db-empty">Nothing repeats on this day.</p> }
+                    @if (!repeated!.Any())
+                    {
+                        <div class="empty-state">
+                            <span class="empty-ico"><Icon Name="clock" /></span>
+                            <strong>No routines today</strong>
+                            <span class="db-muted db-small">Nothing repeats on this day.</span>
+                        </div>
+                    }
                     @foreach (var dt in repeated)
                     {
-                        <div class="db-task @(dt.IsDone ? "is-done" : "")">
+                        <div class="db-task @(dt.IsDone ? "is-done" : "")" @key="dt.Task.Id">
                             <button type="button" class="db-check @(dt.IsDone ? "done" : "")" disabled="@(busy || day > DateTime.Today)"
                                     aria-label="@(dt.IsDone ? "Mark as not done" : "Mark as done"): @dt.Task.Title" @onclick="() => Toggle(dt.Task.Id)">
                                 @if (dt.IsDone) { <Icon Name="tick" /> }
@@ -68,6 +83,7 @@ else
                                 <div class="db-task-meta">@TaskService.RepeatText(dt.Task)@(dt.Streak > 0 ? $" · {dt.Streak} streak" : "")</div>
                             </div>
                             <span class="db-badge repeat-@dt.Task.Repeat.ToLowerInvariant()">@dt.Task.Repeat</span>
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @dt.Task.Title" @onclick='() => Ui.Open("task", dt.Task.Id)'>Edit</button>
                         </div>
                     }
                 </div>
@@ -103,10 +119,21 @@ else
     private List<DayTask>? oneTime;
     private List<DayTask>? repeated;
     private List<Project>? projects;
-    private string? message;
     private bool busy;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
@@ -143,7 +170,7 @@ else
                 string action = state.Value ? "Completed" : "Reopened";
                 await scope.ServiceProvider.GetRequiredService<ProductivityService>()
                     .LogActivityAsync("PersonalTask", id, action, $"Task '{title}' {action.ToLower()}");
-                message = $"Task '{title}' {action.ToLower()}.";
+                Ui.Toast(state.Value ? $"Done: {title}" : $"Reopened: {title}");
             }
             await LoadAsync();
         }

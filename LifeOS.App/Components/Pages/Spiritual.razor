@@ -3,6 +3,7 @@
 @using LifeOS.MVC.Data
 @using LifeOS.MVC.Models
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (entry == null)
 {
@@ -13,20 +14,20 @@ else
     <div class="db">
         <div class="db-head">
             <div>
-                <div class="db-date">Spiritual</div>
+                <div class="db-date">Spiritual@(day == DateTime.Today ? " · today" : "")</div>
                 <h1 class="db-title">@day.ToString("dddd, d MMMM")</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
-                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)">Today</button>
-                <button type="button" class="lo-btn" @onclick="() => GoTo(day.AddDays(1))" disabled="@(day >= DateTime.Today)">Next →</button>
+                <button type="button" class="lo-btn" aria-label="Previous day" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
+                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)" disabled="@(day == DateTime.Today)">Today</button>
+                <button type="button" class="lo-btn" aria-label="Next day" @onclick="() => GoTo(day.AddDays(1))" disabled="@(day >= DateTime.Today)">Next →</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("spiritual-note", DayKey)'><Icon Name="note" /> Gratitude &amp; reflection</button>
             </div>
         </div>
 
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
-
         <div class="db-grid-levels">
-            <div class="db-level"><span class="db-muted db-tiny">Streak</span><span class="db-level-pct lo-num">@streak</span><span class="db-muted db-tiny">days, all prayers</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Streak</span><span class="db-level-pct lo-num"><Icon Name="flame" /> @streak</span><span class="db-muted db-tiny">days, all prayers</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">This day</span><span class="db-level-pct lo-num">@PrayerValues.Count(x => x)/5</span><span class="db-muted db-tiny">prayers done</span></div>
             <div class="db-level"><span class="db-muted db-tiny">Perfect days</span><span class="db-level-pct lo-num">@perfectDays</span><span class="db-muted db-tiny">all-time</span></div>
         </div>
 
@@ -37,33 +38,36 @@ else
                 {
                     int idx = i;
                     bool done = PrayerValues[idx];
-                    <button type="button" class="db-prayer @(done ? "done" : "")" style="cursor:pointer;border:none;width:100%;text-align:left;" @onclick="() => TogglePrayer(idx)">
-                        <span>@SpiritualEntry.PrayerNames[idx]</span><span>@(done ? "Done" : "Pending")</span>
+                    <button type="button" class="db-prayer @(done ? "done" : "")" style="cursor:pointer;width:100%;" aria-pressed="@(done ? "true" : "false")" disabled="@busy" @onclick="() => TogglePrayer(idx)">
+                        <span>@SpiritualEntry.PrayerNames[idx]</span><span>@(done ? "Done" : "Tap to mark")</span>
                     </button>
                 }
             </div>
-            <div class="db-muted db-small lo-num">@PrayerValues.Count(x => x) of 5 prayers done</div>
+            <div class="db-muted db-small lo-num">Each tap is saved straight away.</div>
         </section>
 
-        <section class="db-card">
-            <h2 class="db-h2">Gratitude &amp; reflection</h2>
-            <div class="lo-form">
-                <div class="lo-field"><label class="lo-label">Grateful for today</label><textarea class="lo-input lo-textarea" maxlength="500" @bind="entry.GratitudeNote"></textarea></div>
-                <div class="lo-field"><label class="lo-label">Reflection</label><textarea class="lo-input lo-textarea" maxlength="500" @bind="entry.ReflectionNote"></textarea></div>
-                <div class="lo-form-actions"><button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">Save</button></div>
-            </div>
-        </section>
+        @if (!string.IsNullOrWhiteSpace(entry.GratitudeNote) || !string.IsNullOrWhiteSpace(entry.ReflectionNote))
+        {
+            <section class="db-card">
+                <div class="db-card-head"><h2 class="db-h2">Your notes for this day</h2><button type="button" class="lo-btn lo-btn-sm" @onclick='() => Ui.Open("spiritual-note", DayKey)'>Edit</button></div>
+                @if (!string.IsNullOrWhiteSpace(entry.GratitudeNote)) { <p class="db-small" style="margin:0;"><strong>Grateful for:</strong> @entry.GratitudeNote</p> }
+                @if (!string.IsNullOrWhiteSpace(entry.ReflectionNote)) { <p class="db-small" style="margin:0;"><strong>Reflection:</strong> @entry.ReflectionNote</p> }
+            </section>
+        }
 
         <section class="db-card">
             <h2 class="db-h2">Last 30 days</h2>
             <div class="db-task-list">
-                @foreach (var h in history!)
+                @if (!history!.Any()) { <p class="db-empty">Your prayer history will appear here.</p> }
+                @foreach (var h in history)
                 {
-                    <div class="db-task @(h.PrayersDone >= h.PrayersTotal && h.PrayersTotal > 0 ? "is-done" : "")">
+                    <div class="db-task" @key="h.Id">
                         <div class="db-task-body">
                             <div class="db-task-title">@h.Date.ToString("dddd, d MMM")</div>
                             <div class="db-task-meta">@h.PrayersDone / @h.PrayersTotal prayers</div>
                         </div>
+                        @if (h.PrayersTotal > 0 && h.PrayersDone >= h.PrayersTotal) { <span class="db-badge repeat-daily">All done</span> }
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => GoTo(h.Date)">Open</button>
                     </div>
                 }
             </div>
@@ -77,12 +81,24 @@ else
     private List<SpiritualEntry>? history;
     private int streak;
     private int perfectDays;
-    private string? message;
     private bool busy;
 
     private bool[] PrayerValues = new bool[5];
+    private int DayKey => int.Parse(day.ToString("yyyyMMdd"));
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
@@ -115,9 +131,7 @@ else
         await LoadAsync();
     }
 
-    private void TogglePrayer(int idx) => PrayerValues[idx] = !PrayerValues[idx];
-
-    private async Task Save()
+    private async Task TogglePrayer(int idx)
     {
         busy = true;
         try
@@ -126,15 +140,13 @@ else
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var existing = await db.SpiritualEntries.FirstOrDefaultAsync(x => x.Date == day);
             var target = existing ?? new SpiritualEntry { Date = day };
-            target.Fajr = PrayerValues[0]; target.Dhuhr = PrayerValues[1]; target.Asr = PrayerValues[2];
-            target.Maghrib = PrayerValues[3]; target.Isha = PrayerValues[4];
+            bool[] flags = { target.Fajr, target.Dhuhr, target.Asr, target.Maghrib, target.Isha };
+            flags[idx] = !flags[idx];
+            target.Fajr = flags[0]; target.Dhuhr = flags[1]; target.Asr = flags[2]; target.Maghrib = flags[3]; target.Isha = flags[4];
             target.PrayersTotal = 5;
-            target.PrayersDone = PrayerValues.Count(x => x);
-            target.GratitudeNote = string.IsNullOrWhiteSpace(entry!.GratitudeNote) ? null : entry.GratitudeNote.Trim();
-            target.ReflectionNote = string.IsNullOrWhiteSpace(entry.ReflectionNote) ? null : entry.ReflectionNote.Trim();
+            target.PrayersDone = flags.Count(x => x);
             if (existing == null) db.SpiritualEntries.Add(target);
             await db.SaveChangesAsync();
-            message = $"Saved {day:dddd, d MMM}.";
             await LoadAsync();
         }
         finally { busy = false; }

@@ -3,7 +3,10 @@
 @using LifeOS.MVC.Data
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
 @inject LifeOS.App.Services.FocusTimer Timer
+@inject LifeOS.App.Services.AppUi Ui
+@inject IJSRuntime JS
 
 @if (vm == null)
 {
@@ -11,6 +14,7 @@
 }
 else
 {
+    var focus = ComputeFocus();
     <div class="db">
         <div class="db-head">
             <div>
@@ -18,21 +22,70 @@ else
                 <h1 class="db-title">@vm.Greeting. Here is your day.</h1>
             </div>
             <div class="db-actions">
-                <a class="lo-btn" href="studies">Log study or skill hours</a>
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="Timer.Toggle"><Icon Name="clock" /> Focus</button>
+                <button type="button" class="lo-btn" @onclick='() => Ui.Open("study-session")'><Icon Name="studies" /> Log study</button>
+                <button type="button" class="lo-btn" @onclick='() => Ui.Open("skill-log")'><Icon Name="skills" /> Log skill</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("task")'><Icon Name="plus" /> New task</button>
             </div>
         </div>
 
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+        <div class="dx-hero">
+            <section class="dx-focus" aria-labelledby="focusTitle">
+                <div>
+                    <span class="dx-eyebrow"><Icon Name="sparkle" /> @focus.Eyebrow</span>
+                    <h2 id="focusTitle">@focus.Title</h2>
+                    <p>@focus.Sub</p>
+                    @if (focus.Kind == "task")
+                    {
+                        var upNext = vm.Tasks.Where(t => !t.IsCompleted && t.Id != focus.TaskId)
+                            .OrderBy(t => t.IsOverdue ? 0 : 1).ThenBy(t => t.Priority).Take(3).ToList();
+                        if (upNext.Any())
+                        {
+                            <div class="dx-next" aria-label="Up next">
+                                <span class="dx-next-label">Then</span>
+                                @foreach (var n in upNext) { <span class="dx-chip" title="@n.Title">@n.Title</span> }
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="dx-focus-actions">
+                    @switch (focus.Kind)
+                    {
+                        case "task":
+                            <button type="button" class="lo-btn lo-btn-primary" disabled="@busy" @onclick="() => ToggleTask(focus.TaskId, focus.Title)"><Icon Name="tick" /> Mark done</button>
+                            <button type="button" class="lo-btn" @onclick="() => StartFocus(focus.Title)"><Icon Name="clock" /> Focus 25 min</button>
+                            <a class="lo-btn" href="tasks">All tasks</a>
+                            break;
+                        case "prayer":
+                            <button type="button" class="lo-btn lo-btn-primary" disabled="@busy" @onclick="() => MarkPrayer(focus.PrayerIndex)"><Icon Name="tick" /> Mark @SpiritualEntry.PrayerNames[focus.PrayerIndex] done</button>
+                            <a class="lo-btn" href="spiritual">Open Spiritual</a>
+                            break;
+                        case "done":
+                            <button type="button" class="lo-btn lo-btn-primary" @onclick='() => StartFocus("Deep work")'><Icon Name="clock" /> Start a focus session</button>
+                            <button type="button" class="lo-btn" @onclick='() => Ui.Open("study-session")'>Log study</button>
+                            <button type="button" class="lo-btn" @onclick='() => Ui.Open("task")'>Add another task</button>
+                            break;
+                        default:
+                            <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("task")'><Icon Name="plus" /> Add a task</button>
+                            <button type="button" class="lo-btn" @onclick='() => Ui.Open("study-session")'>Log study</button>
+                            <button type="button" class="lo-btn" @onclick='() => Ui.Open("goal")'>Set a goal</button>
+                            break;
+                    }
+                </div>
+            </section>
 
-        <div class="db-grid-3">
-            <section class="db-card" aria-labelledby="scoreTitle">
+            <section class="db-card dx-side" aria-labelledby="scoreTitle">
                 <div class="db-card-head">
                     <h2 id="scoreTitle" class="db-h2">Today's productivity</h2>
                     @if (vm.ScoreChange is int change) { <span class="db-pill @(change < 0 ? "down" : "")">@(change >= 0 ? "+" : "")@change% vs yesterday</span> }
                 </div>
                 <div class="db-score">
                     <svg class="db-ring" role="img" aria-label="@(vm.HasScore ? $"Productivity score {vm.Score} percent" : "No productivity data yet today")" width="128" height="128" viewBox="0 0 128 128">
+                        <defs>
+                            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" style="stop-color:var(--lo-accent)"></stop>
+                                <stop offset="100%" style="stop-color:var(--lo-primary)"></stop>
+                            </linearGradient>
+                        </defs>
                         <circle class="db-ring-track" cx="64" cy="64" r="54" fill="none" stroke-width="12"></circle>
                         @if (vm.HasScore && vm.Score > 0)
                         {
@@ -47,11 +100,47 @@ else
                         {
                             <div class="db-part"><span class="db-muted">@part.Name</span><strong class="lo-num">@part.Value</strong></div>
                         }
+                        @if (!vm.ScoreParts.Any()) { <span class="db-muted db-small">Complete something today and your score appears here.</span> }
                     </div>
                 </div>
-                <p class="db-muted db-tiny" style="margin:0;">Score = equal average of Tasks, Projects, Studies, Skills and Spiritual (only areas with something to measure today).</p>
+                <div class="dx-streaks">
+                    <div class="dx-stat"><strong class="lo-num">@vm.TasksDoneToday/@vm.TasksDueToday</strong><span>Tasks today</span></div>
+                    <div class="dx-stat"><strong class="lo-num">@vm.PrayersDone/@vm.PrayersTotal</strong><span>Prayers</span></div>
+                    <div class="dx-stat"><strong class="lo-num"><Icon Name="flame" /> @vm.PrayerStreak</strong><span>Day streak</span></div>
+                </div>
+                <p class="dx-quote">@Motivation</p>
             </section>
+        </div>
 
+        @if (ShowChecklist)
+        {
+            <section class="db-card cl-card" aria-labelledby="clTitle">
+                <div class="cl-head">
+                    <div>
+                        <h2 id="clTitle" class="db-h2">Get started with Life OS</h2>
+                        <div class="db-muted db-small">@checklistDone of @checklist.Length done — each step takes under a minute.</div>
+                    </div>
+                    <button type="button" class="lo-btn lo-btn-sm" @onclick="HideChecklist">Hide</button>
+                </div>
+                <div class="db-bar" role="progressbar" aria-valuemin="0" aria-valuemax="@checklist.Length" aria-valuenow="@checklistDone"><span style="width:@(checklistDone * 100 / checklist.Length)%"></span></div>
+                <div class="cl-list">
+                    @foreach (var step in checklist)
+                    {
+                        <div class="cl-item @(step.Done ? "is-done" : "")">
+                            <span class="cl-dot">@if (step.Done) { <Icon Name="tick" /> }</span>
+                            <div><strong>@step.Title</strong><small>@step.Hint</small></div>
+                            @if (!step.Done)
+                            {
+                                if (step.Href != null) { <a class="lo-btn lo-btn-sm" href="@step.Href">Open</a> }
+                                else { <button type="button" class="lo-btn lo-btn-sm" @onclick="() => Ui.Open(step.Kind!)">Start</button> }
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        <div class="db-grid-2">
             <section class="db-card" aria-labelledby="tasksTitle">
                 <div class="db-card-head">
                     <h2 id="tasksTitle" class="db-h2">Today's tasks <span class="db-muted lo-num">@vm.TasksDoneToday / @vm.TasksDueToday</span></h2>
@@ -70,7 +159,7 @@ else
                     {
                         <div class="db-task @(task.IsCompleted ? "is-done" : "") @(task.IsOverdue ? "is-overdue" : "")">
                             <button type="button" class="db-check @(task.IsCompleted ? "done" : "")" disabled="@busy"
-                                    aria-label="@(task.IsCompleted ? "Mark as not done" : "Mark as done"): @task.Title" @onclick="() => ToggleTask(task)">
+                                    aria-label="@(task.IsCompleted ? "Mark as not done" : "Mark as done"): @task.Title" @onclick="() => ToggleTask(task.Id, task.Title)">
                                 @if (task.IsCompleted) { <Icon Name="tick" /> }
                             </button>
                             <div class="db-task-body">
@@ -98,8 +187,9 @@ else
                 <div class="db-prayers">
                     @for (int i = 0; i < 5; i++)
                     {
+                        int idx = i;
                         var done = vm.PrayerFlags[i];
-                        <div class="db-prayer @(done ? "done" : "")"><span>@SpiritualEntry.PrayerNames[i]</span><span>@(done ? "Done" : "Pending")</span></div>
+                        <div class="db-prayer @(done ? "done" : "")"><span>@SpiritualEntry.PrayerNames[idx]</span><span>@(done ? "Done" : "Pending")</span></div>
                     }
                 </div>
                 <div class="db-muted db-small lo-num">@vm.PrayersDone of @vm.PrayersTotal prayers · @vm.PrayerStreak-day streak</div>
@@ -202,15 +292,24 @@ else
 }
 
 @code {
+    private record Focus(string Kind, string Eyebrow, string Title, string Sub, int TaskId = 0, int PrayerIndex = -1);
+    private record Step(string Title, string Hint, bool Done, string? Kind, string? Href);
+
     private DashboardViewModel? vm;
     private string filter = "all";
     private string newTask = "";
-    private string? message;
     private bool busy;
+    private bool checklistHidden;
+    private Step[] checklist = Array.Empty<Step>();
+    private int checklistDone;
+
+    // Rough prayer times (hour of day) used only to decide when to nudge you.
+    private static readonly double[] PrayerHours = { 5, 12.5, 15.5, 18, 20 };
 
     private const double RingCirc = 2 * Math.PI * 54;
     private string RingDash => $"{((vm!.HasScore ? vm.Score : 0) / 100.0 * RingCirc).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} {RingCirc.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}";
     private List<DayScore> Scored => vm!.Week.Where(d => d.Score.HasValue).ToList();
+    private bool ShowChecklist => !checklistHidden && checklist.Length > 0 && checklistDone < checklist.Length;
 
     private IEnumerable<DashboardTask> ShownTasks => filter switch
     {
@@ -220,6 +319,53 @@ else
         "done" => vm!.Tasks.Where(t => t.IsCompleted),
         _ => vm!.Tasks,
     };
+
+    private string Motivation
+    {
+        get
+        {
+            if (vm!.TasksDueToday == 0 && !vm.HasScore) return "A clear day. Add one meaningful task and begin.";
+            if (vm.HasScore && vm.Score >= 80) return "You are on fire. Keep the momentum going.";
+            if (vm.HasScore && vm.Score >= 40) return "Good progress. One more win lifts your score.";
+            if (vm.TasksDoneToday > 0) return "You have started. Small steps compound.";
+            return "Start with the smallest next step. The rest follows.";
+        }
+    }
+
+    private Focus ComputeFocus()
+    {
+        var open = vm!.Tasks.Where(t => !t.IsCompleted).OrderBy(t => t.Priority).ToList();
+        var overdue = open.FirstOrDefault(t => t.IsOverdue);
+        if (overdue != null) return new("task", "Overdue — do this first", overdue.Title, overdue.Meta, overdue.Id);
+
+        var top = open.FirstOrDefault();
+        if (top != null && top.Priority == "A") return new("task", "Top priority today", top.Title, top.Meta, top.Id);
+
+        double hour = DateTime.Now.TimeOfDay.TotalHours;
+        for (int i = 0; i < 5; i++)
+            if (!vm.PrayerFlags[i] && hour >= PrayerHours[i])
+                return new("prayer", "Prayer reminder", $"Log your {SpiritualEntry.PrayerNames[i]} prayer", "A quick tick keeps your streak alive.", 0, i);
+
+        if (top != null) return new("task", "Next up", top.Title, top.Meta, top.Id);
+        if (vm.Tasks.Count == 0) return new("add", "Plan your day", "Nothing is scheduled yet", "Add one meaningful task, then start with it. You can also log study or set a goal.");
+        return new("done", "All done", "Everything for today is finished", "Great work. Use the time for a focus session, a study log or tomorrow's plan.");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        try { checklistHidden = await JS.InvokeAsync<string?>("lifeosUi.getFlag", "checklist") == "hidden"; }
+        catch (JSException) { }
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     // Dashboard links were written for the website ("/PersonalTasks", "/Study" …); map them to app pages.
     private static string AppHref(string url) => url switch
@@ -234,30 +380,83 @@ else
         _ => url.TrimStart('/').ToLowerInvariant(),
     };
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
     private async Task LoadAsync()
     {
         // A fresh scope (and DbContext) for every load, so the numbers are never stale.
         using var scope = ScopedServices.CreateScope();
         vm = await scope.ServiceProvider.GetRequiredService<DashboardService>().BuildAsync(DateTime.Now);
+
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        checklist = new[]
+        {
+            new Step("Add your first task", "One clear next step for today.", await db.PersonalTasks.AnyAsync(), "task", null),
+            new Step("Set a goal", "Something to work toward.", await db.PersonalGoals.AnyAsync(), "goal", null),
+            new Step("Start a project", "Break a bigger idea into tasks.", await db.Projects.AnyAsync(), "project", null),
+            new Step("Log a study session", "Needs a study subject first.", await db.StudySessions.AnyAsync(), null, "studies"),
+            new Step("Track today's prayers", "Tick each prayer as you pray.", await db.SpiritualEntries.AnyAsync(), null, "spiritual"),
+        };
+        checklistDone = checklist.Count(s => s.Done);
     }
 
-    private async Task ToggleTask(DashboardTask task)
+    private async Task HideChecklist()
+    {
+        checklistHidden = true;
+        try { await JS.InvokeVoidAsync("lifeosUi.setFlag", "checklist", "hidden"); }
+        catch (JSException) { }
+    }
+
+    private void StartFocus(string label)
+    {
+        Timer.Label = label;
+        Timer.SetMinutes(25);
+        Timer.Start();
+        if (!Timer.IsOpen) Timer.Toggle();
+    }
+
+    private async Task ToggleTask(int id, string title)
     {
         busy = true;
         try
         {
             using var scope = ScopedServices.CreateScope();
             var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
-            var state = await tasks.ToggleAsync(task.Id, DateTime.Today);
+            var state = await tasks.ToggleAsync(id, DateTime.Today);
             if (state != null)
             {
                 string action = state.Value ? "Completed" : "Reopened";
                 await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                    .LogActivityAsync("PersonalTask", task.Id, action, $"Task '{task.Title}' {action.ToLower()}");
-                message = $"Task '{task.Title}' {action.ToLower()}.";
+                    .LogActivityAsync("PersonalTask", id, action, $"Task '{title}' {action.ToLower()}");
+                Ui.Toast(state.Value ? $"Done: {title}" : $"Reopened: {title}");
             }
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task MarkPrayer(int index)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var today = DateTime.Today;
+            var entry = await db.SpiritualEntries.FirstOrDefaultAsync(s => s.Date == today);
+            bool created = entry == null;
+            entry ??= new SpiritualEntry { Date = today };
+            switch (index)
+            {
+                case 0: entry.Fajr = true; break;
+                case 1: entry.Dhuhr = true; break;
+                case 2: entry.Asr = true; break;
+                case 3: entry.Maghrib = true; break;
+                case 4: entry.Isha = true; break;
+            }
+            entry.PrayersTotal = 5;
+            entry.PrayersDone = entry.Prayers.Count(p => p);
+            if (created) db.SpiritualEntries.Add(entry);
+            await db.SaveChangesAsync();
+            Ui.Toast($"{SpiritualEntry.PrayerNames[index]} marked done");
             await LoadAsync();
         }
         finally { busy = false; }
@@ -277,7 +476,7 @@ else
             await db.SaveChangesAsync();
             await scope.ServiceProvider.GetRequiredService<ProductivityService>()
                 .LogActivityAsync("PersonalTask", task.Id, "Created", $"Task '{task.Title}' created");
-            message = $"Task '{task.Title}' added.";
+            Ui.Toast($"Task '{task.Title}' added");
             newTask = "";
             await LoadAsync();
         }

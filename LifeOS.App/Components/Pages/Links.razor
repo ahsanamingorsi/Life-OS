@@ -3,6 +3,7 @@
 @using LifeOS.MVC.Data
 @using LifeOS.Models
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (links == null)
 {
@@ -17,64 +18,58 @@ else
                 <h1 class="db-title">Your saved web library.</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="() => showAdd = !showAdd"><Icon Name="plus" /> New link</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("link")'><Icon Name="plus" /> New link</button>
             </div>
         </div>
 
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
-
-        <div class="db-card-head" style="margin-bottom:12px;">
-            <input class="lo-input" placeholder="Search links…" value="@search" @oninput="e => OnSearch((string?)e.Value)" style="max-width:320px;" />
+        <div class="links-bar">
+            <div class="los-search-wrap" style="flex:1;max-width:420px;">
+                <Icon Name="search" />
+                <label for="linkSearch" class="lo-visually-hidden">Search links</label>
+                <input id="linkSearch" type="search" class="los-search" style="width:100%!important;" placeholder="Search links…" autocomplete="off" @bind="search" @bind:event="oninput" />
+            </div>
+            <div class="db-filters" role="group" aria-label="Filter by category">
+                <button type="button" class="db-chip" aria-pressed="@(category == null ? "true" : "false")" @onclick="() => category = null">All</button>
+                @foreach (var c in Categories)
+                {
+                    var cat = c;
+                    <button type="button" class="db-chip" aria-pressed="@(category == cat ? "true" : "false")" @onclick="() => category = cat">@cat</button>
+                }
+            </div>
         </div>
-
-        @if (showAdd)
-        {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">New link</h2>
-                @if (formError != null) { <div class="lo-flash lo-flash-error" role="alert">@formError</div> }
-                <div class="lo-form">
-                    <div class="lo-field"><label class="lo-label">Name <span aria-hidden="true">*</span></label><input class="lo-input" @bind="newLink.Name" maxlength="200" /></div>
-                    <div class="lo-field"><label class="lo-label">URL <span aria-hidden="true">*</span></label><input class="lo-input" @bind="newLink.Url" maxlength="500" placeholder="example.com" /></div>
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Category</label><input class="lo-input" @bind="newLink.Category" maxlength="50" /></div>
-                        <div class="lo-field"><label class="lo-label">Tags</label><input class="lo-input" @bind="newLink.Tags" maxlength="200" placeholder="comma, separated" /></div>
-                    </div>
-                    <div class="lo-field"><label class="lo-label">Description</label><textarea class="lo-input lo-textarea" maxlength="400" @bind="newLink.Description"></textarea></div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showAdd = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="AddLink" disabled="@busy">Save link</button>
-                    </div>
-                </div>
-            </section>
-        }
 
         @if (!Shown.Any())
         {
-            <section class="db-card"><p class="db-empty">No links found.</p></section>
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="links" /></span>
+                    <strong>@(links.Count == 0 ? "No links yet" : "No links match")</strong>
+                    <span class="db-muted db-small">@(links.Count == 0 ? "Save the sites you use often so they are one click away." : "Try a different search or category.")</span>
+                    @if (links.Count == 0) { <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("link")'><Icon Name="plus" /> Save your first link</button> }
+                </div>
+            </section>
         }
         <div class="db-grid-2">
             @foreach (var l in Shown)
             {
-                <article class="db-card">
+                <article class="db-card" @key="l.Id">
                     <div class="db-card-head">
                         <div style="min-width:0;">
                             <div class="db-muted db-tiny">@l.Domain · @l.Category</div>
-                            <h3 class="db-h2"><a class="lo-plain-link" href="@l.Url" target="_blank" @onclick="() => Visit(l.Id)">@l.Name @(l.IsPinned ? "📌" : "")</a></h3>
+                            <h3 class="db-h2"><a class="lo-plain-link" href="@l.Url" target="_blank" rel="noopener" @onclick="() => Visit(l.Id)">@l.Name @(l.IsPinned ? "📌" : "")</a></h3>
                         </div>
                     </div>
-                    @if (!string.IsNullOrWhiteSpace(l.Description)) { <p class="db-muted db-small">@l.Description</p> }
+                    @if (!string.IsNullOrWhiteSpace(l.Description)) { <p class="db-muted db-small" style="margin:0;">@l.Description</p> }
                     @if (l.TagList.Any())
                     {
                         <div class="lo-chips db-tiny">
-                            @foreach (var t in l.TagList)
-                            {
-                                <span class="db-badge">@t</span>
-                            }
+                            @foreach (var t in l.TagList) { <span class="db-badge">@t</span> }
                         </div>
                     }
-                    <div class="lo-row-actions">
-                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => ToggleFavorite(l.Id)">@(l.IsFavorite ? "★ Favorited" : "☆ Favorite")</button>
-                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteLink(l.Id, l.Name)">Delete</button>
+                    <div class="lo-row-actions" style="flex-wrap:wrap;">
+                        <button type="button" class="lo-btn lo-btn-sm" aria-pressed="@(l.IsFavorite ? "true" : "false")" @onclick="() => ToggleFavorite(l.Id)">@(l.IsFavorite ? "★ Favorite" : "☆ Favorite")</button>
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick='() => Ui.Open("link", l.Id)'>Edit</button>
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => pendingDelete = l">Delete</button>
                     </div>
                 </article>
             }
@@ -82,23 +77,44 @@ else
     </div>
 }
 
+<ConfirmModal Open="@(pendingDelete != null)" Title="Delete this link?" Message="@($"'{pendingDelete?.Name}' will be removed from your library.")" OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
+
 @code {
     private List<WebLink>? links;
     private string search = "";
-    private string? message;
-    private string? formError;
-    private bool busy;
-    private bool showAdd;
-    private WebLink newLink = new() { Category = "General" };
+    private string? category;
+    private WebLink? pendingDelete;
 
-    private IEnumerable<WebLink> Shown => string.IsNullOrWhiteSpace(search)
-        ? links!
-        : links!.Where(l => l.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || l.Url.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || (l.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (l.Tags?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IEnumerable<string> Categories => links!.Select(l => l.Category).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().OrderBy(c => c);
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private IEnumerable<WebLink> Shown
+    {
+        get
+        {
+            IEnumerable<WebLink> q = links!;
+            if (category != null) q = q.Where(l => l.Category == category);
+            if (!string.IsNullOrWhiteSpace(search))
+                q = q.Where(l => l.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || l.Url.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || (l.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (l.Tags?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+            return q;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
@@ -107,41 +123,6 @@ else
         links = await db.WebLinks.AsNoTracking()
             .OrderByDescending(l => l.IsPinned).ThenByDescending(l => l.IsFavorite).ThenByDescending(l => l.CreatedAt)
             .ToListAsync();
-    }
-
-    private void OnSearch(string? value) => search = value ?? "";
-
-    private static string? CleanUrl(string? url)
-    {
-        url = url?.Trim();
-        if (string.IsNullOrEmpty(url)) return null;
-        if (!url.Contains("://")) url = "https://" + url;
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && !string.IsNullOrEmpty(uri.Host)
-            ? uri.AbsoluteUri : null;
-    }
-
-    private async Task AddLink()
-    {
-        var url = CleanUrl(newLink.Url);
-        if (url == null) { formError = "Enter a valid web address (http or https)."; return; }
-        newLink.Url = url;
-        newLink.Name = (newLink.Name ?? "").Trim();
-        if (newLink.Name.Length == 0) { formError = "Enter a name."; return; }
-
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            newLink.CreatedAt = DateTime.Now;
-            db.WebLinks.Add(newLink);
-            await db.SaveChangesAsync();
-            message = $"'{newLink.Name}' saved.";
-            showAdd = false;
-            newLink = new() { Category = "General" };
-            await LoadAsync();
-        }
-        finally { busy = false; }
     }
 
     private async Task Visit(int id)
@@ -166,15 +147,20 @@ else
         await LoadAsync();
     }
 
-    private async Task DeleteLink(int id, string name)
+    private void CancelDelete() => pendingDelete = null;
+
+    private async Task ConfirmDelete()
     {
+        var l = pendingDelete;
+        pendingDelete = null;
+        if (l == null) return;
         using var scope = ScopedServices.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var l = await db.WebLinks.FindAsync(id);
-        if (l == null) return;
-        db.WebLinks.Remove(l);
+        var row = await db.WebLinks.FindAsync(l.Id);
+        if (row == null) return;
+        db.WebLinks.Remove(row);
         await db.SaveChangesAsync();
-        message = "Deleted.";
+        Ui.Toast("Link deleted");
         await LoadAsync();
     }
 }

@@ -17,7 +17,7 @@ public static class MauiProgram
 		builder.Services.AddMauiBlazorWebView();
 
 		// Local database: one SQLite file per Windows user, in the app's data folder.
-		var databasePath = Path.Combine(FileSystem.AppDataDirectory, SqliteDatabase.FileName);
+		var databasePath = Path.Combine(AppPaths.DataDirectory, SqliteDatabase.FileName);
 		builder.Services.AddDbContext<AppDbContext>(options => SqliteDatabase.Configure(options, databasePath));
 
 		// Shared Life OS logic (same code the website uses).
@@ -27,6 +27,7 @@ public static class MauiProgram
 
 		// App-wide focus timer.
 		builder.Services.AddSingleton<FocusTimer>();
+		builder.Services.AddSingleton<AppUi>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

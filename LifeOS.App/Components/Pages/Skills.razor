@@ -4,6 +4,7 @@
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
 @using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
 
 @if (skills == null)
 {
@@ -18,74 +19,48 @@ else
                 <h1 class="db-title">Grow your technical edge.</h1>
             </div>
             <div class="db-actions">
-                <button type="button" class="lo-btn lo-btn-primary" @onclick="() => showAdd = !showAdd"><Icon Name="plus" /> New skill</button>
+                <button type="button" class="lo-btn" @onclick='() => Ui.Open("skill-log")'><Icon Name="clock" /> Log practice</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("skill")'><Icon Name="plus" /> New skill</button>
             </div>
         </div>
-
-        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
 
         <div class="db-grid-levels">
             <div class="db-level"><span class="db-muted db-tiny">Skills</span><span class="db-level-pct lo-num">@skills.Count</span><span class="db-muted db-tiny">tracked</span></div>
             <div class="db-level"><span class="db-muted db-tiny">This week</span><span class="db-level-pct lo-num">@sessionsThisWeek</span><span class="db-muted db-tiny">sessions logged</span></div>
+            <div class="db-level"><span class="db-muted db-tiny">Hours this week</span><span class="db-level-pct lo-num">@weeklyHours.Values.Sum().ToString("0.#")h</span><span class="db-muted db-tiny">across all skills</span></div>
         </div>
-
-        @if (showAdd)
-        {
-            <section class="db-card lo-narrow">
-                <h2 class="db-h2">New skill</h2>
-                <div class="lo-form">
-                    <div class="lo-field"><label class="lo-label">Name <span aria-hidden="true">*</span></label><input class="lo-input" @bind="newSkill.Name" maxlength="100" placeholder="e.g. React, PostgreSQL" /></div>
-                    <div class="lo-form-grid">
-                        <div class="lo-field"><label class="lo-label">Category</label><input class="lo-input" @bind="newSkill.Category" maxlength="50" /></div>
-                        <div class="lo-field"><label class="lo-label">Level</label>
-                            <select class="lo-select" @bind="newSkill.Level">
-                                <option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Expert</option>
-                            </select>
-                        </div>
-                        <div class="lo-field"><label class="lo-label">Weekly target (hours)</label><input type="number" min="0" max="168" step="0.5" class="lo-input" @bind="newSkill.WeeklyTargetHours" /></div>
-                    </div>
-                    <div class="lo-form-actions">
-                        <button type="button" class="lo-btn" @onclick="() => showAdd = false" disabled="@busy">Cancel</button>
-                        <button type="button" class="lo-btn lo-btn-primary" @onclick="AddSkill" disabled="@busy">Add skill</button>
-                    </div>
-                </div>
-            </section>
-        }
 
         @if (!skills.Any())
         {
-            <section class="db-card"><p class="db-empty">No skills yet. Add one to start tracking your growth.</p></section>
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="skills" /></span>
+                    <strong>No skills yet</strong>
+                    <span class="db-muted db-small">Add a skill you want to grow, then log your practice hours.</span>
+                    <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("skill")'><Icon Name="plus" /> Add your first skill</button>
+                </div>
+            </section>
         }
         <div class="db-grid-2">
             @foreach (var s in skills)
             {
-                <section class="db-card">
+                <section class="db-card" @key="s.Id">
                     <div class="db-card-head">
                         <div style="min-width:0;">
-                            <div class="db-muted db-tiny">@s.Category · @s.Level</div>
+                            <div class="db-muted db-tiny">@s.Category · @s.Level@(s.IsNext ? " · Learn next" : "")</div>
                             <h3 class="db-h2">@s.Name @(s.IsCurrent ? "⭐" : "")</h3>
                         </div>
-                        <span class="lo-num" style="font-weight:700;">@s.ProgressPercent%</span>
+                        <span class="lo-num" style="font-weight:800;font-size:1.25rem;">@s.ProgressPercent%</span>
                     </div>
-                    <div class="db-bar thin" role="presentation"><span style="width:@Math.Clamp(s.ProgressPercent, 0, 100)%"></span></div>
-                    <div class="db-muted db-tiny lo-num">@s.HoursLogged.ToString("0.#")h total · @(weeklyHours.GetValueOrDefault(s.Id, 0)).ToString("0.#")h this week of @s.WeeklyTargetHours target</div>
+                    <div class="db-bar" role="progressbar" aria-label="Progress of @s.Name" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@s.ProgressPercent"><span style="width:@Math.Clamp(s.ProgressPercent, 0, 100)%"></span></div>
+                    <div class="db-muted db-tiny lo-num">@s.HoursLogged.ToString("0.#")h total · @weeklyHours.GetValueOrDefault(s.Id, 0).ToString("0.#")h this week of @s.WeeklyTargetHours target</div>
                     @if (!string.IsNullOrWhiteSpace(s.CurrentTopic)) { <div class="db-muted db-small">Currently: @s.CurrentTopic</div> }
-
-                    <div class="lo-form" style="margin-top:8px;">
-                        <div class="lo-form-grid">
-                            <div class="lo-field"><label class="lo-label">Log hours</label><input type="number" min="0" max="24" step="0.25" class="lo-input lo-input-short" @bind="logHours[s.Id]" /></div>
-                            <div class="lo-field"><label class="lo-label">Topic</label><input class="lo-input" @bind="logTopic[s.Id]" maxlength="200" /></div>
-                            <div class="lo-field"><label class="lo-label">Set progress %</label><input type="number" min="0" max="100" class="lo-input lo-input-short" @bind="logProgress[s.Id]" /></div>
-                        </div>
-                        <div class="lo-form-actions" style="justify-content:flex-start;">
-                            <button type="button" class="lo-btn lo-btn-sm lo-btn-primary" @onclick="() => LogHours(s.Id)" disabled="@busy">Save</button>
-                        </div>
-                    </div>
-
-                    <div class="lo-row-actions">
+                    <div class="lo-row-actions" style="flex-wrap:wrap;">
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-primary" @onclick='() => Ui.Open("skill-log", s.Id)'><Icon Name="plus" /> Log</button>
                         <button type="button" class="lo-btn lo-btn-sm" @onclick="() => SetCurrent(s.Id)" disabled="@(busy || s.IsCurrent)">Set as current</button>
-                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => ToggleNext(s.Id)" disabled="@busy">@(s.IsNext ? "Unmark next" : "Mark as next")</button>
-                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => DeleteSkill(s.Id, s.Name)" disabled="@busy">Delete</button>
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick="() => ToggleNext(s.Id)" disabled="@busy">@(s.IsNext ? "Unmark next" : "Mark next")</button>
+                        <button type="button" class="lo-btn lo-btn-sm" @onclick='() => Ui.Open("skill", s.Id)'>Edit</button>
+                        <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" @onclick="() => pendingDelete = s">Delete</button>
                     </div>
                 </section>
             }
@@ -93,19 +68,28 @@ else
     </div>
 }
 
+<ConfirmModal Open="@(pendingDelete != null)" Title="Delete this skill?" Message="@($"'{pendingDelete?.Name}' and its practice log will be deleted.")" Detail="This cannot be undone." OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
+
 @code {
     private List<TechSkill>? skills;
     private Dictionary<int, double> weeklyHours = new();
-    private Dictionary<int, double?> logHours = new();
-    private Dictionary<int, string?> logTopic = new();
-    private Dictionary<int, int?> logProgress = new();
     private int sessionsThisWeek;
-    private string? message;
     private bool busy;
-    private bool showAdd;
-    private TechSkill newSkill = new();
+    private TechSkill? pendingDelete;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
 
     private async Task LoadAsync()
     {
@@ -116,82 +100,8 @@ else
         skills = await db.TechSkills.AsNoTracking().Include(s => s.SkillLogs)
             .OrderByDescending(s => s.IsCurrent).ThenByDescending(s => s.IsNext).ThenBy(s => s.Category).ThenByDescending(s => s.ProgressPercent)
             .ToListAsync();
-
         weeklyHours = skills.ToDictionary(s => s.Id, s => s.SkillLogs.Where(l => l.LogDate >= weekStart).Sum(l => l.Hours));
         sessionsThisWeek = skills.Sum(s => s.SkillLogs.Count(l => l.LogDate >= weekStart));
-
-        foreach (var s in skills)
-        {
-            logHours.TryAdd(s.Id, null);
-            logTopic.TryAdd(s.Id, null);
-            logProgress.TryAdd(s.Id, null);
-        }
-    }
-
-    private async Task AddSkill()
-    {
-        newSkill.Name = (newSkill.Name ?? "").Trim();
-        if (newSkill.Name.Length == 0) { message = "Enter a skill name."; return; }
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            newSkill.CreatedAt = DateTime.Now;
-            newSkill.UpdatedAt = DateTime.Now;
-            db.TechSkills.Add(newSkill);
-            await db.SaveChangesAsync();
-            await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("TechSkill", newSkill.Id, "Created", $"Skill '{newSkill.Name}' added to roadmap");
-            message = $"'{newSkill.Name}' added.";
-            showAdd = false;
-            newSkill = new();
-            await LoadAsync();
-        }
-        finally { busy = false; }
-    }
-
-    private async Task LogHours(int skillId)
-    {
-        double hours = logHours.GetValueOrDefault(skillId) ?? 0;
-        int progress = logProgress.GetValueOrDefault(skillId) ?? -1;
-        if (hours < 0 || hours > 24 || progress < -1 || progress > 100 || (hours == 0 && progress < 0))
-        { message = "Enter hours or a progress update."; return; }
-
-        busy = true;
-        try
-        {
-            using var scope = ScopedServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var skill = await db.TechSkills.FindAsync(skillId);
-            if (skill == null) return;
-            var topic = logTopic.GetValueOrDefault(skillId);
-
-            if (hours > 0)
-            {
-                db.TechSkillLogs.Add(new TechSkillLog { TechSkillId = skillId, LogDate = DateTime.Today, Hours = hours, TopicCovered = topic, LoggedAt = DateTime.Now });
-                skill.HoursLogged = await db.TechSkillLogs.Where(l => l.TechSkillId == skillId).SumAsync(l => l.Hours) + hours;
-                if (!string.IsNullOrEmpty(topic)) skill.CurrentTopic = topic;
-            }
-            if (progress >= 0) skill.ProgressPercent = progress;
-            skill.UpdatedAt = DateTime.Now;
-            await db.SaveChangesAsync();
-
-            var productivity = scope.ServiceProvider.GetRequiredService<ProductivityService>();
-            if (hours > 0)
-            {
-                await productivity.LogActivityAsync("TechSkill", skillId, "HoursLogged", $"{hours}h logged on '{skill.Name}'" + (topic != null ? $" — {topic}" : ""));
-                message = $"{hours}h logged on '{skill.Name}'.";
-            }
-            else
-            {
-                await productivity.LogActivityAsync("TechSkill", skillId, "Updated", $"Progress of '{skill.Name}' set to {skill.ProgressPercent}%");
-                message = $"Progress of '{skill.Name}' updated to {skill.ProgressPercent}%.";
-            }
-            logHours[skillId] = null; logTopic[skillId] = null; logProgress[skillId] = null;
-            await LoadAsync();
-        }
-        finally { busy = false; }
     }
 
     private async Task SetCurrent(int id)
@@ -207,7 +117,7 @@ else
             skill.IsCurrent = true;
             skill.UpdatedAt = DateTime.Now;
             await db.SaveChangesAsync();
-            message = $"'{skill.Name}' set as current skill.";
+            Ui.Toast($"'{skill.Name}' is now your current skill");
             await LoadAsync();
         }
         finally { busy = false; }
@@ -230,20 +140,25 @@ else
         finally { busy = false; }
     }
 
-    private async Task DeleteSkill(int id, string name)
+    private void CancelDelete() => pendingDelete = null;
+
+    private async Task ConfirmDelete()
     {
+        var s = pendingDelete;
+        pendingDelete = null;
+        if (s == null) return;
         busy = true;
         try
         {
             using var scope = ScopedServices.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var skill = await db.TechSkills.FindAsync(id);
+            var skill = await db.TechSkills.FindAsync(s.Id);
             if (skill == null) return;
             db.TechSkills.Remove(skill);
             await db.SaveChangesAsync();
             await scope.ServiceProvider.GetRequiredService<ProductivityService>()
-                .LogActivityAsync("TechSkill", id, "Deleted", $"Skill '{name}' removed");
-            message = $"'{name}' removed.";
+                .LogActivityAsync("TechSkill", s.Id, "Deleted", $"Skill '{s.Name}' removed");
+            Ui.Toast($"'{s.Name}' removed");
             await LoadAsync();
         }
         finally { busy = false; }
