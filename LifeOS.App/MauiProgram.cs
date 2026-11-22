@@ -29,6 +29,20 @@ public static class MauiProgram
 		builder.Services.AddSingleton<FocusTimer>();
 		builder.Services.AddSingleton<AppUi>();
 
+		// Reminders (system notifications while the app is running).
+#if WINDOWS
+		builder.Services.AddSingleton<INotifier, WindowsNotifier>();
+#elif ANDROID
+		builder.Services.AddSingleton<INotifier, AndroidNotifier>();
+#else
+		builder.Services.AddSingleton<INotifier, NullNotifier>();
+#endif
+		builder.Services.AddSingleton<ReminderService>();
+
+		// Phone <-> PC sync over Wi-Fi.
+		builder.Services.AddSingleton<LifeOS.App.Services.Sync.SyncServer>();
+		builder.Services.AddSingleton<LifeOS.App.Services.Sync.SyncClient>();
+
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();
@@ -39,6 +53,10 @@ public static class MauiProgram
 		// Create the database on first run, or update it to the newest version.
 		using (var scope = app.Services.CreateScope())
 			SqliteDatabase.Migrate(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+
+		app.Services.GetRequiredService<ReminderService>().Start();
+		_ = app.Services.GetRequiredService<LifeOS.App.Services.Sync.SyncServer>().StartIfEnabledAsync();
+		app.Services.GetRequiredService<LifeOS.App.Services.Sync.SyncClient>().StartAuto();
 
 		return app;
 	}

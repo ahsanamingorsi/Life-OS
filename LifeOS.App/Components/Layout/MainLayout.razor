@@ -104,6 +104,16 @@
     </div>
 </div>
 
+<nav class="los-tabbar" aria-label="Quick navigation">
+    @foreach (var t in TabItems)
+    {
+        <NavLink class="los-tab" href="@t.Href" Match="@(t.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+            <Icon Name="@t.Icon" /><span>@t.Text</span>
+        </NavLink>
+    }
+    <button type="button" class="los-tab" @onclick="() => navOpen = true"><Icon Name="menu" /><span>More</span></button>
+</nav>
+
 <FocusTimerPanel />
 <FormHost />
 <ToastHost />
@@ -115,10 +125,15 @@
 
     private static readonly NavGroup[] Groups =
     {
-        new("Plan", new NavItem[] { new("", "Dashboard", "dashboard"), new("planner", "My day", "clock"), new("tasks", "Tasks", "tasks"), new("projects", "Projects", "projects"), new("studies", "Studies", "studies"), new("skills", "Skills", "skills") }),
+        new("Plan", new NavItem[] { new("", "Dashboard", "dashboard"), new("plan", "Daily plan", "calendar"), new("planner", "My day", "clock"), new("tasks", "Tasks", "tasks"), new("projects", "Projects", "projects"), new("studies", "Studies", "studies"), new("skills", "Skills", "skills"), new("habits", "Habits", "flame") }),
         new("Life", new NavItem[] { new("spiritual", "Spiritual", "spiritual"), new("goals", "Goals", "goals"), new("review", "Review", "review") }),
         new("Library", new NavItem[] { new("links", "Links", "links") }),
-        new("Insights", new NavItem[] { new("analytics", "Analytics", "analytics"), new("settings", "Settings", "settings") }),
+        new("Insights", new NavItem[] { new("insights", "Insights", "sparkle"), new("analytics", "Analytics", "analytics"), new("settings", "Settings", "settings") }),
+    };
+
+    private static readonly NavItem[] TabItems =
+    {
+        new("", "Home", "dashboard"), new("plan", "Plan", "calendar"), new("tasks", "Tasks", "tasks"), new("habits", "Habits", "flame"),
     };
 
     private static readonly QuickItem[] QuickItems =
@@ -129,6 +144,9 @@
         new("study-session", "studies", "Study session", "Log hours on a subject"),
         new("skill-log", "skills", "Skill practice", "Log hours or progress"),
         new("study-note", "note", "Study note", "Capture an idea"),
+        new("plan-item", "calendar", "Plan item", "Add to today's plan"),
+        new("habit", "flame", "Habit", "Something to repeat daily"),
+        new("shutdown", "moon", "Evening shutdown", "Close the day calmly"),
     };
 
     private bool navOpen;
@@ -149,8 +167,11 @@
     protected override void OnInitialized()
     {
         Timer.Changed += OnTimerChanged;
+        Timer.Logged += OnTimerLogged;
         Nav.LocationChanged += OnLocationChanged;
     }
+
+    private void OnTimerLogged(string message) => InvokeAsync(() => { Ui.Toast(message); Ui.NotifyDataChanged(); });
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -211,6 +232,7 @@
     {
         shortcutRef?.Dispose();
         Timer.Changed -= OnTimerChanged;
+        Timer.Logged -= OnTimerLogged;
         Nav.LocationChanged -= OnLocationChanged;
     }
 }

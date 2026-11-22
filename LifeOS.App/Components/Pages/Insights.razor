@@ -1,0 +1,158 @@
+@page "/insights"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.App.Services
+@using Microsoft.EntityFrameworkCore
+
+@if (data == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Insights</div>
+                <h1 class="db-title">What your data says</h1>
+                <div class="db-muted db-small">Based on the last 8 weeks of your own activity.</div>
+            </div>
+        </div>
+
+        <section class="db-card in-level" aria-labelledby="lvlTitle">
+            <div class="in-level-row">
+                <div class="in-badge" aria-hidden="true">@data.Points.Level</div>
+                <div class="in-level-main">
+                    <h2 id="lvlTitle" class="db-h2">Level @data.Points.Level · <span class="lo-num">@data.Points.Points</span> points</h2>
+                    <div class="db-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@LevelPct"><span style="width:@LevelPct%"></span></div>
+                    <div class="db-muted db-tiny">@(data.Points.NextLevelAt - data.Points.Points) points to level @(data.Points.Level + 1). Points: task 10 · top-3 item 20 · habit 5 · 5 focus minutes 1 · prayer 3 · study or skill hour 10.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="db-card" aria-labelledby="wkTitle">
+            <h2 id="wkTitle" class="db-h2">This week vs last week</h2>
+            <div class="in-table" role="table" aria-label="This week compared with last week">
+                <div class="in-tr in-th" role="row"><span role="columnheader">&nbsp;</span><span role="columnheader">Last week</span><span role="columnheader">This week</span></div>
+                @foreach (var r in WeekRows)
+                {
+                    <div class="in-tr" role="row"><span role="cell">@r.Label</span><span role="cell" class="lo-num">@r.Last</span><span role="cell" class="lo-num in-now @r.Trend">@r.This @(r.Trend == "up" ? "▲" : r.Trend == "down" ? "▼" : "")</span></div>
+                }
+            </div>
+        </section>
+
+        <div class="db-grid-2">
+            <section class="db-card" aria-labelledby="hourTitle">
+                <h2 id="hourTitle" class="db-h2">Best focus hours</h2>
+                @if (data.FocusByHour.Sum() == 0) { <p class="db-empty">Use the focus timer a few times and your best hours will show here.</p> }
+                else
+                {
+                    int bestHour = Array.IndexOf(data.FocusByHour, data.FocusByHour.Max());
+                    <p class="db-muted db-small" style="margin-top:0;">You focus best around <strong>@HourText(bestHour)</strong>.</p>
+                    <div class="in-bars in-bars-24" role="img" aria-label="Focus minutes by hour of day">
+                        @for (int h = 0; h < 24; h++)
+                        {
+                            int v = data.FocusByHour[h]; int max = Math.Max(1, data.FocusByHour.Max());
+                            <div class="in-bar-col" title="@HourText(h): @v min"><div class="in-bar @(h == bestHour ? "best" : "")" style="height:@(v * 100 / max)%"></div><span>@(h % 6 == 0 ? HourShort(h) : "")</span></div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="db-card" aria-labelledby="dayTitle">
+                <h2 id="dayTitle" class="db-h2">Best weekdays</h2>
+                @if (data.DoneByWeekday.Sum() == 0 && data.FocusByWeekday.Sum() == 0) { <p class="db-empty">Complete a few tasks and your strongest days will show here.</p> }
+                else
+                {
+                    int bestDay = Array.IndexOf(data.DoneByWeekday, data.DoneByWeekday.Max());
+                    <p class="db-muted db-small" style="margin-top:0;">You finish the most tasks on <strong>@DayName(bestDay)</strong>.</p>
+                    <div class="in-bars" role="img" aria-label="Tasks finished by weekday">
+                        @for (int d = 0; d < 7; d++)
+                        {
+                            int v = data.DoneByWeekday[d]; int max = Math.Max(1, data.DoneByWeekday.Max());
+                            <div class="in-bar-col" title="@DayName(d): @v tasks, @data.FocusByWeekday[d] focus min"><div class="in-bar @(d == bestDay ? "best" : "")" style="height:@(v * 100 / max)%"></div><span>@DayName(d)[..3]</span></div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <section class="db-card" aria-labelledby="moodTitle">
+            <h2 id="moodTitle" class="db-h2">Mood, last 14 days</h2>
+            @if (!data.Mood.Any(m => m > 0)) { <p class="db-empty">Finish a few evening shutdowns and your mood trend will appear.</p> }
+            else
+            {
+                <div class="in-mood" role="img" aria-label="Mood per day for the last 14 days">
+                    @for (int i = 0; i < data.Mood.Length; i++)
+                    {
+                        int m = data.Mood[i]; var d = DateTime.Today.AddDays(i - 13);
+                        <div class="in-mood-col" title="@d.ToString("ddd d MMM"): @(m > 0 ? m + "/5" : "not set")"><div class="in-mood-dot m@(m)"></div><span>@d.ToString("dd")</span></div>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private record WeekRow(string Label, string Last, string This, string Trend);
+    private record InsightData(PointsResult Points, int[] FocusByHour, int[] FocusByWeekday, int[] DoneByWeekday, int[] Mood, PeriodStats ThisWeek, PeriodStats LastWeek);
+
+    private InsightData? data;
+    private int LevelPct => data == null ? 0 : (int)Math.Clamp((data.Points.Points - data.Points.LevelStart) * 100.0 / Math.Max(1, data.Points.NextLevelAt - data.Points.LevelStart), 0, 100);
+
+    private static readonly string[] Days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+    private static string DayName(int i) => Days[i];
+    private static int Idx(DayOfWeek d) => ((int)d + 6) % 7;
+    private static string HourText(int h) => DateTime.Today.AddHours(h).ToString("h tt");
+    private static string HourShort(int h) => DateTime.Today.AddHours(h).ToString("htt").ToLowerInvariant();
+
+    private IEnumerable<WeekRow> WeekRows
+    {
+        get
+        {
+            var t = data!.ThisWeek; var l = data.LastWeek;
+            yield return Row("Tasks done", l.TasksDone, t.TasksDone, "");
+            yield return Row("Top-3 done", l.MitsDone, t.MitsDone, "");
+            yield return Row("Focus", l.FocusMinutes, t.FocusMinutes, " min");
+            yield return Row("Habits done", l.HabitsDone, t.HabitsDone, "");
+            yield return Row("Study + skills", l.StudyHours + l.SkillHours, t.StudyHours + t.SkillHours, " h");
+            yield return Row("Avg productivity", l.AvgScore, t.AvgScore, "%");
+        }
+    }
+
+    private static WeekRow Row(string label, double last, double now, string unit) =>
+        new(label, last.ToString("0.#") + unit, now.ToString("0.#") + unit, now > last ? "up" : now < last ? "down" : "");
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var since = DateTime.Today.AddDays(-56);
+
+        var focusByHour = new int[24]; var focusByDay = new int[7]; var doneByDay = new int[7];
+        foreach (var f in await db.FocusSessions.AsNoTracking().Where(f => f.StartedAt >= since).ToListAsync())
+        {
+            focusByHour[f.StartedAt.Hour] += f.Minutes;
+            focusByDay[Idx(f.StartedAt.DayOfWeek)] += f.Minutes;
+        }
+        foreach (var c in await db.TaskCompletions.AsNoTracking().Where(c => c.Date >= since).Select(c => c.Date).ToListAsync()) doneByDay[Idx(c.DayOfWeek)]++;
+        foreach (var d in await db.ProjectTasks.AsNoTracking().Where(t => t.CompletedAt != null && t.CompletedAt >= since).Select(t => t.CompletedAt!.Value).ToListAsync()) doneByDay[Idx(d.DayOfWeek)]++;
+        foreach (var d in await db.StudyTasks.AsNoTracking().Where(t => t.CompletedAt != null && t.CompletedAt >= since).Select(t => t.CompletedAt!.Value).ToListAsync()) doneByDay[Idx(d.DayOfWeek)]++;
+
+        var mood = new int[14];
+        var from = DateTime.Today.AddDays(-13);
+        foreach (var r in await db.DayReflections.AsNoTracking().Where(r => r.Date >= from).ToListAsync())
+        {
+            int i = (r.Date.Date - from).Days;
+            if (i is >= 0 and < 14) mood[i] = r.Mood;
+        }
+
+        var monday = DateTime.Today.AddDays(-Idx(DateTime.Today.DayOfWeek));
+        var thisWeek = await DayStats.LoadAsync(sp, monday, DateTime.Today);
+        var lastWeek = await DayStats.LoadAsync(sp, monday.AddDays(-7), monday.AddDays(-7 + Idx(DateTime.Today.DayOfWeek)));
+        var points = await Points.ComputeAsync(db);
+        data = new InsightData(points, focusByHour, focusByDay, doneByDay, mood, thisWeek, lastWeek);
+    }
+}

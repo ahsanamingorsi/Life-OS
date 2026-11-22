@@ -48,6 +48,192 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.ToTable("ActivityLogs");
                 });
 
+            modelBuilder.Entity("LifeOS.MVC.Models.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.DayReflection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Gratitude")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Mood")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slipped")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Wins")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
+
+                    b.HasIndex("SyncId");
+
+                    b.ToTable("DayReflections");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.FocusSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RefId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt");
+
+                    b.HasIndex("SyncId");
+
+                    b.ToTable("FocusSessions");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.Habit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DaysMask")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Target")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
+
+                    b.ToTable("Habits");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.HabitLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("HabitLogs");
+                });
+
             modelBuilder.Entity("LifeOS.MVC.Models.PersonalGoal", b =>
                 {
                     b.Property<int>("Id")
@@ -77,10 +263,18 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<int>("ProgressPercent")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("TargetCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("PersonalGoals");
                 });
@@ -129,16 +323,76 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<DateTime?>("RepeatEndDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GoalId");
 
+                    b.HasIndex("SyncId");
+
                     b.ToTable("PersonalTasks");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.PlanItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EndMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDone")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsMit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("StartMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("SyncId");
+
+                    b.ToTable("PlanItems");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.Project", b =>
@@ -179,12 +433,20 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("Projects");
                 });
@@ -237,14 +499,22 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("ProjectTasks");
                 });
@@ -284,11 +554,19 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Wins")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("ReviewEntries");
                 });
@@ -334,10 +612,18 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Date")
                         .IsUnique();
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("SpiritualEntries");
                 });
@@ -361,6 +647,9 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<int>("StudySubjectId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Tags")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -373,9 +662,14 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("StudySubjectId");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("StudyNotes");
                 });
@@ -405,13 +699,21 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<int>("StudySubjectId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TopicCovered")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("StudySubjectId");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("StudySessions");
                 });
@@ -458,13 +760,21 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("TargetHours")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UpdatedTicks")
                         .HasColumnType("INTEGER");
 
                     b.Property<double>("WeeklyTargetHours")
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("StudySubjects");
                 });
@@ -494,14 +804,22 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<int>("StudySubjectId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("StudySubjectId");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("StudyTasks");
                 });
@@ -521,7 +839,15 @@ namespace LifeOS.Data.Sqlite.Migrations
                     b.Property<int>("PersonalTaskId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.HasIndex("PersonalTaskId", "Date")
                         .IsUnique();
@@ -581,13 +907,21 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
 
                     b.Property<double>("WeeklyTargetHours")
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.ToTable("TechSkills");
                 });
@@ -611,6 +945,9 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("TechSkillId")
                         .HasColumnType("INTEGER");
 
@@ -618,11 +955,39 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SyncId");
 
                     b.HasIndex("TechSkillId");
 
                     b.ToTable("TechSkillLogs");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Sync.SyncTombstone", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("DeletedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntityType", "SyncId");
+
+                    b.ToTable("SyncTombstones");
                 });
 
             modelBuilder.Entity("LifeOS.Models.WebLink", b =>
@@ -657,9 +1022,15 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SyncId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Tags")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedTicks")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Url")
                         .IsRequired()
@@ -671,7 +1042,20 @@ namespace LifeOS.Data.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SyncId");
+
                     b.ToTable("WebLinks");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.HabitLog", b =>
+                {
+                    b.HasOne("LifeOS.MVC.Models.Habit", "Habit")
+                        .WithMany("Logs")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.PersonalTask", b =>
@@ -748,6 +1132,11 @@ namespace LifeOS.Data.Sqlite.Migrations
                         .IsRequired();
 
                     b.Navigation("TechSkill");
+                });
+
+            modelBuilder.Entity("LifeOS.MVC.Models.Habit", b =>
+                {
+                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("LifeOS.MVC.Models.PersonalGoal", b =>

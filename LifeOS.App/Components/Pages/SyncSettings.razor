@@ -1,0 +1,135 @@
+﻿@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.App.Services
+@using LifeOS.App.Services.Sync
+@inject SyncServer Server
+@inject SyncClient Client
+@inject LifeOS.App.Services.AppUi Ui
+
+<section class="db-card" aria-labelledby="syncTitle">
+    <div class="db-card-head"><h2 id="syncTitle" class="db-h2">Phone &amp; PC sync</h2></div>
+    <p class="db-muted db-small" style="margin-top:0;">Your data is copied between your PC and phone over your own Wi-Fi. Nothing goes to the internet. Both devices must be on the same Wi-Fi, and Life OS must be open on the PC. Everything stays encrypted with your pairing code.</p>
+
+    @if (showServer)
+    {
+        <h3 class="sy-h3">On this PC</h3>
+        <label class="lo-check-label"><input type="checkbox" checked="@Server.IsRunning" @onchange="e => ToggleServer((bool)e.Value!)" /> <strong>Allow my phone to sync with this PC</strong></label>
+        @if (Server.IsRunning)
+        {
+            <div class="sy-box">
+                <div class="db-muted db-tiny">Pairing code (type this on your phone)</div>
+                <div class="sy-code lo-num">@pairCode</div>
+                <div class="db-muted db-tiny">PC address: <span class="lo-num">@(addresses.Count == 0 ? "not connected to Wi-Fi" : string.Join("  or  ", addresses))</span></div>
+                <div class="lo-form-actions" style="justify-content:flex-start;margin-top:8px;">
+                    <button type="button" class="lo-btn lo-btn-sm" @onclick="NewCode">Make a new code</button>
+                </div>
+            </div>
+            <p class="db-muted db-tiny">The first time, Windows may ask to allow Life OS on your network. Choose "Private networks". @Server.LastMessage</p>
+        }
+        else if (Server.LastMessage != null) { <p class="db-muted db-tiny">@Server.LastMessage</p> }
+    }
+
+    @if (showClient)
+    {
+        <h3 class="sy-h3">Connect to your PC</h3>
+        <div class="lo-form">
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label class="lo-label" for="sy-host">PC address</label>
+                    <input id="sy-host" class="lo-input" inputmode="decimal" placeholder="e.g. 192.168.1.5" @bind="host" @bind:event="oninput" />
+                </div>
+                <div class="lo-field">
+                    <label class="lo-label" for="sy-code">Pairing code</label>
+                    <input id="sy-code" class="lo-input" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX" @bind="peerCode" @bind:event="oninput" maxlength="14" />
+                </div>
+            </div>
+            <div class="lo-form-actions" style="justify-content:flex-start;flex-wrap:wrap;">
+                <button type="button" class="lo-btn" @onclick="Find" disabled="@finding">@(finding ? "Searchingâ€¦" : "Find my PC")</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick="SaveAndSync" disabled="@Client.Busy">@(Client.Busy ? "Syncingâ€¦" : "Save and sync")</button>
+                @if (paired) { <button type="button" class="lo-btn" @onclick="Forget">Forget this PC</button> }
+            </div>
+        </div>
+        @if (paired)
+        {
+            <div class="lo-form-actions" style="justify-content:flex-start;">
+                <button type="button" class="lo-btn" @onclick="SyncNow" disabled="@Client.Busy">Sync now</button>
+                <span class="db-muted db-small">@(Client.LastMessage ?? "Syncs by itself when the app opens and every 10 minutes.")</span>
+            </div>
+        }
+        @if (message != null) { <div class="lo-flash" role="status">@message</div> }
+    }
+</section>
+
+@code {
+    private bool showServer, showClient, paired, finding;
+    private string pairCode = "", host = "", peerCode = "";
+    private string? message;
+    private List<string> addresses = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        showServer = OperatingSystem.IsWindows();
+        using (var scope = ScopedServices.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // On a PC the "connect" part is hidden unless switched on (for testing PC-to-PC).
+            showClient = !showServer || await SettingsStore.GetAsync(db, "sync.dev", "0") == "1";
+        }
+        var peer = await Client.GetPeerAsync();
+        host = peer.Host ?? ""; peerCode = peer.Code ?? ""; paired = peer.Host != null;
+        if (showServer) { pairCode = await Server.GetCodeAsync(); addresses = SyncDiscovery.LocalAddresses(); }
+        Server.Changed += OnChanged; Client.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { Server.Changed -= OnChanged; Client.Changed -= OnChanged; }
+        base.Dispose(disposing);
+    }
+
+    private async Task ToggleServer(bool on)
+    {
+        using (var scope = ScopedServices.CreateScope())
+            await SettingsStore.SetAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), "sync.server", on ? "1" : "0");
+        if (on) { await Server.StartAsync(); pairCode = await Server.GetCodeAsync(); addresses = SyncDiscovery.LocalAddresses(); }
+        else Server.Stop();
+    }
+
+    private async Task NewCode() { pairCode = await Server.NewCodeAsync(); Ui.Toast("New pairing code made. Enter it again on your phone."); }
+
+    private async Task Find()
+    {
+        finding = true; message = null;
+        var ip = await SyncDiscovery.FindPcAsync();
+        finding = false;
+        if (ip != null) { host = ip; message = "Found your PC: " + ip; }
+        else message = "Could not find the PC automatically. Check that Life OS is open on the PC with sync turned on, then type the address shown there.";
+    }
+
+    private async Task SaveAndSync()
+    {
+        message = null;
+        if (string.IsNullOrWhiteSpace(host)) { message = "Enter the PC address (or tap Find my PC)."; return; }
+        if (!SyncProtocol.IsValidCode(peerCode)) { message = "The pairing code has 12 letters and numbers, like K7M2-9QXA-4TWD."; return; }
+        await Client.SavePeerAsync(host, peerCode);
+        paired = true;
+        var (ok, msg) = await Client.SyncNowAsync();
+        message = msg;
+        if (ok) Ui.Toast("Sync finished");
+    }
+
+    private async Task SyncNow()
+    {
+        var (ok, msg) = await Client.SyncNowAsync();
+        message = msg;
+        if (ok) Ui.Toast("Sync finished");
+    }
+
+    private async Task Forget()
+    {
+        await Client.ForgetPeerAsync();
+        paired = false; host = ""; peerCode = ""; message = "This PC was forgotten on this device.";
+    }
+}
+

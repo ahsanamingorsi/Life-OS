@@ -3,6 +3,7 @@
 @using LifeOS.MVC.Data
 @using LifeOS.MVC.Models
 @using LifeOS.MVC.Services
+@using LifeOS.App.Services
 @using Microsoft.EntityFrameworkCore
 @inject LifeOS.App.Services.AppUi Ui
 
@@ -82,11 +83,12 @@ else
                             <div class="db-task-meta">@string.Join(" · ", RowMeta(row))</div>
                             @if (!string.IsNullOrWhiteSpace(t.Description)) { <div class="db-task-meta lo-task-note">@t.Description</div> }
                         </div>
-                        @if (t.IsRepeated) { <span class="db-badge repeat-@t.Repeat.ToLowerInvariant()">@t.Repeat</span> }
+                        @if (row.StudyTaskId > 0) { <span class="db-badge repeat-weekly">Study</span> }
+                        else if (t.IsRepeated) { <span class="db-badge repeat-@t.Repeat.ToLowerInvariant()">@t.Repeat</span> }
                         else if (t.Priority == "A") { <span class="db-badge high">High</span> }
                         else if (t.Priority == "C") { <span class="db-badge">Low</span> }
                         <div class="lo-row-actions">
-                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @t.Title" @onclick='() => Ui.Open("task", t.Id)'>Edit</button>
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @t.Title" @onclick="() => OpenEdit(row)">Edit</button>
                             <button type="button" class="lo-btn lo-btn-sm lo-btn-danger" aria-label="Delete @t.Title" @onclick="() => AskDelete(t)">Delete</button>
                         </div>
                     </div>
@@ -110,6 +112,9 @@ else
         public bool IsOverdue { get; set; }
         public int Streak { get; set; }
         public DateTime? NextDate { get; set; }
+        /// <summary>Above 0 when this row is a study subject task (Task is then a stand-in with a negative id).</summary>
+        public int StudyTaskId { get; set; }
+        public string? SubjectName { get; set; }
     }
 
     private record FilterDef(string Key, string Label, Func<Tasks, int> Count);
@@ -172,7 +177,14 @@ else
         else if (t.DueDate == null) { meta.Add("No due date"); }
         else { meta.Add((row.IsOverdue ? "Overdue · " : t.DueDate.Value.Date == today ? "Due today · " : "Due ") + t.DueDate.Value.ToString("dd MMM")); }
         if (t.Goal != null) { meta.Add("Goal: " + t.Goal.Goal); }
+        if (row.SubjectName != null) { meta.Add("Study: " + row.SubjectName); }
         return meta;
+    }
+
+    private void OpenEdit(TaskRow row)
+    {
+        if (row.StudyTaskId > 0) Ui.Open("study-task-edit", row.StudyTaskId);
+        else Ui.Open("task", row.Task.Id);
     }
 
     private void SetGoalFilter(ChangeEventArgs e) => goalFilter = int.TryParse(e.Value as string, out var id) ? id : null;
@@ -219,6 +231,23 @@ else
             }
             return row;
         }).ToList();
+
+        // Study subject tasks sit in the same list, as one-time tasks.
+        foreach (var s in await StudyTaskItems.LoadAllAsync(db))
+        {
+            rows.Add(new TaskRow
+            {
+                Task = new PersonalTask
+                {
+                    Id = StudyTaskItems.ToMixedId(s.Id), Title = s.Title, Description = s.Notes, DueDate = s.DueDate, Priority = "B",
+                    Repeat = "None", IsCompleted = s.IsCompleted, CompletedAt = s.CompletedAt, CreatedAt = s.CreatedAt,
+                },
+                OccursToday = s.DueDate?.Date == today,
+                IsOverdue = !s.IsCompleted && s.DueDate.HasValue && s.DueDate.Value.Date < today,
+                StudyTaskId = s.Id,
+                SubjectName = s.StudySubject?.Name,
+            });
+        }
     }
 
     private async Task ToggleTask(int id)
@@ -227,6 +256,13 @@ else
         try
         {
             using var scope = ScopedServices.CreateScope();
+            if (id < 0)
+            {
+                var result = await StudyTaskItems.ToggleAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), -id);
+                if (result != null) Ui.Toast(result.Value.Done ? $"Done: {result.Value.Title}" : $"Reopened: {result.Value.Title}");
+                await LoadAsync();
+                return;
+            }
             var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
             var title = rows!.First(r => r.Task.Id == id).Task.Title;
             var state = await tasks.ToggleAsync(id, DateTime.Today);
@@ -255,6 +291,13 @@ else
         {
             using var scope = ScopedServices.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (t.Id < 0)
+            {
+                await StudyTaskItems.DeleteAsync(db, -t.Id);
+                Ui.Toast($"Task '{t.Title}' removed");
+                Ui.NotifyDataChanged();
+                return;
+            }
             var task = await db.PersonalTasks.FindAsync(t.Id);
             if (task == null) return;
             db.PersonalTasks.Remove(task);

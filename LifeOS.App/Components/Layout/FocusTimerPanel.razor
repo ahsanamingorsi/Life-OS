@@ -1,5 +1,8 @@
 @implements IDisposable
+@using LifeOS.MVC.Data
+@using Microsoft.EntityFrameworkCore
 @inject LifeOS.App.Services.FocusTimer Timer
+@inject IServiceScopeFactory Scopes
 
 <div id="timerWidget" class="@(Timer.IsOpen ? "open" : "")" role="dialog" aria-label="Focus timer" aria-hidden="@(Timer.IsOpen ? "false" : "true")">
     @if (Timer.IsOpen)
@@ -21,8 +24,17 @@
                 </div>
             </div>
 
+            <label for="tTarget" class="lo-visually-hidden">Focus on</label>
+            <select id="tTarget" class="lo-input" disabled="@Timer.IsRunning" value="@(Timer.Kind + ":" + (Timer.RefId ?? 0))" @onchange="OnTargetChanged">
+                <option value="Free:0">Free focus (type below)</option>
+                @if (opts.Any(o => o.Kind == "Task")) { <optgroup label="Tasks">@foreach (var o in opts.Where(o => o.Kind == "Task")) { <option value="@(o.Kind):@o.Id">@o.Text</option> }</optgroup> }
+                @if (opts.Any(o => o.Kind == "ProjectTask")) { <optgroup label="Project tasks">@foreach (var o in opts.Where(o => o.Kind == "ProjectTask")) { <option value="@(o.Kind):@o.Id">@o.Text</option> }</optgroup> }
+                @if (opts.Any(o => o.Kind == "StudySubject")) { <optgroup label="Study subjects (hours are logged)">@foreach (var o in opts.Where(o => o.Kind == "StudySubject")) { <option value="@(o.Kind):@o.Id">@o.Text</option> }</optgroup> }
+                @if (opts.Any(o => o.Kind == "Skill")) { <optgroup label="Skills (hours are logged)">@foreach (var o in opts.Where(o => o.Kind == "Skill")) { <option value="@(o.Kind):@o.Id">@o.Text</option> }</optgroup> }
+            </select>
             <label for="tLabel" class="lo-visually-hidden">What are you focusing on?</label>
             <input id="tLabel" class="lo-input" style="text-align:center;" placeholder="What are you focusing on?" @bind="Timer.Label" />
+            <div class="db-muted db-small" style="text-align:center;">Today: <strong class="lo-num">@todayMinutes</strong> min focused</div>
 
             <div role="group" aria-label="Timer length" class="lo-timer-presets">
                 @foreach (var m in new[] { 25, 50, 90, 5, 15 })
@@ -35,6 +47,17 @@
                 <input id="tCustom" type="number" min="1" max="300" class="lo-input lo-input-tiny" @bind="customMinutes" />
                 <button type="button" class="lo-btn lo-btn-sm" @onclick="() => Timer.SetMinutes(customMinutes)">Set</button>
             </div>
+
+            @if (!Timer.IsRunning && Timer.ElapsedSeconds == 0)
+            {
+                <div class="ft-ritual" role="group" aria-label="Before you start">
+                    <div class="db-muted db-tiny">Before you start</div>
+                    @foreach (var (text, idx) in Ritual.Select((t, i) => (t, i)))
+                    {
+                        <label class="lo-check-label ft-ritual-item"><input type="checkbox" checked="@ritualChecked[idx]" @onchange="e => ritualChecked[idx] = (bool)e.Value!" /> @text</label>
+                    }
+                </div>
+            }
 
             <div class="lo-timer-controls">
                 @if (Timer.IsRunning)
@@ -55,8 +78,68 @@
     private const double Circ = 2 * Math.PI * 58;
     private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
     private int customMinutes = 30;
+    private static readonly string[] Ritual = { "Phone placed away from you", "Notifications silenced", "Water ready", "One clear task chosen" };
+    private readonly bool[] ritualChecked = new bool[4];
+    private record Opt(string Kind, int Id, string Text);
+    private List<Opt> opts = new();
+    private int todayMinutes;
+    private bool wasOpen;
 
-    protected override void OnInitialized() => Timer.Changed += OnChanged;
+    protected override void OnInitialized()
+    {
+        Timer.Changed += OnChanged;
+        Timer.Logged += OnLogged;
+    }
+
     private void OnChanged() => InvokeAsync(StateHasChanged);
-    public void Dispose() => Timer.Changed -= OnChanged;
+    private void OnLogged(string _) => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override async Task OnParametersSetAsync() => await RefreshIfOpenedAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) => await RefreshIfOpenedAsync();
+
+    private async Task RefreshIfOpenedAsync()
+    {
+        if (Timer.IsOpen && !wasOpen)
+        {
+            wasOpen = true;
+            await LoadAsync();
+            StateHasChanged();
+        }
+        else if (!Timer.IsOpen) wasOpen = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        using var scope = Scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var list = new List<Opt>();
+        list.AddRange((await db.PersonalTasks.AsNoTracking().Where(t => t.Repeat != "None" || !t.IsCompleted).OrderBy(t => t.Title).Take(100).ToListAsync())
+            .Select(t => new Opt("Task", t.Id, t.Title)));
+        list.AddRange((await db.ProjectTasks.AsNoTracking().Where(t => !t.IsCompleted).OrderBy(t => t.Title).Take(100).ToListAsync())
+            .Select(t => new Opt("ProjectTask", t.Id, t.Title)));
+        list.AddRange((await db.StudySubjects.AsNoTracking().Where(s => s.Status == "Active").OrderBy(s => s.Name).ToListAsync())
+            .Select(s => new Opt("StudySubject", s.Id, s.Name)));
+        list.AddRange((await db.TechSkills.AsNoTracking().OrderBy(s => s.Name).ToListAsync())
+            .Select(s => new Opt("Skill", s.Id, s.Name)));
+        opts = list;
+        var today = DateTime.Today; var tomorrow = today.AddDays(1);
+        todayMinutes = await db.FocusSessions.Where(f => f.StartedAt >= today && f.StartedAt < tomorrow).SumAsync(f => (int?)f.Minutes) ?? 0;
+    }
+
+    private void OnTargetChanged(ChangeEventArgs e)
+    {
+        var parts = (e.Value?.ToString() ?? "Free:0").Split(':');
+        string kind = parts[0];
+        int id = parts.Length > 1 && int.TryParse(parts[1], out var n) ? n : 0;
+        if (kind == "Free") { Timer.SetTarget("Free", null, ""); return; }
+        var o = opts.FirstOrDefault(x => x.Kind == kind && x.Id == id);
+        Timer.SetTarget(kind, id, o?.Text ?? "");
+    }
+
+    public void Dispose()
+    {
+        Timer.Changed -= OnChanged;
+        Timer.Logged -= OnLogged;
+    }
 }

@@ -1,0 +1,230 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using LifeOS.App.Services
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+<GlassModal Open="Open" Title="Evening shutdown" Subtitle="@SubtitleText" Size="lg" OnClose="Close">
+    <ChildContent>
+        @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+        <div class="wz-steps" aria-hidden="true">
+            @for (int i = 1; i <= 4; i++) { <span class="wz-dot @(i == step ? "on" : i < step ? "done" : "")"></span> }
+        </div>
+
+        @if (step == 1 && stats != null)
+        {
+            <div class="wz-stats">
+                <div class="dx-stat"><strong class="lo-num">@stats.TasksDone/@stats.TasksTotal</strong><span>Tasks</span></div>
+                <div class="dx-stat"><strong class="lo-num">@stats.MitsDone/@stats.MitsTotal</strong><span>Top 3</span></div>
+                <div class="dx-stat"><strong class="lo-num">@stats.FocusMinutes</strong><span>Focus min</span></div>
+                <div class="dx-stat"><strong class="lo-num">@stats.HabitsDone/@stats.HabitsTotal</strong><span>Habits</span></div>
+            </div>
+            <div class="lo-form">
+                <div class="lo-field">
+                    <label for="sd-wins" class="lo-label">What went well today?</label>
+                    <textarea id="sd-wins" class="lo-input lo-textarea" maxlength="1000" @bind="reflection.Wins" @bind:event="oninput"></textarea>
+                </div>
+                <div class="lo-field">
+                    <label for="sd-slip" class="lo-label">What slipped or distracted you? <span class="db-muted">(optional)</span></label>
+                    <textarea id="sd-slip" class="lo-input lo-textarea" maxlength="1000" @bind="reflection.Slipped" @bind:event="oninput"></textarea>
+                </div>
+            </div>
+        }
+        else if (step == 2)
+        {
+            <p class="db-muted">Unfinished work: move it to tomorrow, or drop it. Nothing stays hanging in your head.</p>
+            @if (!unfinished.Any())
+            {
+                <div class="empty-state"><span class="empty-ico"><Icon Name="tick" /></span><strong>Nothing left open</strong><span class="db-muted db-small">Everything planned for today is done.</span></div>
+            }
+            <div class="db-task-list">
+                @foreach (var u in unfinished)
+                {
+                    <div class="db-task" @key="u.Key">
+                        <div class="db-task-body">
+                            <div class="db-task-title">@u.Title</div>
+                            <div class="db-task-meta">@u.Source</div>
+                        </div>
+                        <div class="wz-choice" role="group" aria-label="What to do with @u.Title">
+                            <button type="button" class="hb-day @(u.Action == "move" ? "on" : "")" aria-pressed="@(u.Action == "move")" @onclick='() => u.Action = "move"'>Tomorrow</button>
+                            @if (u.CanKeep) { <button type="button" class="hb-day @(u.Action == "keep" ? "on" : "")" aria-pressed="@(u.Action == "keep")" @onclick='() => u.Action = "keep"'>Keep</button> }
+                            @if (u.CanDrop) { <button type="button" class="hb-day @(u.Action == "drop" ? "on" : "")" aria-pressed="@(u.Action == "drop")" @onclick='() => u.Action = "drop"'>Drop</button> }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (step == 3)
+        {
+            <p class="db-muted">What 3 things matter most tomorrow? Write them now, wake up with a plan.</p>
+            @if (existingMits.Any())
+            {
+                <div class="db-muted db-small">Already in tomorrow's top 3: @string.Join(", ", existingMits)</div>
+            }
+            <div class="lo-form">
+                @for (int i = 0; i < Math.Max(0, 3 - existingMits.Count); i++)
+                {
+                    int idx = i;
+                    <div class="lo-field">
+                        <label for="@("sd-mit" + idx)" class="lo-label">Important thing @(existingMits.Count + idx + 1)</label>
+                        <input id="@("sd-mit" + idx)" class="lo-input" maxlength="200" value="@mitTexts[idx]" @oninput="e => mitTexts[idx] = e.Value?.ToString() ?? string.Empty" />
+                    </div>
+                }
+            </div>
+        }
+        else if (step == 4)
+        {
+            <div class="lo-form">
+                <div class="lo-field">
+                    <span class="lo-label">How was your day?</span>
+                    <div class="wz-mood" role="group" aria-label="Mood">
+                        @for (int m = 1; m <= 5; m++)
+                        {
+                            int mm = m;
+                            <button type="button" class="wz-mood-btn @(reflection.Mood == mm ? "on" : "")" aria-pressed="@(reflection.Mood == mm)" @onclick="() => reflection.Mood = mm">
+                                <span aria-hidden="true">@MoodFace[mm - 1]</span><small>@MoodText[mm - 1]</small>
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="lo-field">
+                    <label for="sd-grat" class="lo-label">One thing you are grateful for</label>
+                    <textarea id="sd-grat" class="lo-input lo-textarea" maxlength="1000" @bind="reflection.Gratitude" @bind:event="oninput"></textarea>
+                </div>
+                <div class="lo-flash wz-ritual">
+                    <strong>Close the day:</strong> put your phone away from your bed, set an alarm, and sleep early.
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        @if (step > 1) { <button type="button" class="lo-btn" @onclick="() => step--" disabled="@busy">Back</button> }
+        <button type="button" class="lo-btn" @onclick="Close" disabled="@busy">Cancel</button>
+        @if (step < 4)
+        {
+            <button type="button" class="lo-btn lo-btn-primary" @onclick="() => step++" disabled="@busy">Next</button>
+        }
+        else
+        {
+            <button type="button" class="lo-btn lo-btn-primary" @onclick="Finish" disabled="@busy">Finish day</button>
+        }
+    </Footer>
+</GlassModal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private class Unfinished
+    {
+        public string Key = "", Title = "", Source = "", Action = "move";
+        public bool CanKeep, CanDrop;
+        public int PlanId, TaskId;
+    }
+
+    private static readonly string[] MoodFace = { "😞", "😕", "😐", "🙂", "😄" };
+    private static readonly string[] MoodText = { "Hard", "Low", "Okay", "Good", "Great" };
+
+    private bool wasOpen, busy;
+    private int step = 1;
+    private string? error;
+    private PeriodStats? stats;
+    private DayReflection reflection = new();
+    private List<Unfinished> unfinished = new();
+    private List<string> existingMits = new();
+    private string[] mitTexts = { "", "", "" };
+
+    private string SubtitleText => step switch
+    {
+        1 => "Step 1 of 4 · Review today",
+        2 => "Step 2 of 4 · Unfinished work",
+        3 => "Step 3 of 4 · Tomorrow's top 3",
+        _ => "Step 4 of 4 · Mood and gratitude",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Open && !wasOpen) await LoadAsync();
+        wasOpen = Open;
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null; step = 1; busy = false; mitTexts = new[] { "", "", "" };
+        using var scope = ScopedServices.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var today = DateTime.Today; var tomorrow = today.AddDays(1);
+
+        stats = await DayStats.LoadAsync(sp, today, today);
+        reflection = await db.DayReflections.AsNoTracking().FirstOrDefaultAsync(r => r.Date == today) ?? new DayReflection { Date = today };
+
+        var list = new List<Unfinished>();
+        var plan = await db.PlanItems.AsNoTracking().Where(p => p.Date == today && !p.IsDone).OrderBy(p => p.StartMinutes ?? 9999).ToListAsync();
+        foreach (var p in plan)
+            list.Add(new Unfinished { Key = "P" + p.Id, PlanId = p.Id, Title = p.Title, Source = p.IsMit ? "From today's plan · top 3" : "From today's plan", CanDrop = true });
+        var tasks = sp.GetRequiredService<TaskService>();
+        var plannedTaskIds = plan.Where(p => p.SourceKind == "Task" && p.SourceId != null).Select(p => p.SourceId!.Value).ToHashSet();
+        foreach (var t in await tasks.GetForDayAsync(today, includeOverdue: true))
+            if (!t.IsDone && !t.Task.IsRepeated && !plannedTaskIds.Contains(t.Task.Id))
+                list.Add(new Unfinished { Key = "T" + t.Task.Id, TaskId = t.Task.Id, Title = t.Task.Title, Source = "Task · due " + (t.Task.DueDate?.ToString("dd MMM") ?? "today"), CanKeep = true });
+        unfinished = list;
+
+        existingMits = await db.PlanItems.AsNoTracking().Where(p => p.Date == tomorrow && p.IsMit).Select(p => p.Title).ToListAsync();
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task Finish()
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var today = DateTime.Today; var tomorrow = today.AddDays(1);
+            int tomorrowMits = await db.PlanItems.CountAsync(p => p.Date == tomorrow && p.IsMit);
+
+            foreach (var u in unfinished)
+            {
+                if (u.PlanId != 0)
+                {
+                    var p = await db.PlanItems.FindAsync(u.PlanId);
+                    if (p == null) continue;
+                    if (u.Action == "drop") db.PlanItems.Remove(p);
+                    else
+                    {
+                        p.Date = tomorrow;
+                        if (p.IsMit) { if (tomorrowMits >= 3) p.IsMit = false; else tomorrowMits++; }
+                    }
+                }
+                else if (u.TaskId != 0 && u.Action == "move")
+                {
+                    var t = await db.PersonalTasks.FindAsync(u.TaskId);
+                    if (t != null) t.DueDate = tomorrow;
+                }
+            }
+
+            foreach (var text in mitTexts.Select(t => (t ?? "").Trim()).Where(t => t.Length > 0))
+            {
+                if (tomorrowMits >= 3) break;
+                db.PlanItems.Add(new PlanItem { Date = tomorrow, Title = text.Length > 200 ? text[..200] : text, IsMit = true });
+                tomorrowMits++;
+            }
+
+            var row = await db.DayReflections.FirstOrDefaultAsync(r => r.Date == today);
+            if (row == null) { row = new DayReflection { Date = today }; db.DayReflections.Add(row); }
+            row.Wins = reflection.Wins; row.Slipped = reflection.Slipped; row.Gratitude = reflection.Gratitude; row.Mood = reflection.Mood;
+
+            await db.SaveChangesAsync();
+            Ui.Toast("Day closed. Rest well!");
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        catch (Exception ex) { error = "Could not save: " + ex.Message; }
+        finally { busy = false; }
+    }
+}

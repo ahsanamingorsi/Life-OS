@@ -1,0 +1,260 @@
+@page "/plan"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using LifeOS.App.Services
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+@inject LifeOS.App.Services.FocusTimer Timer
+
+@if (items == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    var mits = items.Where(i => i.IsMit).OrderBy(i => i.CreatedAt).ToList();
+    var timed = items.Where(i => i.StartMinutes != null).OrderBy(i => i.StartMinutes).ToList();
+    var anytime = items.Where(i => i.StartMinutes == null && !i.IsMit).OrderBy(i => i.IsDone).ThenBy(i => i.CreatedAt).ToList();
+    bool isToday = day == DateTime.Today;
+    int nowMin = PlanService.NowMinutes();
+    int doneCount = items.Count(i => i.IsDone);
+
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Daily plan@(isToday ? " · today" : "")</div>
+                <h1 class="db-title">@day.ToString("dddd, d MMMM")</h1>
+                <div class="db-muted db-small">@(items.Count == 0 ? "Nothing planned yet. Start with your 3 most important things." : $"{doneCount} of {items.Count} done")</div>
+            </div>
+            <div class="db-actions">
+                <button type="button" class="lo-btn" aria-label="Previous day" @onclick="() => GoTo(day.AddDays(-1))">← Previous</button>
+                <button type="button" class="lo-btn" @onclick="() => GoTo(DateTime.Today)" disabled="@isToday">Today</button>
+                <button type="button" class="lo-btn" aria-label="Next day" @onclick="() => GoTo(day.AddDays(1))">Next →</button>
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("plan-item", 0, DayKey)'><Icon Name="plus" /> Add</button>
+            </div>
+        </div>
+
+        <section class="db-card" aria-labelledby="mitTitle">
+            <div class="db-card-head">
+                <h2 id="mitTitle" class="db-h2">3 most important things</h2>
+                <span class="db-muted db-small">If only these get done, the day is a win.</span>
+            </div>
+            <div class="db-task-list">
+                @for (int slot = 0; slot < 3; slot++)
+                {
+                    if (slot < mits.Count)
+                    {
+                        var m = mits[slot];
+                        <div class="db-task pl-mit @(m.IsDone ? "is-done" : "")" @key="m.Id">
+                            <button type="button" class="db-check @(m.IsDone ? "done" : "")" disabled="@busy"
+                                    aria-label="@(m.IsDone ? "Mark as not done" : "Mark as done"): @m.Title" @onclick="() => Toggle(m.Id)">
+                                @if (m.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@m.Title</div>
+                                <div class="db-task-meta">@PlanService.RangeText(m)@(m.SourceKind != "Free" ? " · " + SourceLabel(m.SourceKind) : "")</div>
+                            </div>
+                            <span class="pl-num">@(slot + 1)</span>
+                            @if (!m.IsDone) { <button type="button" class="lo-btn lo-btn-sm" aria-label="Focus on @m.Title" @onclick="() => FocusOn(m)"><Icon Name="clock" /> Focus</button> }
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @m.Title" @onclick='() => Ui.Open("plan-item", m.Id, DayKey)'>Edit</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="button" class="pl-empty-slot" @onclick='() => Ui.Open("plan-mit", 0, DayKey)'>
+                            <span class="pl-num">@(slot + 1)</span> <Icon Name="plus" /> Add an important thing
+                        </button>
+                    }
+                }
+            </div>
+        </section>
+
+        <div class="db-grid-2">
+            <section class="db-card" aria-labelledby="tlTitle">
+                <h2 id="tlTitle" class="db-h2">Time blocks</h2>
+                @if (!timed.Any())
+                {
+                    <div class="empty-state">
+                        <span class="empty-ico"><Icon Name="clock" /></span>
+                        <strong>No time blocks yet</strong>
+                        <span class="db-muted db-small">Give an item a start time and it shows up here.</span>
+                    </div>
+                }
+                <div class="pl-timeline">
+                    @{ bool nowShown = false; }
+                    @foreach (var t in timed)
+                    {
+                        bool isNow = isToday && !t.IsDone && t.StartMinutes <= nowMin && (t.EndMinutes ?? t.StartMinutes + 30) > nowMin;
+                        if (isToday && !nowShown && t.StartMinutes > nowMin)
+                        {
+                            nowShown = true;
+                            <div class="pl-now" aria-label="Current time"><span>Now · @PlanService.TimeText(nowMin)</span></div>
+                        }
+                        <div class="pl-block @(t.IsDone ? "is-done" : "") @(isNow ? "is-now" : "")" @key="t.Id">
+                            <div class="pl-time lo-num">@PlanService.TimeText(t.StartMinutes!.Value)@(t.EndMinutes != null ? " – " + PlanService.TimeText(t.EndMinutes.Value) : "")</div>
+                            <button type="button" class="db-check @(t.IsDone ? "done" : "")" disabled="@busy"
+                                    aria-label="@(t.IsDone ? "Mark as not done" : "Mark as done"): @t.Title" @onclick="() => Toggle(t.Id)">
+                                @if (t.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@t.Title@(t.IsMit ? " ★" : "")</div>
+                                @if (t.SourceKind != "Free") { <div class="db-task-meta">@SourceLabel(t.SourceKind)</div> }
+                            </div>
+                            @if (isNow) { <span class="db-badge high">Now</span> }
+                            @if (!t.IsDone) { <button type="button" class="lo-btn lo-btn-sm" aria-label="Focus on @t.Title" @onclick="() => FocusOn(t)"><Icon Name="clock" /> Focus</button> }
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @t.Title" @onclick='() => Ui.Open("plan-item", t.Id, DayKey)'>Edit</button>
+                        </div>
+                    }
+                    @if (isToday && !nowShown && timed.Any())
+                    {
+                        <div class="pl-now" aria-label="Current time"><span>Now · @PlanService.TimeText(nowMin)</span></div>
+                    }
+                </div>
+            </section>
+
+            <section class="db-card" aria-labelledby="anyTitle">
+                <h2 id="anyTitle" class="db-h2">Anytime today</h2>
+                @if (!anytime.Any())
+                {
+                    <div class="empty-state">
+                        <span class="empty-ico"><Icon Name="calendar" /></span>
+                        <strong>Nothing loose</strong>
+                        <span class="db-muted db-small">Items without a time land here.</span>
+                    </div>
+                }
+                <div class="db-task-list">
+                    @foreach (var a in anytime)
+                    {
+                        <div class="db-task @(a.IsDone ? "is-done" : "")" @key="a.Id">
+                            <button type="button" class="db-check @(a.IsDone ? "done" : "")" disabled="@busy"
+                                    aria-label="@(a.IsDone ? "Mark as not done" : "Mark as done"): @a.Title" @onclick="() => Toggle(a.Id)">
+                                @if (a.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@a.Title</div>
+                                @if (a.SourceKind != "Free") { <div class="db-task-meta">@SourceLabel(a.SourceKind)</div> }
+                            </div>
+                            @if (!a.IsDone) { <button type="button" class="lo-btn lo-btn-sm" aria-label="Focus on @a.Title" @onclick="() => FocusOn(a)"><Icon Name="clock" /> Focus</button> }
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @a.Title" @onclick='() => Ui.Open("plan-item", a.Id, DayKey)'>Edit</button>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        @if (suggestions.Any())
+        {
+            <section class="db-card" aria-labelledby="sugTitle">
+                <div class="db-card-head">
+                    <h2 id="sugTitle" class="db-h2">Due @(isToday ? "today" : "this day") · not in plan</h2>
+                </div>
+                <div class="db-task-list">
+                    @foreach (var s in suggestions)
+                    {
+                        <div class="db-task" @key="@(s.Kind + s.Id)">
+                            <div class="db-task-body">
+                                <div class="db-task-title">@s.Title</div>
+                                <div class="db-task-meta">@SourceLabel(s.Kind)</div>
+                            </div>
+                            <button type="button" class="lo-btn lo-btn-sm" @onclick="() => AddSuggestion(s)">+ Plan</button>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private record Suggestion(string Kind, int Id, string Title);
+
+    private DateTime day = DateTime.Today;
+    private List<PlanItem>? items;
+    private List<Suggestion> suggestions = new();
+    private bool busy;
+    private System.Threading.Timer? ticker;
+
+    private int DayKey => day.Year * 10000 + day.Month * 100 + day.Day;
+
+    private static string SourceLabel(string kind) => kind switch
+    {
+        "Task" => "Task", "ProjectTask" => "Project task", "StudyTask" => "Study task", _ => "",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+        // keep the "now" line fresh
+        ticker = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { Ui.DataChanged -= OnDataChanged; ticker?.Dispose(); }
+        base.Dispose(disposing);
+    }
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        items = await db.PlanItems.AsNoTracking().Where(p => p.Date == day).ToListAsync();
+
+        var planned = items.Where(i => i.SourceId != null).Select(i => (i.SourceKind, i.SourceId!.Value)).ToHashSet();
+        var list = new List<Suggestion>();
+        var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
+        foreach (var t in await tasks.GetForDayAsync(day, includeOverdue: day == DateTime.Today))
+            if (!t.IsDone && !planned.Contains(("Task", t.Task.Id))) list.Add(new Suggestion("Task", t.Task.Id, t.Task.Title));
+        bool isToday = day == DateTime.Today;
+        foreach (var pt in await db.ProjectTasks.AsNoTracking()
+                     .Where(p => !p.IsCompleted && p.DueDate != null && (p.DueDate.Value.Date == day || (isToday && p.DueDate.Value.Date < day))).ToListAsync())
+            if (!planned.Contains(("ProjectTask", pt.Id))) list.Add(new Suggestion("ProjectTask", pt.Id, pt.Title));
+        foreach (var st in (await StudyTaskItems.LoadAllAsync(db))
+                     .Where(s => !s.IsCompleted && s.DueDate != null && (s.DueDate.Value.Date == day || (isToday && s.DueDate.Value.Date < day))))
+            if (!planned.Contains(("StudyTask", st.Id))) list.Add(new Suggestion("StudyTask", st.Id, st.Title));
+        suggestions = list.Take(6).ToList();
+    }
+
+    private void FocusOn(PlanItem item)
+    {
+        if (Timer.IsRunning) { Ui.Toast("A focus timer is already running."); return; }
+        string kind = item.SourceKind == "Free" || item.SourceId == null ? "Free" : item.SourceKind;
+        Timer.SetTarget(kind, item.SourceId, item.Title);
+        Timer.SetMinutes(25);
+        Timer.Start();
+        if (!Timer.IsOpen) Timer.Toggle();
+    }
+
+    private async Task GoTo(DateTime newDay)
+    {
+        day = newDay.Date;
+        await LoadAsync();
+    }
+
+    private async Task Toggle(int id)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var state = await PlanService.ToggleAsync(scope.ServiceProvider, id);
+            if (state == true) Ui.Toast("Done. Nice work!");
+            Ui.NotifyDataChanged();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task AddSuggestion(Suggestion s)
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.PlanItems.Add(new PlanItem { Date = day, Title = s.Title, SourceKind = s.Kind, SourceId = s.Id });
+        await db.SaveChangesAsync();
+        Ui.NotifyDataChanged();
+    }
+}

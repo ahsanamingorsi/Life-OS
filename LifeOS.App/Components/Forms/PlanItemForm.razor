@@ -1,0 +1,209 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+<GlassModal Open="Open" Title="@(ItemId == 0 ? "Add to plan" : "Edit plan item")" Subtitle="@day.ToString("dddd, d MMMM")" OnClose="Close">
+    <ChildContent>
+        @if (error != null) { <div class="lo-flash lo-flash-error" role="alert">@error</div> }
+        <div class="lo-form">
+            <div class="lo-field">
+                <label for="pi-link" class="lo-label">What is it?</label>
+                <select id="pi-link" class="lo-input" value="@kind" @onchange="OnKindChanged">
+                    <option value="Free">Something new (free text)</option>
+                    <option value="Task">One of my tasks</option>
+                    <option value="ProjectTask">A project task</option>
+                    <option value="StudyTask">A study task</option>
+                </select>
+            </div>
+            @if (kind != "Free")
+            {
+                <div class="lo-field">
+                    <label for="pi-src" class="lo-label">Pick item</label>
+                    <select id="pi-src" class="lo-input" value="@sourceId" @onchange="OnSourceChanged">
+                        <option value="0">— choose —</option>
+                        @foreach (var o in options)
+                        {
+                            <option value="@o.Id">@o.Text</option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="lo-field">
+                <label for="pi-title" class="lo-label">Title <span aria-hidden="true">*</span></label>
+                <input id="pi-title" class="lo-input" @bind="title" @bind:event="oninput" maxlength="200" />
+            </div>
+            <div class="lo-form-grid">
+                <div class="lo-field">
+                    <label for="pi-start" class="lo-label">Start <span class="db-muted">(optional)</span></label>
+                    <input id="pi-start" type="time" class="lo-input" value="@start" @onchange="e => start = e.Value?.ToString() ?? string.Empty" />
+                </div>
+                <div class="lo-field">
+                    <label for="pi-end" class="lo-label">End <span class="db-muted">(optional)</span></label>
+                    <input id="pi-end" type="time" class="lo-input" value="@end" @onchange="e => end = e.Value?.ToString() ?? string.Empty" />
+                </div>
+            </div>
+            <label class="lo-check-label"><input type="checkbox" @bind="isMit" /> One of today's 3 most important things</label>
+        </div>
+    </ChildContent>
+    <Footer>
+        @if (ItemId != 0)
+        {
+            <button type="button" class="lo-btn lo-btn-danger-solid" @onclick="Delete" disabled="@busy">Remove</button>
+        }
+        <button type="button" class="lo-btn" @onclick="Close" disabled="@busy">Cancel</button>
+        <button type="button" class="lo-btn lo-btn-primary" @onclick="Save" disabled="@busy">@(ItemId == 0 ? "Add" : "Save changes")</button>
+    </Footer>
+</GlassModal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public int ItemId { get; set; }
+    /// <summary>The day as yyyymmdd; 0 = today.</summary>
+    [Parameter] public int DayKey { get; set; }
+    /// <summary>1 = start as an MIT.</summary>
+    [Parameter] public int AsMit { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private record Opt(int Id, string Text);
+
+    private bool wasOpen, busy;
+    private string? error;
+    private DateTime day = DateTime.Today;
+    private string kind = "Free";
+    private int sourceId;
+    private string title = "";
+    private string start = "";
+    private string end = "";
+    private bool isMit;
+    private List<Opt> options = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Open && !wasOpen) await LoadAsync();
+        wasOpen = Open;
+    }
+
+    private static string ToTime(int? minutes) => minutes == null ? "" : $"{minutes / 60:00}:{minutes % 60:00}";
+
+    private static int? FromTime(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        return TimeSpan.TryParse(s, out var ts) ? (int)ts.TotalMinutes : null;
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        kind = "Free"; sourceId = 0; title = ""; start = ""; end = ""; options = new();
+        isMit = AsMit == 1;
+        day = DayKey == 0 ? DateTime.Today
+            : new DateTime(DayKey / 10000, DayKey / 100 % 100, DayKey % 100);
+        if (ItemId == 0) return;
+
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var p = await db.PlanItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ItemId);
+        if (p == null) return;
+        day = p.Date;
+        title = p.Title; isMit = p.IsMit;
+        start = ToTime(p.StartMinutes); end = ToTime(p.EndMinutes);
+        kind = p.SourceKind; sourceId = p.SourceId ?? 0;
+        if (kind != "Free") await LoadOptionsAsync(db);
+    }
+
+    private async Task LoadOptionsAsync(AppDbContext db)
+    {
+        options = kind switch
+        {
+            "Task" => (await db.PersonalTasks.AsNoTracking().Where(t => t.Repeat != "None" || !t.IsCompleted)
+                .OrderBy(t => t.Title).Take(300).ToListAsync()).Select(t => new Opt(t.Id, t.Title)).ToList(),
+            "ProjectTask" => (await db.ProjectTasks.AsNoTracking().Where(t => !t.IsCompleted)
+                .OrderBy(t => t.Title).Take(300).ToListAsync()).Select(t => new Opt(t.Id, t.Title)).ToList(),
+            "StudyTask" => (await db.StudyTasks.AsNoTracking().Include(t => t.StudySubject).Where(t => !t.IsCompleted)
+                .OrderBy(t => t.Title).Take(300).ToListAsync()).Select(t => new Opt(t.Id, $"{t.Title} ({t.StudySubject?.Name})")).ToList(),
+            _ => new List<Opt>(),
+        };
+        // keep a linked item visible even if it is already done
+        if (sourceId != 0 && options.All(o => o.Id != sourceId)) options.Insert(0, new Opt(sourceId, title));
+    }
+
+    private async Task OnKindChanged(ChangeEventArgs e)
+    {
+        kind = e.Value?.ToString() ?? "Free";
+        sourceId = 0;
+        options = new();
+        if (kind != "Free")
+        {
+            using var scope = ScopedServices.CreateScope();
+            await LoadOptionsAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+        }
+    }
+
+    private void OnSourceChanged(ChangeEventArgs e)
+    {
+        int.TryParse(e.Value?.ToString(), out sourceId);
+        var o = options.FirstOrDefault(x => x.Id == sourceId);
+        if (o != null && string.IsNullOrWhiteSpace(title)) title = o.Text.Split(" (")[0];
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task Save()
+    {
+        title = (title ?? "").Trim();
+        if (title.Length == 0) { error = "Enter a title."; return; }
+        if (kind != "Free" && sourceId == 0) { error = "Choose the item, or switch to 'Something new'."; return; }
+        int? s = FromTime(start), e = FromTime(end);
+        if (e != null && s == null) { error = "Add a start time too."; return; }
+        if (s != null && e != null && e <= s) { error = "End time must be after start time."; return; }
+
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (isMit)
+            {
+                int others = await db.PlanItems.CountAsync(p => p.Date == day && p.IsMit && p.Id != ItemId);
+                if (others >= 3) { error = "You already have 3 most important things for this day."; return; }
+            }
+            PlanItem? row;
+            if (ItemId == 0)
+            {
+                row = new PlanItem { Date = day, CreatedAt = DateTime.Now };
+                db.PlanItems.Add(row);
+            }
+            else
+            {
+                row = await db.PlanItems.FindAsync(ItemId);
+                if (row == null) { error = "This item no longer exists."; return; }
+            }
+            row.Title = title; row.IsMit = isMit; row.StartMinutes = s; row.EndMinutes = e;
+            row.SourceKind = kind; row.SourceId = kind == "Free" ? null : sourceId;
+            await db.SaveChangesAsync();
+            Ui.Toast(ItemId == 0 ? "Added to your plan" : "Plan updated");
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task Delete()
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var row = await db.PlanItems.FindAsync(ItemId);
+            if (row != null) { db.PlanItems.Remove(row); await db.SaveChangesAsync(); }
+            Ui.Toast("Removed from plan");
+            Ui.NotifyDataChanged();
+            await OnSaved.InvokeAsync();
+        }
+        finally { busy = false; }
+    }
+}

@@ -18,7 +18,7 @@ else
     <div class="db">
         <div class="db-head">
             <div>
-                <div class="db-date">@vm.Today.ToString("dddd, d MMMM")</div>
+                <div class="db-date">@vm.Today.ToString("dddd, d MMMM")@if (points != null) { <a class="db-pill" href="insights" style="margin-left:8px;" title="Points and levels">Level @points.Level · @points.Points pts</a> }</div>
                 <h1 class="db-title">@vm.Greeting. Here is your day.</h1>
             </div>
             <div class="db-actions">
@@ -111,6 +111,72 @@ else
                 <p class="dx-quote">@Motivation</p>
             </section>
         </div>
+
+        @if (showShutdownPrompt || showWeeklyPrompt)
+        {
+            <section class="db-card pl-prompt-card" aria-label="Reflection prompts">
+                @if (showShutdownPrompt)
+                {
+                    <div class="pl-prompt">
+                        <div><strong>Time to close your day.</strong><div class="db-muted db-small">Review, move what is left, and set tomorrow's top 3. Takes 2 minutes.</div></div>
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("shutdown")'><Icon Name="moon" /> Evening shutdown</button>
+                    </div>
+                }
+                @if (showWeeklyPrompt)
+                {
+                    <div class="pl-prompt">
+                        <div><strong>Weekly review is due.</strong><div class="db-muted db-small">Look back at the week and choose next week's focus.</div></div>
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("weekly-review")'><Icon Name="sparkle" /> Start review</button>
+                    </div>
+                }
+            </section>
+        }
+
+        <section class="db-card" aria-labelledby="planCardTitle">
+            <div class="db-card-head">
+                <h2 id="planCardTitle" class="db-h2">Today's plan</h2>
+                <span class="db-muted db-small">@focusToday min focused</span>
+                <a class="db-link" href="plan">Open daily plan</a>
+            </div>
+            @if (!todayPlan.Any())
+            {
+                <div class="pl-prompt">
+                    <div>
+                        <strong>You have not planned today yet.</strong>
+                        <div class="db-muted db-small">Pick your 3 most important things. It takes one minute.</div>
+                    </div>
+                    <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("plan-mit", 0, TodayKey)'><Icon Name="plus" /> Plan my day</button>
+                </div>
+            }
+            else
+            {
+                int nowMin = LifeOS.App.Services.PlanService.NowMinutes();
+                var nowItem = todayPlan.FirstOrDefault(p => !p.IsDone && p.StartMinutes != null && p.StartMinutes <= nowMin && (p.EndMinutes ?? p.StartMinutes + 30) > nowMin);
+                var nextItem = todayPlan.Where(p => !p.IsDone && p.StartMinutes != null && p.StartMinutes > nowMin).OrderBy(p => p.StartMinutes).FirstOrDefault();
+                if (nowItem != null || nextItem != null)
+                {
+                    <div class="pl-nownext">
+                        @if (nowItem != null) { <span class="db-badge high">Now</span> <strong>@nowItem.Title</strong> <span class="db-muted db-small">@LifeOS.App.Services.PlanService.RangeText(nowItem)</span> }
+                        @if (nextItem != null) { <span class="db-badge">Next</span> <span>@nextItem.Title</span> <span class="db-muted db-small">@LifeOS.App.Services.PlanService.TimeText(nextItem.StartMinutes!.Value)</span> }
+                    </div>
+                }
+                <div class="db-task-list">
+                    @foreach (var p in todayPlan.OrderByDescending(p => p.IsMit).ThenBy(p => p.IsDone).ThenBy(p => p.StartMinutes ?? 9999).Take(5))
+                    {
+                        <div class="db-task @(p.IsDone ? "is-done" : "")" @key="p.Id">
+                            <button type="button" class="db-check @(p.IsDone ? "done" : "")" disabled="@busy"
+                                    aria-label="@(p.IsDone ? "Mark as not done" : "Mark as done"): @p.Title" @onclick="() => TogglePlan(p.Id)">
+                                @if (p.IsDone) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@p.Title@(p.IsMit ? " ★" : "")</div>
+                                <div class="db-task-meta">@LifeOS.App.Services.PlanService.RangeText(p)</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
 
         @if (ShowChecklist)
         {
@@ -296,6 +362,23 @@ else
     private record Step(string Title, string Hint, bool Done, string? Kind, string? Href);
 
     private DashboardViewModel? vm;
+    private List<PlanItem> todayPlan = new();
+    private int focusToday;
+    private LifeOS.App.Services.PointsResult? points;
+    private bool showShutdownPrompt, showWeeklyPrompt;
+    private static int TodayKey => DateTime.Today.Year * 10000 + DateTime.Today.Month * 100 + DateTime.Today.Day;
+
+    private async Task TogglePlan(int id)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            await LifeOS.App.Services.PlanService.ToggleAsync(scope.ServiceProvider, id);
+            Ui.NotifyDataChanged();
+        }
+        finally { busy = false; }
+    }
     private string filter = "all";
     private string newTask = "";
     private bool busy;
@@ -387,6 +470,29 @@ else
         vm = await scope.ServiceProvider.GetRequiredService<DashboardService>().BuildAsync(DateTime.Now);
 
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var planDay = DateTime.Today;
+        todayPlan = await db.PlanItems.AsNoTracking().Where(p => p.Date == planDay).ToListAsync();
+        var planNext = planDay.AddDays(1);
+        points = await LifeOS.App.Services.Points.ComputeAsync(db);
+        showShutdownPrompt = DateTime.Now.Hour >= 18 && !await db.DayReflections.AnyAsync(r => r.Date == planDay);
+        showWeeklyPrompt = DateTime.Today.DayOfWeek == DayOfWeek.Sunday
+            && !await db.ReviewEntries.AnyAsync(r => r.Period == "Weekly" && r.CreatedAt >= planDay.AddDays(-5));
+        focusToday = await db.FocusSessions.Where(f => f.StartedAt >= planDay && f.StartedAt < planNext).SumAsync(f => (int?)f.Minutes) ?? 0;
+
+        // Study subject tasks that are due (or overdue) join today's task list.
+        var todayDate = DateTime.Today;
+        foreach (var s in (await LifeOS.App.Services.StudyTaskItems.LoadAllAsync(db)).Where(s => s.DueDate.HasValue && s.DueDate.Value.Date <= todayDate && (!s.IsCompleted || s.CompletedAt?.Date == todayDate)))
+        {
+            bool overdue = !s.IsCompleted && s.DueDate!.Value.Date < todayDate;
+            vm.Tasks.Add(new DashboardTask
+            {
+                Id = LifeOS.App.Services.StudyTaskItems.ToMixedId(s.Id), Title = s.Title, IsCompleted = s.IsCompleted, IsOverdue = overdue,
+                Priority = "B", Repeat = "None",
+                Meta = $"Study: {s.StudySubject?.Name} · " + (overdue ? "Overdue · " : "Due today · ") + s.DueDate!.Value.ToString("dd MMM"),
+            });
+            if (s.DueDate.Value.Date == todayDate) { vm.TasksDueToday++; if (s.IsCompleted) vm.TasksDoneToday++; }
+        }
+
         checklist = new[]
         {
             new Step("Add your first task", "One clear next step for today.", await db.PersonalTasks.AnyAsync(), "task", null),
@@ -407,7 +513,8 @@ else
 
     private void StartFocus(string label)
     {
-        Timer.Label = label;
+        if (Timer.IsRunning) { if (!Timer.IsOpen) Timer.Toggle(); return; }
+        Timer.SetTarget("Free", null, label);
         Timer.SetMinutes(25);
         Timer.Start();
         if (!Timer.IsOpen) Timer.Toggle();
@@ -419,6 +526,13 @@ else
         try
         {
             using var scope = ScopedServices.CreateScope();
+            if (id < 0)
+            {
+                var result = await LifeOS.App.Services.StudyTaskItems.ToggleAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), -id);
+                if (result != null) Ui.Toast(result.Value.Done ? $"Done: {title}" : $"Reopened: {title}");
+                await LoadAsync();
+                return;
+            }
             var tasks = scope.ServiceProvider.GetRequiredService<TaskService>();
             var state = await tasks.ToggleAsync(id, DateTime.Today);
             if (state != null)

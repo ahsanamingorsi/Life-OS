@@ -14,6 +14,10 @@
 <LinkForm Open="@(kind == "link")" LinkId="id" OnClose="Close" OnSaved="Close" />
 <SpiritualNoteForm Open="@(kind == "spiritual-note")" DayKey="id" OnClose="Close" OnSaved="Close" />
 <ProjectTaskForm Open="@(kind == "project-task" || kind == "project-task-edit")" ProjectId="@(kind == "project-task" ? id : 0)" TaskId="@(kind == "project-task-edit" ? id : 0)" OnClose="Close" OnSaved="Close" />
+<PlanItemForm Open="@(kind == "plan-item" || kind == "plan-mit")" ItemId="id" DayKey="@(context ?? 0)" AsMit="@(kind == "plan-mit" ? 1 : 0)" OnClose="Close" OnSaved="Close" />
+<ShutdownForm Open="@(kind == "shutdown")" OnClose="Close" OnSaved="Close" />
+<WeeklyReviewForm Open="@(kind == "weekly-review")" OnClose="Close" OnSaved="Close" />
+<HabitForm Open="@(kind == "habit")" HabitId="id" OnClose="Close" OnSaved="Close" />
 
 @code {
     private string? kind;

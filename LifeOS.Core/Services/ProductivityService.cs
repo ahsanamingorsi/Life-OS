@@ -62,6 +62,17 @@ namespace LifeOS.MVC.Services
             if (skillDailyTarget > 0)
                 areas.Add(new AreaScore { Name = "Skills", Percent = Pct(skillHours, skillDailyTarget), Value = $"{skillHours:0.#}h" });
 
+            // ── Habits: average completion of the habits that apply that day ──
+            var habits = await _db.Habits.AsNoTracking().Where(h => !h.IsArchived && h.CreatedAt < next).ToListAsync();
+            habits = habits.Where(h => HabitMath.IsActiveOn(h, day)).ToList();
+            if (habits.Count > 0)
+            {
+                var values = await _db.HabitLogs.AsNoTracking().Where(l => l.Date == day).ToDictionaryAsync(l => l.HabitId, l => l.Value);
+                double sum = habits.Sum(h => HabitMath.Fraction(h, values.GetValueOrDefault(h.Id)));
+                int done = habits.Count(h => HabitMath.Fraction(h, values.GetValueOrDefault(h.Id)) >= 1);
+                areas.Add(new AreaScore { Name = "Habits", Percent = (int)Math.Round(sum / habits.Count * 100), Value = $"{done}/{habits.Count}" });
+            }
+
             // ── Spiritual: prayers that day (always counted; default 5) ──
             var spiritual = await _db.SpiritualEntries.AsNoTracking()
                 .Where(s => s.Date >= day && s.Date < next)

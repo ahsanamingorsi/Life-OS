@@ -1,0 +1,96 @@
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.App.Services
+@inject LifeOS.App.Services.AppUi Ui
+@inject INotifier Notifier
+
+<section class="db-card" aria-labelledby="remTitle">
+    <div class="db-card-head">
+        <h2 id="remTitle" class="db-h2">Reminders</h2>
+        <button type="button" class="lo-btn lo-btn-sm" @onclick="TestNotification">Send test</button>
+    </div>
+    @if (!loaded) { <p class="db-empty">Loading…</p> }
+    else
+    {
+        <p class="db-muted db-small" style="margin-top:0;">Life OS shows Windows notifications while it is running. A minimized window is fine; if you close the app, reminders stop. Prayer times are set by you (the app works fully offline).</p>
+
+        <label class="lo-check-label"><input type="checkbox" checked="@On(ReminderKeys.Master)" @onchange="e => Set(ReminderKeys.Master, (bool)e.Value!)" /> <strong>Turn on reminders</strong></label>
+
+        @if (On(ReminderKeys.Master))
+        {
+            <div class="rm-list">
+                <div class="rm-row">
+                    <label class="lo-check-label"><input type="checkbox" checked="@On(ReminderKeys.PrayerOn)" @onchange="e => Set(ReminderKeys.PrayerOn, (bool)e.Value!)" /> Prayer times <span class="db-muted db-small">(only if not ticked yet)</span></label>
+                </div>
+                @if (On(ReminderKeys.PrayerOn))
+                {
+                    <div class="rm-prayers">
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            string name = ReminderKeys.Prayers[i]; string key = ReminderKeys.PrayerKey(name); string def = ReminderKeys.PrayerDefaults[i];
+                            <div class="lo-field">
+                                <label class="lo-label" for="@("pt-" + name)">@name</label>
+                                <input id="@("pt-" + name)" type="time" class="lo-input" value="@Get(key, def)" @onchange="e => SetText(key, e.Value?.ToString() ?? def)" />
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="rm-row">
+                    <label class="lo-check-label"><input type="checkbox" checked="@On(ReminderKeys.BlockOn)" @onchange="e => Set(ReminderKeys.BlockOn, (bool)e.Value!)" /> Time blocks <span class="db-muted db-small">(5 minutes before a planned block)</span></label>
+                </div>
+                @foreach (var it in ReminderKeys.Items)
+                {
+                    var item = it;
+                    <div class="rm-row">
+                        <label class="lo-check-label"><input type="checkbox" checked="@On(ReminderKeys.OnKey(item.Key))" @onchange="e => Set(ReminderKeys.OnKey(item.Key), (bool)e.Value!)" /> @item.Title <span class="db-muted db-small">(@item.Hint)</span></label>
+                        <input type="time" class="lo-input lo-input-tiny" aria-label="@item.Title time" value="@Get(ReminderKeys.TimeKey(item.Key), item.DefaultTime)" @onchange="e => SetText(ReminderKeys.TimeKey(item.Key), e.Value?.ToString() ?? item.DefaultTime)" />
+                    </div>
+                }
+            </div>
+        }
+
+        @if (AutoStart.Supported)
+        {
+            <hr class="rm-sep" />
+            <label class="lo-check-label"><input type="checkbox" checked="@autostart" @onchange="e => SetAutostart((bool)e.Value!)" /> <strong>Start Life OS with Windows</strong> <span class="db-muted db-small">(opens minimized so reminders work after you sign in)</span></label>
+        }
+    }
+</section>
+
+@code {
+    private Dictionary<string, string> settings = new();
+    private bool loaded, autostart;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        settings = await SettingsStore.AllAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+        autostart = AutoStart.IsEnabled();
+        loaded = true;
+    }
+
+    private string Get(string key, string def) => settings.TryGetValue(key, out var v) ? v : def;
+    private bool On(string key) => Get(key, key == ReminderKeys.Master ? "0" : "1") == "1";
+
+    private async Task Set(string key, bool value) => await SetText(key, value ? "1" : "0");
+
+    private async Task SetText(string key, string value)
+    {
+        settings[key] = value;
+        using var scope = ScopedServices.CreateScope();
+        await SettingsStore.SetAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), key, value);
+    }
+
+    private void TestNotification()
+    {
+        Notifier.Show("Life OS", "Notifications are working. You will see reminders like this.");
+        Ui.Toast("Test notification sent");
+    }
+
+    private void SetAutostart(bool value)
+    {
+        autostart = value;
+        AutoStart.Set(value);
+        Ui.Toast(value ? "Life OS will start with Windows" : "Start with Windows turned off");
+    }
+}

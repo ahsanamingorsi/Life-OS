@@ -1,0 +1,196 @@
+@page "/habits"
+@inherits OwningComponentBase
+@using LifeOS.MVC.Data
+@using LifeOS.MVC.Models
+@using LifeOS.MVC.Services
+@using Microsoft.EntityFrameworkCore
+@inject LifeOS.App.Services.AppUi Ui
+
+@if (habits == null)
+{
+    <p class="db-empty">Loading…</p>
+}
+else
+{
+    var today = DateTime.Today;
+    var dueToday = habits.Where(h => HabitMath.IsActiveOn(h, today)).ToList();
+    int doneToday = dueToday.Count(h => HabitMath.IsDone(h, Val(h.Id, today)));
+    <div class="db">
+        <div class="db-head">
+            <div>
+                <div class="db-date">Habits</div>
+                <h1 class="db-title">Build the chain</h1>
+                <div class="db-muted db-small">@(dueToday.Count == 0 ? "No habits for today." : $"{doneToday} of {dueToday.Count} done today")</div>
+            </div>
+            <div class="db-actions">
+                <button type="button" class="lo-btn lo-btn-primary" @onclick='() => Ui.Open("habit")'><Icon Name="plus" /> New habit</button>
+            </div>
+        </div>
+
+        @if (!habits.Any())
+        {
+            <section class="db-card">
+                <div class="empty-state">
+                    <span class="empty-ico"><Icon Name="flame" /></span>
+                    <strong>No habits yet</strong>
+                    <span class="db-muted db-small">Small daily habits change a life. Start with a few, or add your own.</span>
+                    <div class="db-actions">
+                        <button type="button" class="lo-btn lo-btn-primary" @onclick="AddStarters">Add starter habits</button>
+                        <button type="button" class="lo-btn" @onclick='() => Ui.Open("habit")'>Make my own</button>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <div class="hb-list">
+            @foreach (var h in habits)
+            {
+                bool active = HabitMath.IsActiveOn(h, today);
+                int v = Val(h.Id, today);
+                bool done = HabitMath.IsDone(h, v);
+                var values = valuesByHabit.GetValueOrDefault(h.Id) ?? new Dictionary<DateTime, int>();
+                <section class="db-card hb-card @(done ? "is-done" : "")" @key="h.Id" aria-label="@h.Name">
+                    <div class="hb-top">
+                        @if (h.Kind == "Check")
+                        {
+                            <button type="button" class="db-check @(done ? "done" : "")" disabled="@(busy || !active)"
+                                    aria-label="@(done ? "Mark as not done" : "Mark as done"): @h.Name" @onclick="() => SetValue(h, today, done ? 0 : 1)">
+                                @if (done) { <Icon Name="tick" /> }
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="hb-counter">
+                                <button type="button" class="lo-btn lo-btn-sm" disabled="@(busy || !active || v <= 0)" aria-label="Less @h.Name" @onclick="() => SetValue(h, today, v - 1)">−</button>
+                                <span class="lo-num hb-count">@v<small> / @h.Target @h.Unit</small></span>
+                                <button type="button" class="lo-btn lo-btn-sm lo-btn-primary" disabled="@(busy || !active)" aria-label="More @h.Name" @onclick="() => SetValue(h, today, v + 1)">+</button>
+                            </div>
+                        }
+                        <div class="db-task-body">
+                            <div class="db-task-title">@h.Name</div>
+                            <div class="db-task-meta">@DaysText(h)@(active ? "" : " · not today")</div>
+                        </div>
+                        <span class="hb-streak" title="Current streak"><Icon Name="flame" /> <span class="lo-num">@HabitMath.Streak(h, values, today)</span></span>
+                        <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @h.Name" @onclick='() => Ui.Open("habit", h.Id)'>Edit</button>
+                    </div>
+                    <div class="hb-chain" role="img" aria-label="Last 28 days for @h.Name">
+                        @for (int i = 27; i >= 0; i--)
+                        {
+                            var d = today.AddDays(-i);
+                            bool dayActive = HabitMath.IsActiveOn(h, d) && d >= h.CreatedAt.Date.AddDays(-7);
+                            int dv = values.GetValueOrDefault(d);
+                            double frac = HabitMath.Fraction(h, dv);
+                            string cls = !dayActive ? "off" : frac >= 1 ? "full" : frac > 0 ? "part" : "none";
+                            string tip = CellTip(h, d, dayActive, dv, frac);
+                            <button type="button" class="hb-cell @cls @(d == today ? "today" : "")" disabled="@(busy || !dayActive || h.Kind != "Check")"
+                                    title="@tip" @onclick="() => SetValue(h, d, frac >= 1 ? 0 : 1)"></button>
+                        }
+                    </div>
+                    <div class="db-muted db-tiny">Best streak: @HabitMath.BestStreak(h, values) days · last 28 days</div>
+                </section>
+            }
+        </div>
+
+        @if (archived.Any())
+        {
+            <section class="db-card">
+                <h2 class="db-h2">Archived</h2>
+                <div class="db-task-list">
+                    @foreach (var a in archived)
+                    {
+                        <div class="db-task is-done" @key="a.Id">
+                            <div class="db-task-body"><div class="db-task-title">@a.Name</div></div>
+                            <button type="button" class="lo-btn lo-btn-sm" @onclick='() => Ui.Open("habit", a.Id)'>Manage</button>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private List<Habit>? habits;
+    private List<Habit> archived = new();
+    private Dictionary<int, Dictionary<DateTime, int>> valuesByHabit = new();
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.DataChanged += OnDataChanged;
+        await LoadAsync();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Ui.DataChanged -= OnDataChanged;
+        base.Dispose(disposing);
+    }
+
+    private int Val(int habitId, DateTime day) =>
+        valuesByHabit.TryGetValue(habitId, out var m) && m.TryGetValue(day, out var v) ? v : 0;
+
+    private static string CellTip(Habit h, DateTime d, bool active, int value, double frac)
+    {
+        string text = d.ToString("ddd d MMM");
+        if (!active) return text;
+        if (h.Kind == "Check") return text + (frac >= 1 ? " - done" : " - missed");
+        return text + $" - {value}/{h.Target}";
+    }
+
+    private static string DaysText(Habit h)
+    {
+        if (h.DaysMask == 127) return "Every day";
+        var names = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+        return string.Join(" ", Enumerable.Range(0, 7).Where(i => (h.DaysMask & (1 << i)) != 0).Select(i => names[i]));
+    }
+
+    private async Task LoadAsync()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var all = await db.Habits.AsNoTracking().OrderBy(h => h.SortOrder).ThenBy(h => h.Id).ToListAsync();
+        habits = all.Where(h => !h.IsArchived).ToList();
+        archived = all.Where(h => h.IsArchived).ToList();
+        var logs = await db.HabitLogs.AsNoTracking().ToListAsync();
+        valuesByHabit = logs.GroupBy(l => l.HabitId).ToDictionary(g => g.Key, g => g.ToDictionary(l => l.Date.Date, l => l.Value));
+    }
+
+    private async Task SetValue(Habit h, DateTime day, int value)
+    {
+        value = Math.Max(0, value);
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var log = await db.HabitLogs.FirstOrDefaultAsync(l => l.HabitId == h.Id && l.Date == day);
+            if (value == 0) { if (log != null) db.HabitLogs.Remove(log); }
+            else if (log == null) db.HabitLogs.Add(new HabitLog { HabitId = h.Id, Date = day, Value = value });
+            else log.Value = value;
+            await db.SaveChangesAsync();
+            if (day == DateTime.Today && HabitMath.IsDone(h, value) && !HabitMath.IsDone(h, Val(h.Id, day)))
+                Ui.Toast($"{h.Name}: done!");
+            Ui.NotifyDataChanged();
+        }
+        finally { busy = false; }
+    }
+
+    private async Task AddStarters()
+    {
+        using var scope = ScopedServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        int order = 1;
+        db.Habits.AddRange(
+            new Habit { Name = "Read Quran", Kind = "Check", SortOrder = order++ },
+            new Habit { Name = "Exercise", Kind = "Check", SortOrder = order++ },
+            new Habit { Name = "Drink water", Kind = "Count", Target = 8, Unit = "glasses", SortOrder = order++ },
+            new Habit { Name = "Sleep early", Kind = "Check", SortOrder = order++ },
+            new Habit { Name = "Phone under limit", Kind = "Check", SortOrder = order++ });
+        await db.SaveChangesAsync();
+        Ui.Toast("Starter habits added");
+        Ui.NotifyDataChanged();
+    }
+}

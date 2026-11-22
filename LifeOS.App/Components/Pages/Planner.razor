@@ -30,7 +30,7 @@ else
             <section class="db-card" aria-labelledby="oneTimeTitle">
                 <h2 id="oneTimeTitle" class="db-h2">One-time tasks</h2>
                 <div class="db-task-list">
-                    @if (!oneTime!.Any())
+                    @if (!oneTime!.Any() && !studyDay.Any())
                     {
                         <div class="empty-state">
                             <span class="empty-ico"><Icon Name="calendar" /></span>
@@ -55,6 +55,22 @@ else
                             @if (dt.Task.Priority == "A") { <span class="db-badge high">High</span> }
                             else if (dt.Task.Priority == "C") { <span class="db-badge">Low</span> }
                             <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @dt.Task.Title" @onclick='() => Ui.Open("task", dt.Task.Id)'>Edit</button>
+                        </div>
+                    }
+                    @foreach (var st in studyDay)
+                    {
+                        bool stOverdue = !st.IsCompleted && st.DueDate.HasValue && st.DueDate.Value.Date < day;
+                        <div class="db-task @(st.IsCompleted ? "is-done" : "") @(stOverdue ? "is-overdue" : "")" @key="@("study" + st.Id)">
+                            <button type="button" class="db-check @(st.IsCompleted ? "done" : "")" disabled="@busy"
+                                    aria-label="@(st.IsCompleted ? "Mark as not done" : "Mark as done"): @st.Title" @onclick="() => ToggleStudy(st.Id)">
+                                @if (st.IsCompleted) { <Icon Name="tick" /> }
+                            </button>
+                            <div class="db-task-body">
+                                <div class="db-task-title">@st.Title</div>
+                                <div class="db-task-meta">@(stOverdue ? "Overdue · " : "")@(st.DueDate?.ToString("dd MMM") ?? "") · Study: @st.StudySubject?.Name</div>
+                            </div>
+                            <span class="db-badge repeat-weekly">Study</span>
+                            <button type="button" class="lo-btn lo-btn-sm" aria-label="Edit @st.Title" @onclick='() => Ui.Open("study-task-edit", st.Id)'>Edit</button>
                         </div>
                     }
                 </div>
@@ -119,6 +135,7 @@ else
     private List<DayTask>? oneTime;
     private List<DayTask>? repeated;
     private List<Project>? projects;
+    private List<StudyTask> studyDay = new();
     private bool busy;
 
     protected override async Task OnInitializedAsync()
@@ -144,6 +161,10 @@ else
         dayTasks = await tasks.GetForDayAsync(day, includeOverdue: day == DateTime.Today);
         oneTime = dayTasks.Where(t => !t.Task.IsRepeated).ToList();
         repeated = dayTasks.Where(t => t.Task.IsRepeated).ToList();
+        bool isToday = day == DateTime.Today;
+        studyDay = (await LifeOS.App.Services.StudyTaskItems.LoadAllAsync(db))
+            .Where(s => s.DueDate.HasValue && (s.DueDate.Value.Date == day || (isToday && !s.IsCompleted && s.DueDate.Value.Date < day)))
+            .OrderBy(s => s.IsCompleted).ThenBy(s => s.Title).ToList();
         projects = await db.Projects.AsNoTracking()
             .Where(p => p.Status == "Active")
             .OrderBy(p => p.Priority).ThenBy(p => p.Deadline ?? DateTime.MaxValue)
@@ -154,6 +175,19 @@ else
     {
         day = newDay.Date;
         await LoadAsync();
+    }
+
+    private async Task ToggleStudy(int studyTaskId)
+    {
+        busy = true;
+        try
+        {
+            using var scope = ScopedServices.CreateScope();
+            var result = await LifeOS.App.Services.StudyTaskItems.ToggleAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), studyTaskId);
+            if (result != null) Ui.Toast(result.Value.Done ? $"Done: {result.Value.Title}" : $"Reopened: {result.Value.Title}");
+            await LoadAsync();
+        }
+        finally { busy = false; }
     }
 
     private async Task Toggle(int id)

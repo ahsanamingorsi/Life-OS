@@ -1,8 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <!-- Windows only for now (Android can be added here later). -->
-        <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
+        <!-- Windows PC app and Android phone app share the same Blazor UI. -->
+        <TargetFrameworks>net10.0-windows10.0.19041.0;net10.0-android</TargetFrameworks>
+        <!-- Use -p:WinOnly=true when publishing the Windows installer (a runtime id for Windows cannot restore the Android target). -->
+        <TargetFrameworks Condition="'$(WinOnly)' == 'true'">net10.0-windows10.0.19041.0</TargetFrameworks>
 
         <!-- Note for MacCatalyst:
             The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
@@ -42,6 +44,11 @@
         <!-- Unpackaged while developing; the MSIX package for the Microsoft Store comes in milestone 7. -->
         <WindowsPackageType>None</WindowsPackageType>
         <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+
+        <!-- EF Core + Blazor need reflection: trimming breaks them in Release. -->
+        <PublishTrimmed>false</PublishTrimmed>
+        <AndroidLinkMode>None</AndroidLinkMode>
+        <RunAOTCompilation>false</RunAOTCompilation>
 
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">17.0</SupportedOSPlatformVersion>
